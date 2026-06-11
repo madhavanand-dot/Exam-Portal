@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // ---------- users ----------
+    match /users/{uid} {
+      // a user can read their own profile; admin can read all
+      allow read: if isSelf(uid) || isAdmin();
+      // only admin creates/updates/deletes profiles.
+      // Special case: the very first admin doc must be created from the
+      // Firebase console (see README), since no admin exists yet.
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- questions ----------
+    match /questions/{questionId} {
+      // students need question text during the exam; admin manages bank
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- exams ----------
+    match /exams/{examId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- attempts ----------
+    match /attempts/{attemptId} {
+      // students read all attempts of their exam type is NOT allowed doc-by-doc;
+      // for rank/percentile they may read any attempt (scores only by convention).
+      // Tighten to "own attempts + admin" if rank privacy matters more than
+      // client-side percentile calculation.
+      allow read: if signedIn();
+
+      // a student may create/update only their own attempt
+      allow create: if signedIn() &&
+        request.resource.data.studentUid == request.auth.uid;
+      allow update: if isAdmin() ||
+        (signedIn() &&
+         resource.data.studentUid == request.auth.uid &&
+         request.resource.data.studentUid == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NTA Online Exam Portal</title>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$','$$'], ['\\[','\\]']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
+  startup: { typeset: false }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<style>
+:root{
+  --blue:#1a5b9c; --blue-dark:#11497f; --blue-light:#e8f1fa;
+  --green:#3cb371; --red:#e25555; --purple:#8e44ad; --orange:#e8a33d; --grey:#cfd6dd;
+  --border:#d8dee5; --text:#222; --muted:#667;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+body{background:#fff;color:var(--text);font-size:15px}
+.hidden{display:none!important}
+button{cursor:pointer;font-size:14px}
+input,select,textarea{font-size:14px}
+.view{min-height:100vh}
+
+/* ---------- generic ---------- */
+.btn{padding:8px 18px;border:1px solid var(--blue);background:var(--blue);color:#fff;border-radius:4px;font-weight:600}
+.btn:hover{background:var(--blue-dark)}
+.btn.secondary{background:#fff;color:var(--blue)}
+.btn.danger{background:#c0392b;border-color:#c0392b}
+.btn.green{background:#2e8b57;border-color:#2e8b57}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.card{border:1px solid var(--border);border-radius:8px;padding:20px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:#345}
+.field input,.field select{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:4px}
+table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+table.tbl th,table.tbl td{border:1px solid var(--border);padding:7px 9px;text-align:left;vertical-align:top}
+table.tbl th{background:var(--blue-light);font-weight:600}
+table.tbl tr:nth-child(even) td{background:#fafbfc}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11.5px;font-weight:600}
+.badge.pos{background:#e2f5e9;color:#1e7a44}.badge.neg{background:#fdecea;color:#b03a2e}.badge.zero{background:#eef1f4;color:#556}
+.msg{padding:10px 12px;border-radius:4px;font-size:13.5px;margin:10px 0}
+.msg.err{background:#fdecea;color:#b03a2e}.msg.ok{background:#e2f5e9;color:#1e7a44}
+.topbar{background:var(--blue);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.topbar h1{font-size:17px;font-weight:700;flex:1}
+.topbar .who{font-size:13.5px}
+.wrap{max-width:1200px;margin:0 auto;padding:22px 18px}
+
+/* ---------- login ---------- */
+#view-login{display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--blue-light),#fff);min-height:100vh}
+#view-login .card{width:380px;max-width:94vw}
+#view-login h2{color:var(--blue);margin-bottom:4px}
+#view-login p.sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--blue);margin-bottom:18px;flex-wrap:wrap}
+.tabs button{padding:9px 18px;border:1px solid var(--border);border-bottom:none;background:#f3f6f9;border-radius:6px 6px 0 0;font-weight:600;color:#456}
+.tabs button.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* ---------- exam interface ---------- */
+#view-exam{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#examTop{background:var(--blue);color:#fff;display:flex;align-items:center;gap:14px;padding:9px 16px;flex-wrap:wrap}
+#examTop .title{font-weight:700;font-size:15.5px;flex:1;min-width:160px}
+#examTop .cand{font-size:13px}
+#timer{font-weight:700;font-size:18px;background:rgba(255,255,255,.15);padding:4px 14px;border-radius:4px;font-variant-numeric:tabular-nums}
+#timer.low{background:#c0392b;animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:.6}}
+#subjectTabs{display:flex;gap:2px;background:var(--blue-dark);padding:6px 10px 0;overflow-x:auto}
+#subjectTabs button{padding:8px 16px;border:none;background:#2f6cab;color:#fff;border-radius:5px 5px 0 0;font-weight:600;white-space:nowrap}
+#subjectTabs button.active{background:#fff;color:var(--blue)}
+#examMain{display:flex;flex:1;min-height:0}
+#qArea{flex:1;display:flex;flex-direction:column;min-width:0}
+#qScroll{flex:1;overflow-y:auto;padding:18px 22px}
+#qHead{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:14px;flex-wrap:wrap;gap:6px}
+#qHead .qno{font-weight:700;font-size:16px;color:var(--blue)}
+#qHead .qmeta{font-size:12px;color:var(--muted)}
+#qText{font-size:15.5px;line-height:1.65;margin-bottom:18px;user-select:none}
+.opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:6px;padding:11px 13px;margin-bottom:9px;cursor:pointer;user-select:none}
+.opt:hover{background:var(--blue-light)}
+.opt.sel{border-color:var(--blue);background:var(--blue-light);box-shadow:0 0 0 1px var(--blue)}
+.opt input{margin-top:3px}
+#numInputWrap input{width:220px;padding:10px;border:1px solid var(--border);border-radius:5px;font-size:16px}
+#examBtns{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border);background:#f7f9fb;flex-wrap:wrap}
+#examBtns .spacer{flex:1}
+/* palette */
+#palette{width:290px;border-left:1px solid var(--border);background:#f4f7fa;display:flex;flex-direction:column}
+#paletteHead{padding:10px 14px;background:var(--blue-light);font-weight:700;font-size:13.5px;color:var(--blue)}
+#legend{padding:10px 14px;font-size:11.5px;display:grid;grid-template-columns:1fr 1fr;gap:6px;border-bottom:1px solid var(--border)}
+#legend span{display:flex;align-items:center;gap:6px}
+.sw{width:16px;height:16px;border-radius:4px;display:inline-block;flex:none}
+#palGrid{flex:1;overflow-y:auto;padding:12px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-content:start}
+.palBtn{width:100%;aspect-ratio:1;border:1px solid #b9c2cc;border-radius:6px;font-weight:700;font-size:12.5px;color:#fff;background:var(--grey)}
+.palBtn.notVisited{background:var(--grey);color:#445}
+.palBtn.notAnswered{background:var(--red)}
+.palBtn.answered{background:var(--green)}
+.palBtn.markedAnswered{background:var(--purple)}
+.palBtn.markedNotAnswered{background:var(--orange)}
+.palBtn.current{outline:3px solid var(--blue);outline-offset:1px}
+#palSubmit{padding:12px}
+#palSubmit button{width:100%}
+#palToggle{display:none;position:fixed;bottom:14px;right:14px;z-index:60;background:var(--blue);color:#fff;border:none;border-radius:50%;width:52px;height:52px;font-size:21px;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+@media(max-width:768px){
+  #palette{position:fixed;right:-300px;top:0;bottom:0;z-index:50;transition:right .25s;box-shadow:-4px 0 14px rgba(0,0,0,.2)}
+  #palette.open{right:0}
+  #palToggle{display:block}
+}
+/* modal */
+#modalBack{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center}
+#modalBack .card{width:430px;max-width:92vw}
+#modalBack h3{margin-bottom:10px;color:var(--blue)}
+#modalSummary{font-size:13.5px;margin:10px 0;line-height:1.8}
+#modalActions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+/* result */
+.statRow{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+.stat{flex:1;min-width:130px;border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;background:var(--blue-light)}
+.stat .v{font-size:24px;font-weight:800;color:var(--blue)}
+.stat .l{font-size:12px;color:var(--muted);margin-top:3px}
+details.qexp summary{cursor:pointer;color:var(--blue);font-size:12.5px}
+details.qexp div{margin-top:6px;font-size:13px;line-height:1.5}
+.subTabs{display:flex;gap:6px;margin:10px 0}
+.subTabs button{padding:6px 14px;border:1px solid var(--border);background:#f3f6f9;border-radius:4px;font-weight:600}
+.subTabs button.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+#uploadLog{max-height:220px;overflow-y:auto;font-size:12.5px;font-family:ui-monospace,monospace;background:#f7f9fb;border:1px solid var(--border);border-radius:4px;padding:8px;margin-top:8px;white-space:pre-wrap}
+.flexrow{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.flexrow .field{flex:1;min-width:160px;margin-bottom:0}
+h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
+.checklist{max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;padding:8px}
+.checklist label{display:flex;gap:8px;padding:5px 4px;font-size:13px;border-bottom:1px solid #eef1f4;align-items:flex-start;cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="view-login" class="view">
+  <div class="card">
+    <h2>Online Exam Portal</h2>
+    <p class="sub">NTA-pattern CBT &mdash; NEET-UG / JEE Mains</p>
+    <div class="field"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input type="password" id="loginPass" autocomplete="current-password"></div>
+    <button class="btn" id="loginBtn" style="width:100%">Sign In</button>
+    <div id="loginMsg"></div>
+  </div>
+</div>
+
+<!-- ================= ADMIN ================= -->
+<div id="view-admin" class="view hidden">
+  <div class="topbar"><h1>Admin Dashboard</h1><span class="who" id="adminWho"></span><button class="btn secondary" id="adminLogout">Logout</button></div>
+  <div class="wrap">
+    <div class="tabs">
+      <button data-atab="students" class="active">Students</button>
+      <button data-atab="questions">Questions</button>
+      <button data-atab="exams">Exams</button>
+      <button data-atab="reports">Reports</button>
+    </div>
+
+    <div id="atab-students" class="atab">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Add Student</h2>
+        <div class="flexrow">
+          <div class="field"><label>Name</label><input id="stName"></div>
+          <div class="field"><label>Email</label><input id="stEmail" type="email"></div>
+          <div class="field"><label>Password</label><input id="stPass" type="text" placeholder="min 6 chars"></div>
+          <div class="field"><label>Exam Type</label><select id="stType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <button class="btn" id="addStudentBtn">Create</button>
+        </div>
+        <div id="studentMsg"></div>
+      </div>
+      <h2 class="sec">Students</h2>
+      <table class="tbl"><thead><tr><th>Name</th><th>Email</th><th>Exam Type</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
+    </div>
+
+    <div id="atab-questions" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Upload Questions (JSON)</h2>
+        <input type="file" id="qFile" accept=".json,application/json">
+        <button class="btn" id="qUploadBtn" style="margin-left:10px">Upload</button>
+        <div id="uploadLog" class="hidden"></div>
+      </div>
+      <h2 class="sec">Question Bank</h2>
+      <div class="flexrow" style="margin-bottom:10px">
+        <div class="field"><label>Exam Type</label><select id="qbType"><option value="medical">Medical</option><option value="engineering">Engineering</option></select></div>
+        <div class="field"><label>Subject</label><select id="qbSubject"></select></div>
+        <button class="btn secondary" id="qbLoadBtn">Load</button>
+        <button class="btn danger" id="qbClearBtn">Clear This Subject Bank</button>
+      </div>
+      <div id="qbMsg"></div>
+      <table class="tbl"><thead><tr><th>ID</th><th>Sec</th><th>Question</th><th>Ans</th><th>Topic</th><th>Difficulty</th><th></th></tr></thead><tbody id="qbRows"></tbody></table>
+    </div>
+
+    <div id="atab-exams" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Create Exam</h2>
+        <div class="flexrow" style="margin-bottom:12px">
+          <div class="field"><label>Title</label><input id="exTitle" placeholder="e.g. NEET Mock Test 04"></div>
+          <div class="field"><label>Exam Type</label><select id="exType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <button class="btn secondary" id="exLoadBankBtn">Load Bank</button>
+        </div>
+        <div id="exPicker"></div>
+        <div id="exMsg"></div>
+        <button class="btn green" id="exCreateBtn" style="margin-top:12px">Create Exam</button>
+      </div>
+      <h2 class="sec">Exams</h2>
+      <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Questions</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody id="examRows"></tbody></table>
+    </div>
+
+    <div id="atab-reports" class="atab hidden">
+      <div class="flexrow" style="margin-bottom:12px">
+        <div class="field"><label>Student</label><select id="rpStudent"><option value="">All</option></select></div>
+        <div class="field"><label>Exam Type</label><select id="rpType"><option value="">All</option><option value="medical">Medical</option><option value="engineering">Engineering</option></select></div>
+        <div class="field"><label>From</label><input type="date" id="rpFrom"></div>
+        <div class="field"><label>To</label><input type="date" id="rpTo"></div>
+        <button class="btn secondary" id="rpLoadBtn">Apply</button>
+        <button class="btn" id="rpCsvBtn">Export CSV</button>
+      </div>
+      <table class="tbl"><thead><tr><th>Date</th><th>Student</th><th>Type</th><th>Exam</th><th>Score</th><th>Time (min)</th><th>Wrong</th><th>Unanswered</th></tr></thead><tbody id="rpRows"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ================= STUDENT ================= -->
+<div id="view-student" class="view hidden">
+  <div class="topbar"><h1>Student Dashboard</h1><span class="who" id="studentWho"></span><button class="btn secondary" id="studentLogout">Logout</button></div>
+  <div class="wrap">
+    <div class="card" id="activeExamCard">
+      <h2 class="sec" style="margin-top:0">Active Exam</h2>
+      <div id="activeExamInfo">Checking for active exam&hellip;</div>
+    </div>
+    <h2 class="sec">Past Attempts</h2>
+    <table class="tbl"><thead><tr><th>Date</th><th>Exam</th><th>Type</th><th>Score</th><th>Rank</th><th>Percentile</th><th></th></tr></thead><tbody id="attemptRows"></tbody></table>
+  </div>
+</div>
+
+<!-- ================= EXAM ================= -->
+<div id="view-exam" class="view hidden">
+  <div id="examTop">
+    <span class="title" id="exTopTitle"></span>
+    <span class="cand" id="exTopCand"></span>
+    <span id="timer">180:00</span>
+  </div>
+  <div id="subjectTabs"></div>
+  <div id="examMain">
+    <div id="qArea">
+      <div id="qScroll" oncontextmenu="return false">
+        <div id="qHead"><span class="qno" id="qNo"></span><span class="qmeta" id="qMeta"></span></div>
+        <div id="qText"></div>
+        <div id="qOptions"></div>
+        <div id="numInputWrap" class="hidden">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Numerical answer:</label>
+          <input type="text" id="numInput" inputmode="decimal" placeholder="e.g. 42 or 3.14 or -5">
+        </div>
+      </div>
+      <div id="examBtns">
+        <button class="btn secondary" id="btnPrev">&laquo; Previous</button>
+        <button class="btn secondary" id="btnNext">Next &raquo;</button>
+        <button class="btn secondary" id="btnMark">Mark for Review &amp; Next</button>
+        <button class="btn secondary" id="btnClear">Clear Response</button>
+        <span class="spacer"></span>
+        <button class="btn green" id="btnSaveNext">Save &amp; Next</button>
+      </div>
+    </div>
+    <div id="palette">
+      <div id="paletteHead">Question Palette</div>
+      <div id="legend">
+        <span><span class="sw" style="background:var(--green)"></span>Answered</span>
+        <span><span class="sw" style="background:var(--red)"></span>Not Answered</span>
+        <span><span class="sw" style="background:var(--purple)"></span>Marked + Ans</span>
+        <span><span class="sw" style="background:var(--orange)"></span>Marked</span>
+        <span><span class="sw" style="background:var(--grey)"></span>Not Visited</span>
+      </div>
+      <div id="palGrid"></div>
+      <div id="palSubmit"><button class="btn danger" id="btnSubmitExam">SUBMIT EXAM</button></div>
+    </div>
+  </div>
+  <button id="palToggle" title="Question palette">&#9776;</button>
+</div>
+
+<!-- ================= RESULT ================= -->
+<div id="view-result" class="view hidden">
+  <div class="topbar"><h1>Result</h1><span class="who" id="resultWho"></span><button class="btn secondary" id="resultBack">Back to Dashboard</button></div>
+  <div class="wrap" id="resultWrap"></div>
+</div>
+
+<!-- modal -->
+<div id="modalBack" class="hidden">
+  <div class="card">
+    <h3 id="modalTitle">Submit Exam?</h3>
+    <div id="modalBody">Are you sure you want to submit? This cannot be undone.</div>
+    <div id="modalSummary"></div>
+    <div id="modalActions">
+      <button class="btn secondary" id="modalCancel">Cancel</button>
+      <button class="btn danger" id="modalConfirm">Yes, Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<script type="module">
+/* ========== FIREBASE SETUP ========== */
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, getDocs,
+  collection, query, where, orderBy, writeBatch, serverTimestamp, Timestamp
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+// PASTE FIREBASE CONFIG HERE
+const firebaseConfig = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PASTE_AUTH_DOMAIN",
+  projectId: "PASTE_PROJECT_ID",
+  storageBucket: "PASTE_STORAGE_BUCKET",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId: "PASTE_APP_ID"
+};
+// END FIREBASE CONFIG
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+/* ========== EXAM CONFIGURATIONS ========== */
+const EXAM_CONFIG = {
+  medical: {
+    label: "Medical (NEET-UG)",
+    subjects: ["Physics","Chemistry","Botany","Zoology"],
+    perSubject: { A: 45, B: 0 },
+    durationSec: 180*60, maxMarks: 720,
+    marks: { A:{correct:4,wrong:-1}, B:{correct:4,wrong:-1} }
+  },
+  engineering: {
+    label: "Engineering (JEE Mains)",
+    subjects: ["Physics","Chemistry","Mathematics"],
+    perSubject: { A: 20, B: 5 },
+    durationSec: 180*60, maxMarks: 300,
+    marks: { A:{correct:4,wrong:-1}, B:{correct:4,wrong:0} }
+  }
+};
+
+/* ========== TINY HELPERS ========== */
+const $  = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function showView(id){
+  for (const v of document.querySelectorAll(".view")) v.classList.add("hidden");
+  $(id).classList.remove("hidden");
+}
+function setMsg(el, text, ok=false){ el.innerHTML = text ? `<div class="msg ${ok?'ok':'err'}">${esc(text)}</div>` : ""; }
+function fmtDate(ts){
+  const d = ts?.toDate ? ts.toDate() : (ts instanceof Date ? ts : new Date(ts));
+  return isNaN(d) ? "-" : d.toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"});
+}
+function fmtSec(s){ s=Math.round(s||0); const m=Math.floor(s/60); return `${m}m ${s%60}s`; }
+function typeset(el){ if (window.MathJax?.typesetPromise) MathJax.typesetPromise(el?[el]:undefined).catch(()=>{}); }
+function downloadCsv(filename, rows){
+  const csv = rows.map(r => r.map(c => {
+    c = String(c ?? "");
+    return /[",\n]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c;
+  }).join(",")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿"+csv], {type:"text/csv;charset=utf-8"}));
+  a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+}
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i=a.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+/* ========== AUTH & ROUTING ========== */
+let currentUser = null;   // { uid, name, email, role, examType }
+
+$("loginBtn").onclick = async () => {
+  setMsg($("loginMsg"), "");
+  $("loginBtn").disabled = true;
+  try {
+    await signInWithEmailAndPassword(auth, $("loginEmail").value.trim(), $("loginPass").value);
+  } catch(e) {
+    setMsg($("loginMsg"), friendlyAuthError(e));
+  } finally { $("loginBtn").disabled = false; }
+};
+$("loginPass").addEventListener("keydown", e => { if (e.key==="Enter") $("loginBtn").click(); });
+
+function friendlyAuthError(e){
+  const c = e.code || "";
+  if (c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found")) return "Invalid email or password.";
+  if (c.includes("too-many-requests")) return "Too many attempts. Try again later.";
+  if (c.includes("invalid-email")) return "Invalid email address.";
+  return e.message || "Login failed.";
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { currentUser = null; showView("view-login"); return; }
+  try {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (!snap.exists()) { setMsg($("loginMsg"), "Account has no profile. Contact admin."); await signOut(auth); return; }
+    currentUser = { uid: user.uid, ...snap.data() };
+    if (currentUser.role === "admin") { enterAdmin(); } else { enterStudent(); }
+  } catch(e) {
+    setMsg($("loginMsg"), "Failed to load profile: " + e.message);
+    await signOut(auth);
+  }
+});
+
+$("adminLogout").onclick = $("studentLogout").onclick = () => signOut(auth);
+/* ========== ADMIN ========== */
+function enterAdmin(){
+  $("adminWho").textContent = `${currentUser.name} (admin)`;
+  showView("view-admin");
+  loadStudents(); loadExams(); populateQbSubjects();
+}
+
+// admin tab switching
+for (const b of document.querySelectorAll("[data-atab]")) {
+  b.onclick = () => {
+    document.querySelectorAll("[data-atab]").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    document.querySelectorAll(".atab").forEach(x=>x.classList.add("hidden"));
+    $("atab-"+b.dataset.atab).classList.remove("hidden");
+    if (b.dataset.atab==="reports") loadReports();
+  };
+}
+
+/* ----- students ----- */
+$("addStudentBtn").onclick = async () => {
+  const name = $("stName").value.trim(), email = $("stEmail").value.trim(),
+        pass = $("stPass").value, examType = $("stType").value;
+  if (!name || !email || pass.length < 6) { setMsg($("studentMsg"), "Name, email and a password of 6+ chars are required."); return; }
+  $("addStudentBtn").disabled = true;
+  // secondary app so the admin's own session is not replaced
+  const secApp = initializeApp(firebaseConfig, "secondary-" + Date.now());
+  try {
+    const secAuth = getAuth(secApp);
+    const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
+    await setDoc(doc(db, "users", cred.user.uid), {
+      name, email, role: "student", examType, createdAt: serverTimestamp()
+    });
+    await signOut(secAuth);
+    setMsg($("studentMsg"), `Student "${name}" created.`, true);
+    $("stName").value = $("stEmail").value = $("stPass").value = "";
+    loadStudents();
+  } catch(e) {
+    setMsg($("studentMsg"), friendlyAuthError(e));
+  } finally {
+    $("addStudentBtn").disabled = false;
+    deleteApp(secApp).catch(()=>{});
+  }
+};
+
+let studentCache = [];
+async function loadStudents(){
+  const qs = await getDocs(query(collection(db,"users"), where("role","==","student")));
+  studentCache = qs.docs.map(d => ({ uid: d.id, ...d.data() }));
+  studentCache.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  $("studentRows").innerHTML = studentCache.map(s => `
+    <tr><td>${esc(s.name)}</td><td>${esc(s.email)}</td><td>${esc(s.examType)}</td>
+    <td>${fmtDate(s.createdAt)}</td>
+    <td><button class="btn danger" style="padding:3px 10px" data-delst="${s.uid}">Delete</button></td></tr>`).join("")
+    || `<tr><td colspan="5">No students yet.</td></tr>`;
+  $("studentRows").querySelectorAll("[data-delst]").forEach(b => b.onclick = async () => {
+    if (!confirm("Delete this student's profile? (Their Auth login must be removed separately in the Firebase console.)")) return;
+    await deleteDoc(doc(db,"users",b.dataset.delst));
+    loadStudents();
+  });
+  // reports filter dropdown
+  $("rpStudent").innerHTML = `<option value="">All</option>` +
+    studentCache.map(s=>`<option value="${s.uid}">${esc(s.name)}</option>`).join("");
+}
+
+/* ----- question upload ----- */
+$("qUploadBtn").onclick = async () => {
+  const f = $("qFile").files[0];
+  const log = $("uploadLog"); log.classList.remove("hidden"); log.textContent = "";
+  const say = t => { log.textContent += t + "\n"; log.scrollTop = log.scrollHeight; };
+  if (!f) { say("Choose a JSON file first."); return; }
+  let data;
+  try { data = JSON.parse(await f.text()); } catch(e){ say("Invalid JSON: " + e.message); return; }
+  if (!Array.isArray(data)) { say("JSON root must be an array of questions."); return; }
+
+  // validate
+  const valid = [], errors = [];
+  data.forEach((q, i) => {
+    const where_ = `Item ${i+1} (${q?.id || "no id"})`;
+    if (!q || typeof q !== "object")          return errors.push(`${where_}: not an object`);
+    if (!q.id)                                return errors.push(`${where_}: missing id`);
+    if (!q.subject)                           return errors.push(`${where_}: missing subject`);
+    if (!["medical","engineering"].includes(q.examType)) return errors.push(`${where_}: examType must be "medical" or "engineering"`);
+    if (!EXAM_CONFIG[q.examType].subjects.includes(q.subject)) return errors.push(`${where_}: subject "${q.subject}" not valid for ${q.examType}`);
+    const section = q.section || "A";
+    if (!["A","B"].includes(section))         return errors.push(`${where_}: section must be A or B`);
+    if (!q.text)                              return errors.push(`${where_}: missing text`);
+    if (section === "A") {
+      if (!Array.isArray(q.options) || q.options.length !== 4) return errors.push(`${where_}: MCQ needs exactly 4 options`);
+      if (!["A","B","C","D"].includes(q.correct_answer))       return errors.push(`${where_}: correct_answer must be A/B/C/D`);
+    } else {
+      if (q.correct_answer === undefined || isNaN(parseFloat(q.correct_answer))) return errors.push(`${where_}: numerical correct_answer must be a number string`);
+    }
+    valid.push({ ...q, section, options: section==="A" ? q.options : [],
+                 topic: q.topic || "", difficulty: q.difficulty || "Medium" });
+  });
+  errors.forEach(e => say("ERROR  " + e));
+  say(`Validated: ${valid.length} ok, ${errors.length} rejected.`);
+  if (!valid.length) return;
+
+  // batch write (450 per batch, Firestore limit 500)
+  let written = 0;
+  for (let i = 0; i < valid.length; i += 450) {
+    const batch = writeBatch(db);
+    for (const q of valid.slice(i, i+450))
+      batch.set(doc(db, "questions", q.id), { ...q, createdAt: serverTimestamp() });
+    await batch.commit();
+    written += Math.min(450, valid.length - i);
+    say(`Uploaded ${written}/${valid.length}...`);
+  }
+  say("Done. " + written + " questions written.");
+};
+
+/* ----- question bank browse ----- */
+$("qbType").onchange = populateQbSubjects;
+function populateQbSubjects(){
+  $("qbSubject").innerHTML = EXAM_CONFIG[$("qbType").value].subjects
+    .map(s=>`<option>${s}</option>`).join("");
+}
+async function fetchQuestions(examType, subject){
+  const qs = await getDocs(query(collection(db,"questions"),
+    where("examType","==",examType), where("subject","==",subject)));
+  const list = qs.docs.map(d => ({ docId: d.id, ...d.data() }));
+  list.sort((a,b)=>(a.section||"A").localeCompare(b.section||"A") || (a.id||"").localeCompare(b.id||""));
+  return list;
+}
+$("qbLoadBtn").onclick = async () => {
+  setMsg($("qbMsg"),"");
+  const list = await fetchQuestions($("qbType").value, $("qbSubject").value);
+  $("qbRows").innerHTML = list.map(q => `
+    <tr><td>${esc(q.id)}</td><td>${esc(q.section)}</td>
+    <td>${esc((q.text||"").slice(0,120))}${(q.text||"").length>120?"&hellip;":""}</td>
+    <td>${esc(q.correct_answer)}</td><td>${esc(q.topic)}</td><td>${esc(q.difficulty)}</td>
+    <td><button class="btn danger" style="padding:3px 10px" data-delq="${q.docId}">Delete</button></td></tr>`).join("")
+    || `<tr><td colspan="7">No questions in this bank.</td></tr>`;
+  $("qbRows").querySelectorAll("[data-delq]").forEach(b => b.onclick = async () => {
+    if (!confirm("Delete this question?")) return;
+    await deleteDoc(doc(db,"questions",b.dataset.delq));
+    $("qbLoadBtn").click();
+  });
+};
+$("qbClearBtn").onclick = async () => {
+  const t = $("qbType").value, s = $("qbSubject").value;
+  if (!confirm(`Delete ALL ${t} / ${s} questions? This cannot be undone.`)) return;
+  const list = await fetchQuestions(t, s);
+  for (let i = 0; i < list.length; i += 450) {
+    const batch = writeBatch(db);
+    list.slice(i,i+450).forEach(q => batch.delete(doc(db,"questions",q.docId)));
+    await batch.commit();
+  }
+  setMsg($("qbMsg"), `Cleared ${list.length} questions from ${t}/${s}.`, true);
+  $("qbRows").innerHTML = "";
+};
+
+/* ----- exam creation ----- */
+$("exLoadBankBtn").onclick = async () => {
+  setMsg($("exMsg"),"");
+  const t = $("exType").value, cfg = EXAM_CONFIG[t];
+  $("exPicker").innerHTML = "Loading bank&hellip;";
+  const html = [];
+  for (const sub of cfg.subjects) {
+    const list = await fetchQuestions(t, sub);
+    const need = cfg.perSubject.A + (cfg.perSubject.B||0);
+    html.push(`<h2 class="sec">${sub} <small style="font-weight:400;color:var(--muted)">
+      (select ${cfg.perSubject.A} Sec-A${cfg.perSubject.B?` + ${cfg.perSubject.B} Sec-B`:""} &mdash; ${list.length} in bank)</small>
+      <button class="btn secondary" style="padding:3px 10px;font-size:12px" data-selall="${sub}">Select first ${need}</button></h2>
+      <div class="checklist" data-sub="${sub}">` +
+      list.map(q => `<label><input type="checkbox" value="${q.docId}" data-sec="${q.section}" data-csub="${sub}">
+        <span><b>[${esc(q.section)}] ${esc(q.id)}</b> &mdash; ${esc((q.text||"").slice(0,110))}</span></label>`).join("")
+      + `</div>`);
+  }
+  $("exPicker").innerHTML = html.join("") || "No subjects.";
+  $("exPicker").querySelectorAll("[data-selall]").forEach(b => b.onclick = () => {
+    const box = $("exPicker").querySelector(`.checklist[data-sub="${b.dataset.selall}"]`);
+    const cfg2 = EXAM_CONFIG[$("exType").value];
+    const cbs = [...box.querySelectorAll("input")];
+    cbs.forEach(c=>c.checked=false);
+    let a=0,bn=0;
+    for (const c of cbs) {
+      if (c.dataset.sec==="A" && a<cfg2.perSubject.A) { c.checked=true; a++; }
+      if (c.dataset.sec==="B" && bn<cfg2.perSubject.B) { c.checked=true; bn++; }
+    }
+  });
+};
+$("exCreateBtn").onclick = async () => {
+  const title = $("exTitle").value.trim(), t = $("exType").value, cfg = EXAM_CONFIG[t];
+  if (!title) { setMsg($("exMsg"),"Enter a title."); return; }
+  const checked = [...$("exPicker").querySelectorAll("input:checked")];
+  if (!checked.length) { setMsg($("exMsg"),"Load the bank and select questions first."); return; }
+  // validate counts per subject/section
+  const counts = {};
+  for (const c of checked) {
+    const k = c.dataset.csub + "|" + c.dataset.sec;
+    counts[k] = (counts[k]||0)+1;
+  }
+  const problems = [];
+  for (const sub of cfg.subjects) {
+    if ((counts[sub+"|A"]||0) !== cfg.perSubject.A) problems.push(`${sub} Sec-A: ${counts[sub+"|A"]||0}/${cfg.perSubject.A}`);
+    if (cfg.perSubject.B && (counts[sub+"|B"]||0) !== cfg.perSubject.B) problems.push(`${sub} Sec-B: ${counts[sub+"|B"]||0}/${cfg.perSubject.B}`);
+  }
+  if (problems.length && !confirm("Counts don't match the official pattern:\n" + problems.join("\n") + "\n\nCreate anyway?")) return;
+  await addDoc(collection(db,"exams"), {
+    title, examType: t, questionIds: checked.map(c=>c.value),
+    isActive: false, createdAt: serverTimestamp(), createdBy: currentUser.uid
+  });
+  setMsg($("exMsg"), "Exam created. Activate it from the list below.", true);
+  loadExams();
+};
+
+async function loadExams(){
+  const qs = await getDocs(collection(db,"exams"));
+  const exams = qs.docs.map(d=>({ docId:d.id, ...d.data() }));
+  exams.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  $("examRows").innerHTML = exams.map(e => `
+    <tr><td>${esc(e.title)}</td><td>${esc(e.examType)}</td><td>${e.questionIds?.length||0}</td>
+    <td>${e.isActive?'<span class="badge pos">ACTIVE</span>':'<span class="badge zero">inactive</span>'}</td>
+    <td>${fmtDate(e.createdAt)}</td>
+    <td>
+      <button class="btn ${e.isActive?'secondary':'green'}" style="padding:3px 10px" data-toggle="${e.docId}" data-act="${e.isActive?0:1}" data-etype="${e.examType}">${e.isActive?'Deactivate':'Activate'}</button>
+      <button class="btn danger" style="padding:3px 10px" data-delex="${e.docId}">Delete</button>
+    </td></tr>`).join("") || `<tr><td colspan="6">No exams yet.</td></tr>`;
+  $("examRows").querySelectorAll("[data-toggle]").forEach(b => b.onclick = async () => {
+    const activate = b.dataset.act === "1";
+    if (activate) { // enforce one active exam per examType
+      const others = exams.filter(x => x.examType === b.dataset.etype && x.isActive && x.docId !== b.dataset.toggle);
+      for (const o of others) await updateDoc(doc(db,"exams",o.docId), { isActive:false });
+    }
+    await updateDoc(doc(db,"exams",b.dataset.toggle), { isActive: activate });
+    loadExams();
+  });
+  $("examRows").querySelectorAll("[data-delex]").forEach(b => b.onclick = async () => {
+    if (!confirm("Delete this exam?")) return;
+    await deleteDoc(doc(db,"exams",b.dataset.delex));
+    loadExams();
+  });
+}
+
+/* ----- reports ----- */
+let reportCache = [];
+async function loadReports(){
+  const qs = await getDocs(collection(db,"attempts"));
+  let list = qs.docs.map(d=>({ docId:d.id, ...d.data() }));
+  const su = $("rpStudent").value, ty = $("rpType").value,
+        from = $("rpFrom").value ? new Date($("rpFrom").value) : null,
+        to   = $("rpTo").value ? new Date($("rpTo").value + "T23:59:59") : null;
+  list = list.filter(a =>
+    (!su || a.studentUid===su) && (!ty || a.examType===ty) &&
+    (!from || (a.submitTime?.toDate?.() ?? new Date(0)) >= from) &&
+    (!to   || (a.submitTime?.toDate?.() ?? new Date(0)) <= to));
+  list.sort((a,b)=>(b.submitTime?.seconds||0)-(a.submitTime?.seconds||0));
+  reportCache = list;
+  $("rpRows").innerHTML = list.map(a => `
+    <tr><td>${fmtDate(a.submitTime)}</td><td>${esc(a.studentName)}</td><td>${esc(a.examType)}</td>
+    <td>${esc(a.examTitle||a.examId)}</td><td><b>${a.score}</b> / ${EXAM_CONFIG[a.examType]?.maxMarks??""}</td>
+    <td>${Math.round((a.totalTimeSec||0)/60)}</td>
+    <td>${a.wrongQuestions?.length||0}</td><td>${a.unansweredQuestions?.length||0}</td></tr>`).join("")
+    || `<tr><td colspan="8">No attempts found.</td></tr>`;
+}
+$("rpLoadBtn").onclick = loadReports;
+$("rpCsvBtn").onclick = () => {
+  const rows = [["Date","Student","ExamType","Exam","Score","MaxMarks","TotalTimeMin","Wrong","Unanswered"]];
+  for (const a of reportCache) rows.push([
+    fmtDate(a.submitTime), a.studentName, a.examType, a.examTitle||a.examId,
+    a.score, EXAM_CONFIG[a.examType]?.maxMarks??"", Math.round((a.totalTimeSec||0)/60),
+    a.wrongQuestions?.length||0, a.unansweredQuestions?.length||0]);
+  downloadCsv("attempts_report.csv", rows);
+};
+/* ========== STUDENT DASHBOARD ========== */
+let activeExam = null; // { docId, title, examType, questionIds }
+
+async function enterStudent(){
+  $("studentWho").textContent = `${currentUser.name} (${currentUser.examType})`;
+  showView("view-student");
+  loadActiveExam(); loadMyAttempts();
+}
+
+async function loadActiveExam(){
+  activeExam = null;
+  const qs = await getDocs(query(collection(db,"exams"),
+    where("examType","==",currentUser.examType), where("isActive","==",true)));
+  if (qs.empty) { $("activeExamInfo").innerHTML = "No active exam right now. Check back later."; return; }
+  const d = qs.docs[0];
+  activeExam = { docId: d.id, ...d.data() };
+  const cfg = EXAM_CONFIG[activeExam.examType];
+  $("activeExamInfo").innerHTML = `
+    <p style="margin-bottom:10px"><b>${esc(activeExam.title)}</b> &mdash; ${cfg.label}<br>
+    <span style="color:var(--muted);font-size:13px">${activeExam.questionIds.length} questions &bull; 180 minutes &bull; Max ${cfg.maxMarks} marks</span></p>
+    <button class="btn green" id="startExamBtn">Start Exam</button>`;
+  $("startExamBtn").onclick = startExam;
+}
+
+async function loadMyAttempts(){
+  const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
+  const mine = qs.docs.map(d=>({docId:d.id,...d.data()})).filter(a=>a.submitTime);
+  mine.sort((a,b)=>(b.submitTime?.seconds||0)-(a.submitTime?.seconds||0));
+  // rank/percentile per attempt vs all attempts of same examType
+  const allQs = await getDocs(query(collection(db,"attempts"), where("examType","==",currentUser.examType)));
+  const allScores = allQs.docs.map(d=>d.data()).filter(a=>a.submitTime).map(a=>a.score);
+  $("attemptRows").innerHTML = mine.map(a => {
+    const {rank, pct} = rankAndPercentile(a.score, allScores);
+    return `<tr><td>${fmtDate(a.submitTime)}</td><td>${esc(a.examTitle||a.examId)}</td>
+      <td>${esc(a.examType)}</td><td><b>${a.score}</b> / ${EXAM_CONFIG[a.examType]?.maxMarks??""}</td>
+      <td>${rank}</td><td>${pct}</td>
+      <td><button class="btn secondary" style="padding:3px 10px" data-viewat="${a.docId}">View Result</button></td></tr>`;
+  }).join("") || `<tr><td colspan="7">No attempts yet.</td></tr>`;
+  $("attemptRows").querySelectorAll("[data-viewat]").forEach(b => b.onclick = async () => {
+    const snap = await getDoc(doc(db,"attempts",b.dataset.viewat));
+    if (snap.exists()) showResult({ docId:snap.id, ...snap.data() });
+  });
+}
+
+function rankAndPercentile(score, allScores){
+  if (!allScores.length) return { rank: 1, pct: "100.00" };
+  const sorted = allScores.slice().sort((a,b)=>b-a);
+  const rank = sorted.findIndex(s => s <= score) + 1 || sorted.length + 1;
+  const below = allScores.filter(s => s <= score).length;
+  return { rank, pct: (100 * below / allScores.length).toFixed(2) };
+}
+
+/* ========== EXAM ENGINE ========== */
+const AUTOSAVE_MS = 30000;
+let EX = null; // exam runtime state
+let tickInt = null, autosaveInt = null;
+
+const STATUS = { NV:"notVisited", NA:"notAnswered", AN:"answered", MA:"markedAnswered", MN:"markedNotAnswered" };
+
+async function startExam(){
+  $("startExamBtn").disabled = true;
+  const cfg = EXAM_CONFIG[activeExam.examType];
+  const cacheKey = `exam_${activeExam.docId}_${currentUser.uid}`;
+
+  let qlist;
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) {
+    qlist = JSON.parse(cached);
+  } else {
+    // fetch all questions, shuffle within subject/section
+    const fetched = [];
+    for (const qid of activeExam.questionIds) {
+      const s = await getDoc(doc(db,"questions",qid));
+      if (s.exists()) fetched.push({ docId: s.id, ...s.data() });
+    }
+    qlist = [];
+    for (const sub of cfg.subjects) {
+      for (const sec of ["A","B"]) {
+        const grp = shuffle(fetched.filter(q => q.subject===sub && (q.section||"A")===sec));
+        qlist.push(...grp);
+      }
+    }
+    sessionStorage.setItem(cacheKey, JSON.stringify(qlist));
+  }
+  if (!qlist.length) { alert("Exam has no questions."); $("startExamBtn").disabled=false; return; }
+
+  // create attempt doc (id = examId_uid so refresh resumes same attempt)
+  const attemptId = `${activeExam.docId}_${currentUser.uid}`;
+  const attemptRef = doc(db,"attempts",attemptId);
+  const prev = await getDoc(attemptRef);
+  let startTime = Date.now(), savedResponses = {}, savedTimes = {};
+  if (prev.exists() && !prev.data().submitTime) {
+    const p = prev.data();
+    startTime = p.startTime?.toDate?.().getTime() ?? Date.now();
+    savedResponses = p.responses || {};
+    savedTimes = p.questionTimeSec || {};
+  } else if (prev.exists() && prev.data().submitTime) {
+    if (!confirm("You have already submitted this exam. Start a fresh attempt? (Previous result is kept in reports but will be overwritten on this attempt id.)")) {
+      $("startExamBtn").disabled = false; return;
+    }
+    sessionStorage.removeItem(cacheKey);
+    await setDoc(attemptRef, {}, { merge:false });
+  }
+  if (!prev.exists() || prev.data().submitTime) {
+    await setDoc(attemptRef, {
+      studentUid: currentUser.uid, studentName: currentUser.name,
+      examId: activeExam.docId, examTitle: activeExam.title, examType: activeExam.examType,
+      startTime: Timestamp.fromMillis(startTime), submitTime: null,
+      responses: {}, score: null
+    });
+  }
+
+  EX = {
+    cfg, attemptRef, cacheKey,
+    examType: activeExam.examType, title: activeExam.title,
+    questions: qlist,
+    idx: 0,
+    startTime,
+    endTime: startTime + cfg.durationSec*1000,
+    // per-question runtime: answer(null|string), status, timeSec, visitCount
+    state: qlist.map(q => {
+      const r = savedResponses[q.docId];
+      return {
+        answer: r?.answer ?? null,
+        status: r ? (r.answer!=null ? STATUS.AN : STATUS.NA) : STATUS.NV,
+        timeSec: savedTimes[q.docId] ?? r?.timeSec ?? 0,
+        visitCount: r?.visitCount ?? 0
+      };
+    }),
+    shownAt: null,
+    submitted: false
+  };
+
+  // subject tabs
+  $("exTopTitle").textContent = EX.title;
+  $("exTopCand").textContent = "Candidate: " + currentUser.name;
+  $("subjectTabs").innerHTML = cfg.subjects.map(s=>`<button data-subj="${s}">${s}</button>`).join("");
+  $("subjectTabs").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const i = EX.questions.findIndex(q => q.subject === b.dataset.subj);
+    if (i >= 0) gotoQuestion(i);
+  });
+
+  buildPalette();
+  showView("view-exam");
+  gotoQuestion(0);
+
+  clearInterval(tickInt); clearInterval(autosaveInt);
+  tickInt = setInterval(tick, 250);
+  autosaveInt = setInterval(()=>saveProgress().catch(()=>{}), AUTOSAVE_MS);
+  tick();
+}
+
+function tick(){
+  if (!EX || EX.submitted) return;
+  const left = Math.max(0, Math.floor((EX.endTime - Date.now())/1000));
+  const m = Math.floor(left/60), s = left%60;
+  const t = $("timer");
+  t.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  t.classList.toggle("low", left < 300);
+  if (left <= 0) submitExam(true);
+}
+
+/* ---- time tracking ---- */
+function stopClock(){
+  if (EX.shownAt != null) {
+    EX.state[EX.idx].timeSec += (Date.now() - EX.shownAt)/1000;
+    EX.shownAt = null;
+  }
+}
+function startClock(){ EX.shownAt = Date.now(); }
+
+/* ---- navigation & rendering ---- */
+function captureCurrentInput(){
+  // numerical inputs are committed on save; radios update state on click
+  const q = EX.questions[EX.idx];
+  if ((q.section||"A") === "B") {
+    const v = $("numInput").value.trim();
+    return v === "" ? null : v;
+  }
+  const sel = document.querySelector('input[name="optGroup"]:checked');
+  return sel ? sel.value : null;
+}
+
+function gotoQuestion(i, save=false){
+  if (!EX) return;
+  if (save) {
+    const ans = captureCurrentInput();
+    const st = EX.state[EX.idx];
+    st.answer = ans;
+    if (st.status === STATUS.MA || st.status === STATUS.MN)
+      st.status = ans!=null ? STATUS.MA : STATUS.MN;
+    else
+      st.status = ans!=null ? STATUS.AN : STATUS.NA;
+  }
+  stopClock();
+  EX.idx = Math.max(0, Math.min(EX.questions.length-1, i));
+  const q = EX.questions[EX.idx], st = EX.state[EX.idx];
+  st.visitCount++;
+  if (st.status === STATUS.NV) st.status = STATUS.NA;
+  startClock();
+
+  // subject tab highlight
+  $("subjectTabs").querySelectorAll("button").forEach(b =>
+    b.classList.toggle("active", b.dataset.subj === q.subject));
+
+  $("qNo").textContent = `Question ${EX.idx+1} of ${EX.questions.length}`;
+  $("qMeta").textContent = `${q.subject} • Section ${q.section||"A"} • ${q.section==="B"?"Numerical (+4 / 0)":"MCQ (+4 / −1)"}`;
+  $("qText").innerHTML = q.text;
+
+  if ((q.section||"A") === "A") {
+    $("numInputWrap").classList.add("hidden");
+    $("qOptions").innerHTML = (q.options||[]).map((opt,k) => {
+      const letter = "ABCD"[k];
+      const checked = st.answer === letter ? "checked" : "";
+      return `<label class="opt ${checked?'sel':''}"><input type="radio" name="optGroup" value="${letter}" ${checked}><span>${opt}</span></label>`;
+    }).join("");
+    $("qOptions").querySelectorAll("input").forEach(r => r.onchange = () => {
+      $("qOptions").querySelectorAll(".opt").forEach(o=>o.classList.remove("sel"));
+      r.closest(".opt").classList.add("sel");
+    });
+  } else {
+    $("qOptions").innerHTML = "";
+    $("numInputWrap").classList.remove("hidden");
+    $("numInput").value = st.answer ?? "";
+  }
+  typeset($("qScroll"));
+  $("qScroll").scrollTop = 0;
+  refreshPalette();
+}
+
+function buildPalette(){
+  $("palGrid").innerHTML = EX.questions.map((q,i) =>
+    `<button class="palBtn" data-pi="${i}" title="${q.subject} ${q.section||'A'}">${i+1}</button>`).join("");
+  $("palGrid").querySelectorAll("button").forEach(b => b.onclick = () => {
+    gotoQuestion(+b.dataset.pi, true);
+    if (window.innerWidth <= 768) $("palette").classList.remove("open");
+  });
+}
+function refreshPalette(){
+  $("palGrid").querySelectorAll("button").forEach((b,i) => {
+    b.className = "palBtn " + EX.state[i].status + (i===EX.idx ? " current" : "");
+  });
+}
+
+/* ---- buttons ---- */
+$("btnPrev").onclick = () => gotoQuestion(EX.idx-1, true);
+$("btnNext").onclick = () => gotoQuestion(EX.idx+1, true);
+$("btnSaveNext").onclick = async () => {
+  gotoQuestion(EX.idx+1, true);
+  saveProgress().catch(()=>{});
+};
+$("btnMark").onclick = () => {
+  const ans = captureCurrentInput();
+  const st = EX.state[EX.idx];
+  st.answer = ans;
+  st.status = ans!=null ? STATUS.MA : STATUS.MN;
+  refreshPalette();
+  gotoQuestion(EX.idx+1);
+  saveProgress().catch(()=>{});
+};
+$("btnClear").onclick = () => {
+  const st = EX.state[EX.idx];
+  st.answer = null;
+  st.status = (st.status===STATUS.MA||st.status===STATUS.MN) ? STATUS.MN : STATUS.NA;
+  gotoQuestion(EX.idx); // re-render clears inputs
+};
+$("palToggle").onclick = () => $("palette").classList.toggle("open");
+
+/* keyboard nav */
+document.addEventListener("keydown", e => {
+  if (!EX || EX.submitted || $("view-exam").classList.contains("hidden")) return;
+  if (e.target.tagName === "INPUT" && e.target.type === "text" && e.key !== "Enter") return;
+  if (e.key === "ArrowRight") { e.preventDefault(); gotoQuestion(EX.idx+1, true); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); gotoQuestion(EX.idx-1, true); }
+  else if (e.key === "Enter" && $("modalBack").classList.contains("hidden")) {
+    e.preventDefault(); $("btnSaveNext").click();
+  }
+});
+
+/* ---- persistence ---- */
+function buildResponses(){
+  const responses = {};
+  EX.questions.forEach((q,i) => {
+    const st = EX.state[i];
+    if (st.status === STATUS.NV && st.answer==null) return;
+    responses[q.docId] = {
+      answer: st.answer ?? null,
+      timeSec: Math.round(st.timeSec),
+      visitCount: st.visitCount
+    };
+  });
+  return responses;
+}
+async function saveProgress(){
+  if (!EX || EX.submitted) return;
+  // snapshot live time for current question without resetting the clock
+  const liveExtra = EX.shownAt != null ? (Date.now()-EX.shownAt)/1000 : 0;
+  const responses = buildResponses();
+  const cq = EX.questions[EX.idx];
+  if (responses[cq.docId]) responses[cq.docId].timeSec = Math.round(EX.state[EX.idx].timeSec + liveExtra);
+  await setDoc(EX.attemptRef, { responses }, { merge:true });
+}
+
+/* ---- submit ---- */
+$("btnSubmitExam").onclick = () => {
+  gotoQuestion(EX.idx, true); // commit current input
+  const c = { answered:0, notAnswered:0, marked:0, notVisited:0 };
+  EX.state.forEach(s => {
+    if (s.status===STATUS.AN||s.status===STATUS.MA) c.answered++;
+    else if (s.status===STATUS.NV) c.notVisited++;
+    else if (s.status===STATUS.MN) c.marked++;
+    else c.notAnswered++;
+  });
+  $("modalSummary").innerHTML =
+    `Answered: <b>${c.answered}</b><br>Not answered: <b>${c.notAnswered + c.marked}</b><br>Not visited: <b>${c.notVisited}</b>`;
+  $("modalBack").classList.remove("hidden");
+};
+$("modalCancel").onclick = () => $("modalBack").classList.add("hidden");
+$("modalConfirm").onclick = () => { $("modalBack").classList.add("hidden"); submitExam(false); };
+
+async function submitExam(auto){
+  if (!EX || EX.submitted) return;
+  EX.submitted = true;
+  clearInterval(tickInt); clearInterval(autosaveInt);
+  stopClock();
+
+  const cfg = EX.cfg;
+  let score = 0;
+  const subjectScores = {}, subjectTimeSec = {}, questionTimeSec = {};
+  const wrongQuestions = [], unansweredQuestions = [];
+  const detail = []; // for result rendering
+
+  EX.questions.forEach((q,i) => {
+    const st = EX.state[i];
+    const sec = q.section || "A";
+    const m = cfg.marks[sec];
+    questionTimeSec[q.docId] = Math.round(st.timeSec);
+    subjectTimeSec[q.subject] = (subjectTimeSec[q.subject]||0) + Math.round(st.timeSec);
+    subjectScores[q.subject] = subjectScores[q.subject] || 0;
+
+    let delta = 0, verdict;
+    if (st.answer == null) {
+      verdict = "unanswered";
+      unansweredQuestions.push(q.docId);
+    } else {
+      const correct = sec === "A"
+        ? st.answer === q.correct_answer
+        : Math.abs(parseFloat(st.answer) - parseFloat(q.correct_answer)) < 1e-6;
+      if (correct) { delta = m.correct; verdict = "correct"; }
+      else { delta = m.wrong; verdict = "wrong"; wrongQuestions.push(q.docId); }
+    }
+    score += delta;
+    subjectScores[q.subject] += delta;
+    detail.push({ q, answer: st.answer, delta, verdict, timeSec: Math.round(st.timeSec) });
+  });
+
+  const totalTimeSec = Math.round((Date.now() - EX.startTime)/1000);
+  const attemptData = {
+    studentUid: currentUser.uid, studentName: currentUser.name,
+    examId: activeExam?.docId ?? null, examTitle: EX.title, examType: EX.examType,
+    startTime: Timestamp.fromMillis(EX.startTime), submitTime: serverTimestamp(),
+    totalTimeSec: Math.min(totalTimeSec, cfg.durationSec),
+    subjectTimeSec, questionTimeSec,
+    responses: buildResponses(),
+    score, subjectScores, wrongQuestions, unansweredQuestions
+  };
+  try { await setDoc(EX.attemptRef, attemptData, { merge:true }); }
+  catch(e){ alert("Warning: result could not be saved to server: " + e.message); }
+  sessionStorage.removeItem(EX.cacheKey);
+
+  if (auto) alert("Time is up! Your exam has been auto-submitted.");
+  showResult({ ...attemptData, submitTime: new Date(), _detail: detail });
+  EX = null;
+}
+/* ========== RESULT PAGE ========== */
+let lastResultDetail = null, lastResultAttempt = null;
+
+async function showResult(attempt){
+  $("resultWho").textContent = attempt.studentName || currentUser.name;
+  showView("view-result");
+  $("resultWrap").innerHTML = "Loading result&hellip;";
+
+  const cfg = EXAM_CONFIG[attempt.examType];
+
+  // rebuild per-question detail if not provided (viewing an old attempt)
+  let detail = attempt._detail;
+  if (!detail) {
+    detail = [];
+    const ids = Object.keys(attempt.questionTimeSec || attempt.responses || {});
+    for (const qid of ids) {
+      const s = await getDoc(doc(db,"questions",qid));
+      if (!s.exists()) continue;
+      const q = { docId: s.id, ...s.data() };
+      const r = (attempt.responses||{})[qid] || {};
+      const sec = q.section || "A", m = cfg.marks[sec];
+      let delta = 0, verdict = "unanswered";
+      if (r.answer != null) {
+        const correct = sec==="A" ? r.answer===q.correct_answer
+          : Math.abs(parseFloat(r.answer)-parseFloat(q.correct_answer)) < 1e-6;
+        verdict = correct ? "correct" : "wrong";
+        delta = correct ? m.correct : m.wrong;
+      }
+      detail.push({ q, answer: r.answer ?? null, delta, verdict,
+        timeSec: (attempt.questionTimeSec||{})[qid] ?? r.timeSec ?? 0 });
+    }
+    // order: by subject in config order
+    detail.sort((a,b) => cfg.subjects.indexOf(a.q.subject)-cfg.subjects.indexOf(b.q.subject));
+  }
+  lastResultDetail = detail; lastResultAttempt = attempt;
+
+  // percentile + rank among all attempts of same examType
+  let rank = "-", pct = "-";
+  try {
+    const allQs = await getDocs(query(collection(db,"attempts"), where("examType","==",attempt.examType)));
+    const allScores = allQs.docs.map(d=>d.data()).filter(a=>a.submitTime!=null).map(a=>a.score);
+    if (!allScores.includes(attempt.score)) allScores.push(attempt.score);
+    const rp = rankAndPercentile(attempt.score, allScores);
+    rank = rp.rank + " / " + allScores.length; pct = rp.pct;
+  } catch(e) { /* rules may restrict; show dashes */ }
+
+  const subRows = cfg.subjects.map(s => `
+    <tr><td>${s}</td><td><b>${(attempt.subjectScores||{})[s] ?? 0}</b></td>
+    <td>${fmtSec((attempt.subjectTimeSec||{})[s])}</td></tr>`).join("");
+
+  const qRows = detail.map((d,i) => `
+    <tr><td>${i+1}</td><td>${esc(d.q.subject)}</td><td>${esc(d.q.topic)}</td>
+    <td>${d.answer ?? "<i>—</i>"}</td><td>${esc(d.q.correct_answer)}</td>
+    <td><span class="badge ${d.delta>0?'pos':d.delta<0?'neg':'zero'}">${d.delta>0?'+':''}${d.delta}</span></td>
+    <td>${fmtSec(d.timeSec)}</td></tr>`).join("");
+
+  const errRows = kind => detail.filter(d=>d.verdict===kind).map((d,i) => `
+    <tr><td>${i+1}</td><td>${esc(d.q.subject)}</td><td>${esc(d.q.topic)}</td><td>${esc(d.q.difficulty)}</td>
+    <td><details class="qexp"><summary>${esc((d.q.text||"").slice(0,80))}&hellip;</summary><div>${d.q.text}${
+      d.q.options?.length ? "<br><br>" + d.q.options.map(o=>esc(o)).join("<br>") : ""}</div></details></td>
+    <td><b>${esc(d.q.correct_answer)}</b></td></tr>`).join("")
+    || `<tr><td colspan="6">None 🎉</td></tr>`;
+
+  $("resultWrap").innerHTML = `
+    <div class="statRow">
+      <div class="stat"><div class="v">${attempt.score}</div><div class="l">Score</div></div>
+      <div class="stat"><div class="v">${cfg.maxMarks}</div><div class="l">Max Marks</div></div>
+      <div class="stat"><div class="v">${pct}</div><div class="l">Percentile</div></div>
+      <div class="stat"><div class="v">${rank}</div><div class="l">Rank</div></div>
+      <div class="stat"><div class="v">${fmtSec(attempt.totalTimeSec)}</div><div class="l">Total Time</div></div>
+    </div>
+    <button class="btn" id="csvReportBtn">Download Report (CSV)</button>
+    <h2 class="sec">Subject-wise</h2>
+    <table class="tbl"><thead><tr><th>Subject</th><th>Score</th><th>Time</th></tr></thead><tbody>${subRows}</tbody></table>
+    <h2 class="sec">Question-by-question</h2>
+    <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th><th>Time Spent</th></tr></thead><tbody>${qRows}</tbody></table>
+    <h2 class="sec">Error Log</h2>
+    <div class="subTabs">
+      <button class="active" data-etab="wrong">Wrong Answers (${detail.filter(d=>d.verdict==="wrong").length})</button>
+      <button data-etab="unanswered">Unanswered (${detail.filter(d=>d.verdict==="unanswered").length})</button>
+    </div>
+    <div id="etab-wrong">
+      <table class="tbl"><thead><tr><th>#</th><th>Subject</th><th>Topic</th><th>Difficulty</th><th>Question</th><th>Correct Answer</th></tr></thead><tbody>${errRows("wrong")}</tbody></table>
+    </div>
+    <div id="etab-unanswered" class="hidden">
+      <table class="tbl"><thead><tr><th>#</th><th>Subject</th><th>Topic</th><th>Difficulty</th><th>Question</th><th>Correct Answer</th></tr></thead><tbody>${errRows("unanswered")}</tbody></table>
+    </div>`;
+  $("resultWrap").querySelectorAll("[data-etab]").forEach(b => b.onclick = () => {
+    $("resultWrap").querySelectorAll("[data-etab]").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    $("etab-wrong").classList.toggle("hidden", b.dataset.etab!=="wrong");
+    $("etab-unanswered").classList.toggle("hidden", b.dataset.etab!=="unanswered");
+  });
+  $("csvReportBtn").onclick = () => {
+    const rows = [["Q#","QuestionID","Subject","Section","Topic","Difficulty","YourAnswer","CorrectAnswer","Marks","TimeSec","Verdict"]];
+    lastResultDetail.forEach((d,i)=>rows.push([i+1,d.q.id,d.q.subject,d.q.section||"A",d.q.topic,d.q.difficulty,
+      d.answer??"",d.q.correct_answer,d.delta,d.timeSec,d.verdict]));
+    rows.push([]);
+    rows.push(["TOTAL SCORE",lastResultAttempt.score,"MAX",cfg.maxMarks,"TIME",fmtSec(lastResultAttempt.totalTimeSec)]);
+    downloadCsv("exam_report.csv", rows);
+  };
+  typeset($("resultWrap"));
+}
+
+$("resultBack").onclick = () => {
+  if (currentUser?.role === "admin") enterAdmin(); else enterStudent();
+};
+
+/* warn before leaving mid-exam */
+window.addEventListener("beforeunload", e => {
+  if (EX && !EX.submitted) { e.preventDefault(); e.returnValue = ""; }
+});
+</script>
+</body>
+</html>
