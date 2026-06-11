@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Question Builder — crop images → exam JSON</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,'Segoe UI',Roboto,sans-serif}
+body{background:#f4f7fa;color:#222;font-size:14px;padding:18px;max-width:1100px;margin:0 auto}
+h1{color:#1a5b9c;font-size:22px;margin-bottom:4px}
+p.sub{color:#667;margin-bottom:16px;font-size:13px}
+.card{background:#fff;border:1px solid #d8dee5;border-radius:8px;padding:16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+h2{font-size:15px;color:#1a5b9c;margin-bottom:10px}
+label{display:block;font-size:12.5px;font-weight:600;color:#345;margin:8px 0 3px}
+input,select,textarea{width:100%;padding:8px;border:1px solid #d8dee5;border-radius:4px;font-size:13.5px}
+textarea{min-height:54px;resize:vertical}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>div{flex:1;min-width:130px}
+button{cursor:pointer;font-size:13.5px;padding:8px 14px;border-radius:4px;border:1px solid #1a5b9c;background:#1a5b9c;color:#fff;font-weight:600}
+button.sec{background:#fff;color:#1a5b9c}
+button.danger{background:#c0392b;border-color:#c0392b}
+button.green{background:#2e8b57;border-color:#2e8b57}
+#stage{position:relative;display:inline-block;max-width:100%;border:1px solid #d8dee5;margin-top:8px;background:#fafbfc}
+#img{max-width:100%;display:block;user-select:none}
+#sel{position:absolute;border:2px dashed #1a5b9c;background:rgba(26,91,156,.12);display:none;pointer-events:none}
+.crop-actions{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.thumb{max-height:60px;border:1px solid #d8dee5;border-radius:4px;vertical-align:middle;margin-left:6px}
+.msg{padding:8px 10px;border-radius:4px;font-size:13px;margin:8px 0}
+.ok{background:#e2f5e9;color:#1e7a44}.err{background:#fdecea;color:#b03a2e}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+th,td{border:1px solid #d8dee5;padding:5px 7px;text-align:left}
+th{background:#e8f1fa}
+.pill{display:inline-block;padding:1px 7px;border-radius:9px;background:#eef1f4;font-size:11px}
+code{background:#eef1f4;padding:1px 5px;border-radius:3px}
+</style>
+</head>
+<body>
+<h1>Question Builder</h1>
+<p class="sub">Crop questions/diagrams from images on your computer and export a ready-to-upload exam JSON (base64 images embedded). Everything runs locally in your browser — nothing is uploaded anywhere.</p>
+
+<div class="card">
+  <h2>1. Load an image (screenshot, scanned page, photo of a question)</h2>
+  <input type="file" id="file" accept="image/*">
+  <p style="font-size:12px;color:#667;margin-top:6px">Tip: take a screenshot of a PDF page (Win+Shift+S), save it, then load it here and crop each question.</p>
+  <div id="stage" style="display:none">
+    <img id="img" alt="">
+    <div id="sel"></div>
+  </div>
+  <p id="cropHint" style="font-size:12px;color:#667;margin-top:6px;display:none">Drag on the image to select a region, then assign it below.</p>
+  <div class="crop-actions" id="cropActions" style="display:none">
+    <button class="sec" data-assign="image">Use crop as Question image</button>
+    <button class="sec" data-assign="A">→ Option A image</button>
+    <button class="sec" data-assign="B">→ Option B image</button>
+    <button class="sec" data-assign="C">→ Option C image</button>
+    <button class="sec" data-assign="D">→ Option D image</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>2. Question details</h2>
+  <div class="row">
+    <div><label>ID (blank = auto)</label><input id="qid" placeholder="e.g. PHY_IMG_001"></div>
+    <div><label>Exam Type</label><select id="examType"><option value="medical">medical</option><option value="engineering">engineering</option></select></div>
+    <div><label>Subject</label><select id="subject"></select></div>
+    <div><label>Section</label><select id="section"><option value="A">A — MCQ</option><option value="B">B — Numerical</option></select></div>
+  </div>
+  <div class="row">
+    <div><label>Topic</label><input id="topic" placeholder="e.g. Kinematics"></div>
+    <div><label>Difficulty</label><select id="difficulty"><option>Easy</option><option selected>Medium</option><option>Hard</option></select></div>
+  </div>
+  <label>Question text (optional if you assigned a question image)</label>
+  <textarea id="text" placeholder="Type the stem, or leave blank if the cropped image IS the whole question. LaTeX like $E=mc^2$ works."></textarea>
+  <div id="qimgPreview" style="margin-top:6px"></div>
+
+  <div id="mcqBlock">
+    <label>Options (type text, and/or assign option images above)</label>
+    <div class="row"><div><input id="optA" placeholder="Option A text"></div><div><input id="optB" placeholder="Option B text"></div></div>
+    <div class="row"><div><input id="optC" placeholder="Option C text"></div><div><input id="optD" placeholder="Option D text"></div></div>
+    <div id="optImgPreview" style="margin-top:6px"></div>
+    <label>Correct option</label>
+    <select id="correctMcq"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+  </div>
+  <div id="numBlock" style="display:none">
+    <label>Correct numerical answer</label>
+    <input id="correctNum" placeholder="e.g. 42 or 3.14 or -5">
+  </div>
+
+  <div style="margin-top:12px"><button class="green" id="addBtn">Add question to list</button>
+  <button class="sec" id="clearFormBtn">Clear form</button></div>
+  <div id="formMsg"></div>
+</div>
+
+<div class="card">
+  <h2>3. Questions added (<span id="count">0</span>)</h2>
+  <table id="listTbl"><thead><tr><th>ID</th><th>Subj</th><th>Sec</th><th>Stem / img</th><th>Ans</th><th></th></tr></thead><tbody id="listRows"></tbody></table>
+  <div style="margin-top:12px">
+    <button id="exportBtn">Download JSON</button>
+    <button class="danger sec" id="resetBtn" style="border-color:#c0392b;color:#c0392b">Reset all</button>
+  </div>
+  <p style="font-size:12px;color:#667;margin-top:8px">Then upload this file in the portal: Admin → Questions → Upload.</p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const SUBJECTS = { medical:["Physics","Chemistry","Botany","Zoology"], engineering:["Physics","Chemistry","Mathematics"] };
+let questions = [];
+let crops = { image:null, A:null, B:null, C:null, D:null }; // base64 for current question
+
+function fillSubjects(){
+  $("subject").innerHTML = SUBJECTS[$("examType").value].map(s=>`<option>${s}</option>`).join("");
+}
+$("examType").onchange = fillSubjects; fillSubjects();
+$("section").onchange = () => {
+  const b = $("section").value === "B";
+  $("numBlock").style.display = b ? "" : "none";
+  $("mcqBlock").style.display = b ? "none" : "";
+};
+
+/* ---- image load + crop ---- */
+let imgEl = $("img"), natural = {w:0,h:0};
+$("file").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    imgEl.onload = () => { natural = {w:imgEl.naturalWidth, h:imgEl.naturalHeight}; };
+    imgEl.src = r.result;
+    $("stage").style.display = "inline-block";
+    $("cropHint").style.display = "block";
+    $("cropActions").style.display = "flex";
+  };
+  r.readAsDataURL(f);
+};
+
+let dragging=false, sx=0, sy=0, rect=null;
+const stage = $("stage"), sel = $("sel");
+stage.addEventListener("mousedown", e => {
+  if (e.target !== imgEl) return;
+  dragging = true;
+  const b = imgEl.getBoundingClientRect();
+  sx = e.clientX - b.left; sy = e.clientY - b.top;
+  sel.style.left = sx+"px"; sel.style.top = sy+"px"; sel.style.width="0px"; sel.style.height="0px";
+  sel.style.display = "block";
+  e.preventDefault();
+});
+window.addEventListener("mousemove", e => {
+  if (!dragging) return;
+  const b = imgEl.getBoundingClientRect();
+  let x = e.clientX - b.left, y = e.clientY - b.top;
+  x = Math.max(0, Math.min(x, b.width)); y = Math.max(0, Math.min(y, b.height));
+  const left = Math.min(x,sx), top = Math.min(y,sy), w = Math.abs(x-sx), h = Math.abs(y-sy);
+  sel.style.left=left+"px"; sel.style.top=top+"px"; sel.style.width=w+"px"; sel.style.height=h+"px";
+  const scale = natural.w / b.width;
+  rect = { x:left*scale, y:top*scale, w:w*scale, h:h*scale };
+});
+window.addEventListener("mouseup", () => dragging=false);
+
+function cropToDataUrl(){
+  if (!rect || rect.w < 4 || rect.h < 4) return null;
+  const c = document.createElement("canvas");
+  c.width = Math.round(rect.w); c.height = Math.round(rect.h);
+  c.getContext("2d").drawImage(imgEl, rect.x, rect.y, rect.w, rect.h, 0, 0, c.width, c.height);
+  // compress to keep base64 small; PNG for crisp text, fallback JPEG if huge
+  let url = c.toDataURL("image/png");
+  if (url.length > 700000) url = c.toDataURL("image/jpeg", 0.85);
+  return url;
+}
+$("cropActions").querySelectorAll("[data-assign]").forEach(b => b.onclick = () => {
+  const url = cropToDataUrl();
+  if (!url) { msg("Drag a selection box on the image first.", false); return; }
+  crops[b.dataset.assign] = url;
+  renderCropPreviews();
+  msg("Crop assigned to " + (b.dataset.assign==="image"?"question image":"option "+b.dataset.assign) + ".", true);
+});
+function renderCropPreviews(){
+  $("qimgPreview").innerHTML = crops.image ? `Question image: <img class="thumb" src="${crops.image}"> <button class="sec" onclick="clearCrop('image')" style="padding:2px 8px">remove</button>` : "";
+  $("optImgPreview").innerHTML = ["A","B","C","D"].filter(k=>crops[k])
+    .map(k=>`${k}: <img class="thumb" src="${crops[k]}"> <button class="sec" onclick="clearCrop('${k}')" style="padding:2px 8px">remove</button>`).join("<br>");
+}
+window.clearCrop = k => { crops[k]=null; renderCropPreviews(); };
+
+function msg(t, ok){ $("formMsg").innerHTML = `<div class="msg ${ok?'ok':'err'}">${t}</div>`; }
+
+/* ---- add question ---- */
+let autoN = 1;
+$("addBtn").onclick = () => {
+  const examType = $("examType").value, subject = $("subject").value, section = $("section").value;
+  const text = $("text").value.trim();
+  const id = $("qid").value.trim() || `${subject.slice(0,3).toUpperCase()}_${examType.slice(0,1).toUpperCase()}_${String(Date.now()).slice(-5)}${autoN++}`;
+  if (!text && !crops.image) { msg("Add question text or assign a question image.", false); return; }
+  const q = { id, subject, section, examType, topic:$("topic").value.trim(), difficulty:$("difficulty").value };
+  if (text) q.text = text; else q.text = "";
+  if (crops.image) q.image = crops.image;
+  if (section === "A") {
+    const opts = [$("optA").value, $("optB").value, $("optC").value, $("optD").value];
+    const optImgs = ["A","B","C","D"].map(k=>crops[k]);
+    const haveText = opts.every(o=>o.trim());
+    const haveImgs = optImgs.every(x=>x);
+    if (!haveText && !haveImgs) { msg("Provide all 4 option texts OR assign all 4 option images.", false); return; }
+    q.options = haveText ? opts : ["","","",""];
+    if (haveImgs) q.optionImages = optImgs;
+    q.correct_answer = $("correctMcq").value;
+  } else {
+    const n = $("correctNum").value.trim();
+    if (n==="" || isNaN(parseFloat(n))) { msg("Enter a numerical correct answer.", false); return; }
+    q.correct_answer = n;
+  }
+  questions.push(q);
+  renderList();
+  clearForm();
+  msg(`Added "${id}". Total: ${questions.length}.`, true);
+};
+$("clearFormBtn").onclick = () => { clearForm(); msg("Form cleared.", true); };
+function clearForm(){
+  ["qid","topic","text","optA","optB","optC","optD","correctNum"].forEach(i=>$(i).value="");
+  crops = { image:null, A:null, B:null, C:null, D:null };
+  renderCropPreviews();
+}
+function renderList(){
+  $("count").textContent = questions.length;
+  $("listRows").innerHTML = questions.map((q,i)=>`<tr>
+    <td>${q.id}</td><td>${q.subject}</td><td>${q.section}</td>
+    <td>${q.text? q.text.slice(0,40) : ""}${q.image?' <span class="pill">img</span>':""}${q.optionImages?' <span class="pill">opt-img</span>':""}</td>
+    <td>${q.correct_answer}</td>
+    <td><button class="danger" style="padding:2px 8px" onclick="delQ(${i})">del</button></td></tr>`).join("")
+    || `<tr><td colspan="6" style="color:#667">No questions yet.</td></tr>`;
+}
+window.delQ = i => { questions.splice(i,1); renderList(); };
+renderList();
+
+$("exportBtn").onclick = () => {
+  if (!questions.length) { alert("Add at least one question."); return; }
+  const blob = new Blob([JSON.stringify(questions, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `questions_${questions[0].examType}_${questions.length}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+};
+$("resetBtn").onclick = () => { if (confirm("Clear all added questions?")) { questions=[]; renderList(); } };
+</script>
+</body>
+</html>

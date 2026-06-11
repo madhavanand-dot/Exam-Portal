@@ -124,6 +124,34 @@ details.qexp div{margin-top:6px;font-size:13px;line-height:1.5}
 .subTabs button{padding:6px 14px;border:1px solid var(--border);background:#f3f6f9;border-radius:4px;font-weight:600}
 .subTabs button.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 #uploadLog{max-height:220px;overflow-y:auto;font-size:12.5px;font-family:ui-monospace,monospace;background:#f7f9fb;border:1px solid var(--border);border-radius:4px;padding:8px;margin-top:8px;white-space:pre-wrap}
+/* question images */
+.qimg{max-width:100%;max-height:340px;border:1px solid var(--border);border-radius:6px;margin:6px 0;cursor:zoom-in;display:block}
+.opt .qimg{max-height:120px;margin:2px 0}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+#lightbox img{max-width:94vw;max-height:94vh;border-radius:6px}
+/* cheat warning modal */
+#cheatModal{position:fixed;inset:0;background:rgba(140,0,0,.45);z-index:150;display:flex;align-items:center;justify-content:center}
+#cheatModal .card{width:460px;max-width:92vw;border:3px solid #c0392b}
+#cheatModal h3{color:#c0392b;margin-bottom:8px}
+.malp-banner{background:#fdecea;border:1px solid #e2a39d;color:#a4271a;padding:12px 14px;border-radius:6px;font-weight:600;margin:10px 0}
+/* calculator */
+#calcBtn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:4px;padding:5px 10px;font-weight:600}
+#calc{position:fixed;bottom:70px;right:18px;width:250px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.28);z-index:70;padding:10px}
+#calcDisp{width:100%;height:42px;text-align:right;font-size:18px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;margin-bottom:8px;font-variant-numeric:tabular-nums}
+#calcKeys{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+#calcKeys button{padding:9px 0;border:1px solid var(--border);background:#f3f6f9;border-radius:5px;font-size:14px}
+#calcKeys button:hover{background:var(--blue-light)}
+#calcKeys button.op{background:#e8eef5}
+#calcKeys button.eq{background:var(--blue);color:#fff;border-color:var(--blue)}
+#calcKeys button.wide{grid-column:span 2}
+.analybar{height:14px;background:var(--green);border-radius:3px;display:inline-block;vertical-align:middle}
+@media print{
+  body * { visibility:hidden; }
+  #view-result, #view-result * { visibility:visible; }
+  #view-result { position:absolute; left:0; top:0; width:100%; }
+  .topbar, #csvReportBtn, #pdfReportBtn, .subTabs, details.qexp summary { display:none!important; }
+  details.qexp[open] div, details.qexp div { display:block!important; }
+}
 .flexrow{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
 .flexrow .field{flex:1;min-width:160px;margin-bottom:0}
 h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
@@ -193,14 +221,28 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
     <div id="atab-exams" class="atab hidden">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Create Exam</h2>
-        <div class="flexrow" style="margin-bottom:12px">
-          <div class="field"><label>Title</label><input id="exTitle" placeholder="e.g. NEET Mock Test 04"></div>
+        <div class="flexrow" style="margin-bottom:10px">
+          <div class="field"><label>Title</label><input id="exTitle" placeholder="e.g. Custom Test 04"></div>
           <div class="field"><label>Exam Type</label><select id="exType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <div class="field"><label>Duration (min)</label><input id="exDuration" type="number" min="1" value="180"></div>
+        </div>
+        <div class="flexrow" style="margin-bottom:10px">
+          <div class="field"><label>Scoring</label><select id="exScoring">
+            <option value="preset">Type default (+4/−1 MCQ, +4/0 Numerical)</option>
+            <option value="neg0">No negative marking (+4/0 all)</option>
+            <option value="custom">Custom…</option>
+          </select></div>
+          <div class="field" id="exCustomMarks" style="display:none"><label>+correct / −wrong (MCQ)</label>
+            <div style="display:flex;gap:6px"><input id="exMkA" type="number" value="4" style="width:70px"><input id="exMkW" type="number" value="1" style="width:70px" title="wrong penalty (positive number)"></div></div>
+          <div class="field" style="max-width:230px"><label>Options</label>
+            <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px;margin-top:6px"><input type="checkbox" id="exShuffleOpt"> Shuffle option order per student</label></div>
           <button class="btn secondary" id="exLoadBankBtn">Load Bank</button>
         </div>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Tick any questions you want — any subjects, any count. The "Select first N" buttons help auto-pick. Marks are computed from your selection.</p>
         <div id="exPicker"></div>
         <div id="exMsg"></div>
-        <button class="btn green" id="exCreateBtn" style="margin-top:12px">Create Exam</button>
+        <div id="exSelSummary" style="font-size:13px;color:var(--blue);font-weight:600;margin-top:10px"></div>
+        <button class="btn green" id="exCreateBtn" style="margin-top:8px">Create Exam</button>
       </div>
       <h2 class="sec">Exams</h2>
       <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Questions</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody id="examRows"></tbody></table>
@@ -215,7 +257,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <button class="btn secondary" id="rpLoadBtn">Apply</button>
         <button class="btn" id="rpCsvBtn">Export CSV</button>
       </div>
-      <table class="tbl"><thead><tr><th>Date</th><th>Student</th><th>Type</th><th>Exam</th><th>Score</th><th>Time (min)</th><th>Wrong</th><th>Unanswered</th></tr></thead><tbody id="rpRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>Date</th><th>Student</th><th>Type</th><th>Exam</th><th>Score</th><th>Time (min)</th><th>Wrong</th><th>Unanswered</th><th>Flag</th></tr></thead><tbody id="rpRows"></tbody></table>
     </div>
   </div>
 </div>
@@ -238,6 +280,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
   <div id="examTop">
     <span class="title" id="exTopTitle"></span>
     <span class="cand" id="exTopCand"></span>
+    <button id="calcBtn" type="button" title="Calculator">🖩 Calc</button>
     <span id="timer">180:00</span>
   </div>
   <div id="subjectTabs"></div>
@@ -275,6 +318,29 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
     </div>
   </div>
   <button id="palToggle" title="Question palette">&#9776;</button>
+  <div id="calc" class="hidden">
+    <input id="calcDisp" readonly value="0">
+    <div id="calcKeys">
+      <button data-k="C" class="op">C</button><button data-k="(" class="op">(</button><button data-k=")" class="op">)</button><button data-k="/" class="op">÷</button>
+      <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="*" class="op">×</button>
+      <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button data-k="-" class="op">−</button>
+      <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="+" class="op">+</button>
+      <button data-k="0">0</button><button data-k=".">.</button><button data-k="back" class="op">⌫</button><button data-k="=" class="eq">=</button>
+      <button data-k="sqrt" class="op">√</button><button data-k="^" class="op">x^y</button><button data-k="pi" class="op">π</button><button data-k="%" class="op">%</button>
+    </div>
+  </div>
+</div>
+
+<!-- lightbox for image zoom -->
+<div id="lightbox" class="hidden"><img id="lightboxImg" src="" alt=""></div>
+
+<!-- malpractice / tab-switch warning -->
+<div id="cheatModal" class="hidden">
+  <div class="card">
+    <h3>⚠ Warning</h3>
+    <div id="cheatBody"></div>
+    <div style="text-align:right;margin-top:14px"><button class="btn danger" id="cheatOk">I understand, continue</button></div>
+  </div>
 </div>
 
 <!-- ================= RESULT ================= -->
@@ -344,6 +410,28 @@ const EXAM_CONFIG = {
 };
 
 /* ========== TINY HELPERS ========== */
+const ALL_SUBJECTS = ["Physics","Chemistry","Botany","Zoology","Mathematics"];
+// Resolve the effective config for an exam doc (custom fields override the type preset).
+function examCfg(exam){
+  const base = EXAM_CONFIG[exam?.examType] || EXAM_CONFIG.medical;
+  return {
+    label: exam?.title || base.label,
+    subjects: (exam?.subjects && exam.subjects.length) ? exam.subjects : base.subjects,
+    durationSec: exam?.durationMin ? exam.durationMin*60 : base.durationSec,
+    maxMarks: (exam?.maxMarks ?? null) !== null ? exam.maxMarks : base.maxMarks,
+    marks: exam?.marks || base.marks,
+    shuffleOptions: exam?.shuffleOptions ?? false
+  };
+}
+// Config snapshot stored on an attempt, so results render correctly even if the exam changes/deletes.
+function attemptCfg(att){
+  const base = EXAM_CONFIG[att?.examType] || EXAM_CONFIG.medical;
+  return {
+    subjects: (att?.examSubjects && att.examSubjects.length) ? att.examSubjects : base.subjects,
+    maxMarks: (att?.examMaxMarks ?? null) !== null ? att.examMaxMarks : base.maxMarks,
+    marks: att?.examMarks || base.marks
+  };
+}
 const $  = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function showView(id){
@@ -356,6 +444,20 @@ function fmtDate(ts){
   return isNaN(d) ? "-" : d.toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"});
 }
 function fmtSec(s){ s=Math.round(s||0); const m=Math.floor(s/60); return `${m}m ${s%60}s`; }
+// render a base64/URL image (or nothing). data is a data: URI or http(s) URL.
+function imgHtml(src, cls="qimg"){
+  if (!src || typeof src !== "string") return "";
+  const safe = src.replace(/"/g,"&quot;");
+  return `<img class="${cls}" src="${safe}" alt="" loading="lazy">`;
+}
+// lightbox: click any .qimg to zoom
+document.addEventListener("click", e => {
+  if (e.target.classList?.contains("qimg")) {
+    $("lightboxImg").src = e.target.src;
+    $("lightbox").classList.remove("hidden");
+  }
+});
+function initLightbox(){ $("lightbox").onclick = () => $("lightbox").classList.add("hidden"); }
 function typeset(el){ if (window.MathJax?.typesetPromise) MathJax.typesetPromise(el?[el]:undefined).catch(()=>{}); }
 function downloadCsv(filename, rows){
   const csv = rows.map(r => r.map(c => {
@@ -493,15 +595,24 @@ $("qUploadBtn").onclick = async () => {
     if (!EXAM_CONFIG[q.examType].subjects.includes(q.subject)) return errors.push(`${where_}: subject "${q.subject}" not valid for ${q.examType}`);
     const section = q.section || "A";
     if (!["A","B"].includes(section))         return errors.push(`${where_}: section must be A or B`);
-    if (!q.text)                              return errors.push(`${where_}: missing text`);
+    const hasImg = typeof q.image === "string" && q.image.length > 0;
+    if (!q.text && !hasImg)                    return errors.push(`${where_}: needs "text" or "image"`);
+    const optImgs = Array.isArray(q.optionImages) ? q.optionImages : null;
     if (section === "A") {
-      if (!Array.isArray(q.options) || q.options.length !== 4) return errors.push(`${where_}: MCQ needs exactly 4 options`);
-      if (!["A","B","C","D"].includes(q.correct_answer))       return errors.push(`${where_}: correct_answer must be A/B/C/D`);
+      const optsOk = Array.isArray(q.options) && q.options.length === 4;
+      const optImgsOk = optImgs && optImgs.length === 4 && optImgs.every(x => typeof x === "string" && x);
+      if (!optsOk && !optImgsOk) return errors.push(`${where_}: MCQ needs 4 "options" (text) or 4 "optionImages"`);
+      if (!["A","B","C","D"].includes(q.correct_answer)) return errors.push(`${where_}: correct_answer must be A/B/C/D`);
     } else {
       if (q.correct_answer === undefined || isNaN(parseFloat(q.correct_answer))) return errors.push(`${where_}: numerical correct_answer must be a number string`);
     }
-    valid.push({ ...q, section, options: section==="A" ? q.options : [],
-                 topic: q.topic || "", difficulty: q.difficulty || "Medium" });
+    const clean = { ...q, section,
+                 text: q.text || "",
+                 options: section==="A" ? (q.options || ["","","",""]) : [],
+                 topic: q.topic || "", difficulty: q.difficulty || "Medium" };
+    if (hasImg) clean.image = q.image; else delete clean.image;
+    if (section==="A" && optImgs) clean.optionImages = optImgs; else delete clean.optionImages;
+    valid.push(clean);
   });
   errors.forEach(e => say("ERROR  " + e));
   say(`Validated: ${valid.length} ok, ${errors.length} rejected.`);
@@ -561,58 +672,84 @@ $("qbClearBtn").onclick = async () => {
   $("qbRows").innerHTML = "";
 };
 
-/* ----- exam creation ----- */
+/* ----- exam creation (custom builder) ----- */
+$("exScoring").onchange = () => {
+  $("exCustomMarks").style.display = $("exScoring").value === "custom" ? "" : "none";
+};
+// resolve the marks scheme chosen in the builder
+function builderMarks(){
+  const t = $("exType").value, base = EXAM_CONFIG[t];
+  const mode = $("exScoring").value;
+  if (mode === "neg0") return { A:{correct:4,wrong:0}, B:{correct:4,wrong:0} };
+  if (mode === "custom") {
+    const c = parseFloat($("exMkA").value)||4, w = Math.abs(parseFloat($("exMkW").value)||0);
+    return { A:{correct:c,wrong:-w}, B:{correct:c,wrong:0} };
+  }
+  return base.marks;
+}
+let exBankCache = []; // [{docId, subject, section, ...}]
 $("exLoadBankBtn").onclick = async () => {
   setMsg($("exMsg"),"");
   const t = $("exType").value, cfg = EXAM_CONFIG[t];
   $("exPicker").innerHTML = "Loading bank&hellip;";
+  exBankCache = [];
   const html = [];
   for (const sub of cfg.subjects) {
     const list = await fetchQuestions(t, sub);
-    const need = cfg.perSubject.A + (cfg.perSubject.B||0);
-    html.push(`<h2 class="sec">${sub} <small style="font-weight:400;color:var(--muted)">
-      (select ${cfg.perSubject.A} Sec-A${cfg.perSubject.B?` + ${cfg.perSubject.B} Sec-B`:""} &mdash; ${list.length} in bank)</small>
-      <button class="btn secondary" style="padding:3px 10px;font-size:12px" data-selall="${sub}">Select first ${need}</button></h2>
+    exBankCache.push(...list);
+    html.push(`<h2 class="sec">${sub} <small style="font-weight:400;color:var(--muted)">(${list.length} in bank)</small>
+      <button class="btn secondary" style="padding:3px 10px;font-size:12px" data-seln="${sub}" data-sec="A">First N Sec-A…</button>
+      ${list.some(q=>q.section==="B")?`<button class="btn secondary" style="padding:3px 10px;font-size:12px" data-seln="${sub}" data-sec="B">First N Sec-B…</button>`:""}
+      <button class="btn secondary" style="padding:3px 10px;font-size:12px" data-clrsub="${sub}">Clear</button></h2>
       <div class="checklist" data-sub="${sub}">` +
-      list.map(q => `<label><input type="checkbox" value="${q.docId}" data-sec="${q.section}" data-csub="${sub}">
-        <span><b>[${esc(q.section)}] ${esc(q.id)}</b> &mdash; ${esc((q.text||"").slice(0,110))}</span></label>`).join("")
+      (list.length ? list.map(q => `<label><input type="checkbox" value="${q.docId}" data-sec="${q.section}" data-csub="${sub}">
+        <span><b>[${esc(q.section)}] ${esc(q.id)}</b>${q.image?" 🖼":""} &mdash; ${esc((q.text||"(image question)").slice(0,100))}</span></label>`).join("")
+        : `<div style="padding:6px;color:var(--muted)">No questions for ${sub}.</div>`)
       + `</div>`);
   }
   $("exPicker").innerHTML = html.join("") || "No subjects.";
-  $("exPicker").querySelectorAll("[data-selall]").forEach(b => b.onclick = () => {
-    const box = $("exPicker").querySelector(`.checklist[data-sub="${b.dataset.selall}"]`);
-    const cfg2 = EXAM_CONFIG[$("exType").value];
-    const cbs = [...box.querySelectorAll("input")];
-    cbs.forEach(c=>c.checked=false);
-    let a=0,bn=0;
-    for (const c of cbs) {
-      if (c.dataset.sec==="A" && a<cfg2.perSubject.A) { c.checked=true; a++; }
-      if (c.dataset.sec==="B" && bn<cfg2.perSubject.B) { c.checked=true; bn++; }
-    }
+  const recount = () => {
+    const checked = [...$("exPicker").querySelectorAll("input:checked")];
+    const m = builderMarks();
+    let mx = 0;
+    checked.forEach(c => { mx += (c.dataset.sec==="B"?m.B:m.A).correct; });
+    $("exSelSummary").textContent = `Selected: ${checked.length} questions • Max marks: ${mx}`;
+  };
+  $("exPicker").querySelectorAll("input").forEach(c => c.onchange = recount);
+  $("exPicker").querySelectorAll("[data-seln]").forEach(b => b.onclick = () => {
+    const n = parseInt(prompt(`How many Section-${b.dataset.sec} questions from ${b.dataset.seln}?`, "20"));
+    if (!n || n<1) return;
+    const box = $("exPicker").querySelector(`.checklist[data-sub="${b.dataset.seln}"]`);
+    let k=0;
+    [...box.querySelectorAll("input")].forEach(c => {
+      if (c.dataset.sec===b.dataset.sec && k<n) { c.checked=true; k++; }
+    });
+    recount();
   });
+  $("exPicker").querySelectorAll("[data-clrsub]").forEach(b => b.onclick = () => {
+    $("exPicker").querySelectorAll(`.checklist[data-sub="${b.dataset.clrsub}"] input`).forEach(c=>c.checked=false);
+    recount();
+  });
+  recount();
 };
 $("exCreateBtn").onclick = async () => {
-  const title = $("exTitle").value.trim(), t = $("exType").value, cfg = EXAM_CONFIG[t];
+  const title = $("exTitle").value.trim(), t = $("exType").value;
   if (!title) { setMsg($("exMsg"),"Enter a title."); return; }
   const checked = [...$("exPicker").querySelectorAll("input:checked")];
-  if (!checked.length) { setMsg($("exMsg"),"Load the bank and select questions first."); return; }
-  // validate counts per subject/section
-  const counts = {};
-  for (const c of checked) {
-    const k = c.dataset.csub + "|" + c.dataset.sec;
-    counts[k] = (counts[k]||0)+1;
-  }
-  const problems = [];
-  for (const sub of cfg.subjects) {
-    if ((counts[sub+"|A"]||0) !== cfg.perSubject.A) problems.push(`${sub} Sec-A: ${counts[sub+"|A"]||0}/${cfg.perSubject.A}`);
-    if (cfg.perSubject.B && (counts[sub+"|B"]||0) !== cfg.perSubject.B) problems.push(`${sub} Sec-B: ${counts[sub+"|B"]||0}/${cfg.perSubject.B}`);
-  }
-  if (problems.length && !confirm("Counts don't match the official pattern:\n" + problems.join("\n") + "\n\nCreate anyway?")) return;
+  if (!checked.length) { setMsg($("exMsg"),"Load the bank and select at least one question."); return; }
+  const duration = Math.max(1, parseInt($("exDuration").value)||180);
+  const marks = builderMarks();
+  const subjects = [...new Set(checked.map(c=>c.dataset.csub))]
+    .sort((a,b)=>ALL_SUBJECTS.indexOf(a)-ALL_SUBJECTS.indexOf(b));
+  let maxMarks = 0;
+  checked.forEach(c => { maxMarks += (c.dataset.sec==="B"?marks.B:marks.A).correct; });
   await addDoc(collection(db,"exams"), {
     title, examType: t, questionIds: checked.map(c=>c.value),
+    subjects, durationMin: duration, marks, maxMarks,
+    shuffleOptions: $("exShuffleOpt").checked,
     isActive: false, createdAt: serverTimestamp(), createdBy: currentUser.uid
   });
-  setMsg($("exMsg"), "Exam created. Activate it from the list below.", true);
+  setMsg($("exMsg"), `Exam created (${checked.length} questions, ${subjects.join("/")}, ${duration} min, max ${maxMarks}). Activate it below.`, true);
   loadExams();
 };
 
@@ -660,18 +797,23 @@ async function loadReports(){
   reportCache = list;
   $("rpRows").innerHTML = list.map(a => `
     <tr><td>${fmtDate(a.submitTime)}</td><td>${esc(a.studentName)}</td><td>${esc(a.examType)}</td>
-    <td>${esc(a.examTitle||a.examId)}</td><td><b>${a.score}</b> / ${EXAM_CONFIG[a.examType]?.maxMarks??""}</td>
+    <td><button class="btn secondary" style="padding:2px 9px" data-rpview="${a.docId}">${esc(a.examTitle||a.examId)}</button></td><td><b>${a.score}</b> / ${attemptCfg(a).maxMarks}</td>
     <td>${Math.round((a.totalTimeSec||0)/60)}</td>
-    <td>${a.wrongQuestions?.length||0}</td><td>${a.unansweredQuestions?.length||0}</td></tr>`).join("")
-    || `<tr><td colspan="8">No attempts found.</td></tr>`;
+    <td>${a.wrongQuestions?.length||0}</td><td>${a.unansweredQuestions?.length||0}</td>
+    <td>${a.malpractice?'<span class="badge neg">MALPRACTICE</span>':'<span class="badge pos">clean</span>'}</td></tr>`).join("")
+    || `<tr><td colspan="9">No attempts found.</td></tr>`;
+  $("rpRows").querySelectorAll("[data-rpview]").forEach(b => b.onclick = () => {
+    const a = reportCache.find(x=>x.docId===b.dataset.rpview);
+    if (a) showResult({ ...a });
+  });
 }
 $("rpLoadBtn").onclick = loadReports;
 $("rpCsvBtn").onclick = () => {
-  const rows = [["Date","Student","ExamType","Exam","Score","MaxMarks","TotalTimeMin","Wrong","Unanswered"]];
+  const rows = [["Date","Student","ExamType","Exam","Score","MaxMarks","TotalTimeMin","Wrong","Unanswered","Malpractice"]];
   for (const a of reportCache) rows.push([
     fmtDate(a.submitTime), a.studentName, a.examType, a.examTitle||a.examId,
-    a.score, EXAM_CONFIG[a.examType]?.maxMarks??"", Math.round((a.totalTimeSec||0)/60),
-    a.wrongQuestions?.length||0, a.unansweredQuestions?.length||0]);
+    a.score, attemptCfg(a).maxMarks, Math.round((a.totalTimeSec||0)/60),
+    a.wrongQuestions?.length||0, a.unansweredQuestions?.length||0, a.malpractice?("yes: "+(a.malpracticeReason||"")):"no"]);
   downloadCsv("attempts_report.csv", rows);
 };
 /* ========== STUDENT DASHBOARD ========== */
@@ -690,11 +832,12 @@ async function loadActiveExam(){
   if (qs.empty) { $("activeExamInfo").innerHTML = "No active exam right now. Check back later."; return; }
   const d = qs.docs[0];
   activeExam = { docId: d.id, ...d.data() };
-  const cfg = EXAM_CONFIG[activeExam.examType];
+  const cfg = examCfg(activeExam);
   $("activeExamInfo").innerHTML = `
-    <p style="margin-bottom:10px"><b>${esc(activeExam.title)}</b> &mdash; ${cfg.label}<br>
-    <span style="color:var(--muted);font-size:13px">${activeExam.questionIds.length} questions &bull; 180 minutes &bull; Max ${cfg.maxMarks} marks</span></p>
-    <button class="btn green" id="startExamBtn">Start Exam</button>`;
+    <p style="margin-bottom:10px"><b>${esc(activeExam.title)}</b> &mdash; ${esc(EXAM_CONFIG[activeExam.examType].label)}<br>
+    <span style="color:var(--muted);font-size:13px">${activeExam.questionIds.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${Math.round(cfg.durationSec/60)} minutes &bull; Max ${cfg.maxMarks} marks</span></p>
+    <p style="font-size:12.5px;color:#a4271a;margin-bottom:10px">⚠ This is a proctored test. It runs in fullscreen; switching tabs or leaving fullscreen is recorded. After 3 warnings the test auto-submits as malpractice.</p>
+    <button class="btn green" id="startExamBtn">Start Exam (Fullscreen)</button>`;
   $("startExamBtn").onclick = startExam;
 }
 
@@ -707,8 +850,8 @@ async function loadMyAttempts(){
   const allScores = allQs.docs.map(d=>d.data()).filter(a=>a.submitTime).map(a=>a.score);
   $("attemptRows").innerHTML = mine.map(a => {
     const {rank, pct} = rankAndPercentile(a.score, allScores);
-    return `<tr><td>${fmtDate(a.submitTime)}</td><td>${esc(a.examTitle||a.examId)}</td>
-      <td>${esc(a.examType)}</td><td><b>${a.score}</b> / ${EXAM_CONFIG[a.examType]?.maxMarks??""}</td>
+    return `<tr><td>${fmtDate(a.submitTime)}</td><td>${esc(a.examTitle||a.examId)}${a.malpractice?' <span class="badge neg">MALPRACTICE</span>':''}</td>
+      <td>${esc(a.examType)}</td><td><b>${a.score}</b> / ${attemptCfg(a).maxMarks}</td>
       <td>${rank}</td><td>${pct}</td>
       <td><button class="btn secondary" style="padding:3px 10px" data-viewat="${a.docId}">View Result</button></td></tr>`;
   }).join("") || `<tr><td colspan="7">No attempts yet.</td></tr>`;
@@ -735,7 +878,8 @@ const STATUS = { NV:"notVisited", NA:"notAnswered", AN:"answered", MA:"markedAns
 
 async function startExam(){
   $("startExamBtn").disabled = true;
-  const cfg = EXAM_CONFIG[activeExam.examType];
+  try { await document.documentElement.requestFullscreen?.(); } catch(e){}  // must be in the click gesture
+  const cfg = examCfg(activeExam);
   const cacheKey = `exam_${activeExam.docId}_${currentUser.uid}`;
 
   let qlist;
@@ -756,6 +900,10 @@ async function startExam(){
         qlist.push(...grp);
       }
     }
+    // option-order per question (identity unless shuffleOptions); answers always stored in ORIGINAL letters
+    qlist.forEach(q => {
+      q._optOrder = (cfg.shuffleOptions && (q.section||"A")==="A") ? shuffle([0,1,2,3]) : [0,1,2,3];
+    });
     sessionStorage.setItem(cacheKey, JSON.stringify(qlist));
   }
   if (!qlist.length) { alert("Exam has no questions."); $("startExamBtn").disabled=false; return; }
@@ -804,7 +952,9 @@ async function startExam(){
       };
     }),
     shownAt: null,
-    submitted: false
+    submitted: false,
+    violations: [],     // {type, at}
+    warnings: 0
   };
 
   // subject tabs
@@ -817,13 +967,104 @@ async function startExam(){
   });
 
   buildPalette();
+  initLightbox();
+  initCalc();
   showView("view-exam");
   gotoQuestion(0);
 
   clearInterval(tickInt); clearInterval(autosaveInt);
   tickInt = setInterval(tick, 250);
   autosaveInt = setInterval(()=>saveProgress().catch(()=>{}), AUTOSAVE_MS);
+  startProctoring();
   tick();
+}
+
+/* ========== ANTI-CHEAT / PROCTORING ========== */
+const MAX_WARNINGS = 3;
+let proctorHandlers = [];
+let _lastViolAt = 0;
+function recordViolation(type, label){
+  if (!EX || EX.submitted) return;
+  const now = Date.now();
+  if (now - _lastViolAt < 1500) { EX.violations.push({ type, at: now }); return; } // same incident, log but don't double-warn
+  _lastViolAt = now;
+  EX.violations.push({ type, at: now });
+  EX.warnings++;
+  saveProgress().catch(()=>{});
+  if (EX.warnings >= MAX_WARNINGS) {
+    stopProctoring();
+    $("cheatModal").classList.add("hidden");
+    submitExam(false, { malpractice:true, reason:label });
+    return;
+  }
+  $("cheatBody").innerHTML =
+    `<p style="margin-bottom:8px"><b>${esc(label)}</b></p>
+     <p>This is <b>warning ${EX.warnings} of ${MAX_WARNINGS}</b>. Leaving the test screen is treated as malpractice.</p>
+     <p style="margin-top:8px;color:#a4271a">On the ${MAX_WARNINGS}rd warning your test will be submitted automatically and flagged.</p>`;
+  $("cheatModal").classList.remove("hidden");
+}
+function startProctoring(){
+  stopProctoring();
+  const onHide = () => { if (document.hidden) recordViolation("tab_hidden","You switched away from the exam tab/window."); };
+  const onBlur = () => { recordViolation("window_blur","The exam window lost focus (possible tab/app switch)."); };
+  const onFsChange = () => {
+    if (!document.fullscreenElement && EX && !EX.submitted)
+      recordViolation("exit_fullscreen","You exited fullscreen mode.");
+  };
+  const block = e => { e.preventDefault(); };
+  const onKey = e => {
+    // block copy/cut/paste, print, devtools, view-source
+    if ((e.ctrlKey||e.metaKey) && ["c","v","x","p","u","s"].includes(e.key.toLowerCase())) { e.preventDefault(); }
+    if (e.key === "F12") e.preventDefault();
+    if ((e.ctrlKey||e.metaKey) && e.shiftKey && ["i","j","c"].includes(e.key.toLowerCase())) e.preventDefault();
+  };
+  document.addEventListener("visibilitychange", onHide);
+  window.addEventListener("blur", onBlur);
+  document.addEventListener("fullscreenchange", onFsChange);
+  document.addEventListener("copy", block);
+  document.addEventListener("cut", block);
+  document.addEventListener("paste", block);
+  document.addEventListener("keydown", onKey, true);
+  proctorHandlers = [
+    ()=>document.removeEventListener("visibilitychange", onHide),
+    ()=>window.removeEventListener("blur", onBlur),
+    ()=>document.removeEventListener("fullscreenchange", onFsChange),
+    ()=>document.removeEventListener("copy", block),
+    ()=>document.removeEventListener("cut", block),
+    ()=>document.removeEventListener("paste", block),
+    ()=>document.removeEventListener("keydown", onKey, true)
+  ];
+}
+function stopProctoring(){ proctorHandlers.forEach(fn=>fn()); proctorHandlers = []; }
+$("cheatOk").onclick = async () => {
+  $("cheatModal").classList.add("hidden");
+  try { await document.documentElement.requestFullscreen?.(); } catch(e){}
+};
+
+/* ========== CALCULATOR ========== */
+function initCalc(){
+  $("calcBtn").onclick = () => $("calc").classList.toggle("hidden");
+  let expr = "";
+  const disp = $("calcDisp");
+  const show = () => disp.value = expr || "0";
+  $("calcKeys").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const k = b.dataset.k;
+    if (k === "C") { expr = ""; }
+    else if (k === "back") { expr = expr.slice(0,-1); }
+    else if (k === "pi") { expr += "3.141592653589793"; }
+    else if (k === "sqrt") { expr += "Math.sqrt("; }
+    else if (k === "^") { expr += "**"; }
+    else if (k === "=") {
+      try {
+        if (!/^[0-9+\-*/().%\sMathsqrt*]+$/.test(expr.replace(/Math\.sqrt/g,""))) throw 0;
+        const v = Function('"use strict";return ('+expr.replace(/%/g,"/100")+')')();
+        expr = (Math.round(v*1e10)/1e10).toString();
+      } catch(e){ expr = "Error"; }
+    }
+    else { expr += k; }
+    show();
+  });
+  show();
 }
 
 function tick(){
@@ -879,16 +1120,23 @@ function gotoQuestion(i, save=false){
   $("subjectTabs").querySelectorAll("button").forEach(b =>
     b.classList.toggle("active", b.dataset.subj === q.subject));
 
+  const m = EX.cfg.marks[q.section||"A"];
   $("qNo").textContent = `Question ${EX.idx+1} of ${EX.questions.length}`;
-  $("qMeta").textContent = `${q.subject} • Section ${q.section||"A"} • ${q.section==="B"?"Numerical (+4 / 0)":"MCQ (+4 / −1)"}`;
-  $("qText").innerHTML = q.text;
+  $("qMeta").textContent = `${q.subject} • Section ${q.section||"A"} • ${q.section==="B"?`Numerical (+${m.correct} / ${m.wrong})`:`MCQ (+${m.correct} / ${m.wrong})`}`;
+  $("qText").innerHTML = (q.text||"") + imgHtml(q.image);
 
   if ((q.section||"A") === "A") {
     $("numInputWrap").classList.add("hidden");
-    $("qOptions").innerHTML = (q.options||[]).map((opt,k) => {
-      const letter = "ABCD"[k];
-      const checked = st.answer === letter ? "checked" : "";
-      return `<label class="opt ${checked?'sel':''}"><input type="radio" name="optGroup" value="${letter}" ${checked}><span>${opt}</span></label>`;
+    const order = q._optOrder || [0,1,2,3];
+    $("qOptions").innerHTML = order.map((origIdx, p) => {
+      const dispLetter = "ABCD"[p];            // what the student sees
+      const origLetter = "ABCD"[origIdx];      // stored/graded value
+      // strip any embedded "A) " / "B. " prefix so our display letter is authoritative (needed when shuffling)
+      const optText = String((q.options && q.options[origIdx]) || "").replace(/^\s*[A-D][).]\s*/, "");
+      const optImg  = q.optionImages ? imgHtml(q.optionImages[origIdx]) : "";
+      const checked = st.answer === origLetter ? "checked" : "";
+      return `<label class="opt ${checked?'sel':''}"><input type="radio" name="optGroup" value="${origLetter}" ${checked}>
+        <span><b>(${dispLetter})</b> ${optText}${optImg}</span></label>`;
     }).join("");
     $("qOptions").querySelectorAll("input").forEach(r => r.onchange = () => {
       $("qOptions").querySelectorAll(".opt").forEach(o=>o.classList.remove("sel"));
@@ -994,10 +1242,12 @@ $("btnSubmitExam").onclick = () => {
 $("modalCancel").onclick = () => $("modalBack").classList.add("hidden");
 $("modalConfirm").onclick = () => { $("modalBack").classList.add("hidden"); submitExam(false); };
 
-async function submitExam(auto){
+async function submitExam(auto, flag={}){
   if (!EX || EX.submitted) return;
   EX.submitted = true;
   clearInterval(tickInt); clearInterval(autosaveInt);
+  stopProctoring();
+  $("modalBack").classList.add("hidden");
   stopClock();
 
   const cfg = EX.cfg;
@@ -1038,13 +1288,22 @@ async function submitExam(auto){
     totalTimeSec: Math.min(totalTimeSec, cfg.durationSec),
     subjectTimeSec, questionTimeSec,
     responses: buildResponses(),
-    score, subjectScores, wrongQuestions, unansweredQuestions
+    score, subjectScores, wrongQuestions, unansweredQuestions,
+    // config snapshot so the result renders correctly regardless of exam edits
+    examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks,
+    // proctoring
+    malpractice: !!flag.malpractice,
+    malpracticeReason: flag.malpractice ? (flag.reason || "") : "",
+    violations: EX.violations.map(v => ({ type:v.type, at: Timestamp.fromMillis(v.at) })),
+    warnings: EX.warnings
   };
   try { await setDoc(EX.attemptRef, attemptData, { merge:true }); }
   catch(e){ alert("Warning: result could not be saved to server: " + e.message); }
   sessionStorage.removeItem(EX.cacheKey);
+  try { if (document.fullscreenElement) await document.exitFullscreen(); } catch(e){}
 
-  if (auto) alert("Time is up! Your exam has been auto-submitted.");
+  if (flag.malpractice) alert("Test auto-submitted due to repeated rule violations. This attempt is flagged as malpractice.");
+  else if (auto) alert("Time is up! Your exam has been auto-submitted.");
   showResult({ ...attemptData, submitTime: new Date(), _detail: detail });
   EX = null;
 }
@@ -1056,7 +1315,7 @@ async function showResult(attempt){
   showView("view-result");
   $("resultWrap").innerHTML = "Loading result&hellip;";
 
-  const cfg = EXAM_CONFIG[attempt.examType];
+  const cfg = attemptCfg(attempt);
 
   // rebuild per-question detail if not provided (viewing an old attempt)
   let detail = attempt._detail;
@@ -1106,12 +1365,30 @@ async function showResult(attempt){
 
   const errRows = kind => detail.filter(d=>d.verdict===kind).map((d,i) => `
     <tr><td>${i+1}</td><td>${esc(d.q.subject)}</td><td>${esc(d.q.topic)}</td><td>${esc(d.q.difficulty)}</td>
-    <td><details class="qexp"><summary>${esc((d.q.text||"").slice(0,80))}&hellip;</summary><div>${d.q.text}${
-      d.q.options?.length ? "<br><br>" + d.q.options.map(o=>esc(o)).join("<br>") : ""}</div></details></td>
+    <td><details class="qexp"><summary>${esc((d.q.text||"(image question)").slice(0,80))}&hellip;</summary><div>${d.q.text||""}${imgHtml(d.q.image)}${
+      d.q.options?.length ? "<br>" + d.q.options.map((o,k)=>`(${"ABCD"[k]}) ${esc(String(o).replace(/^\s*[A-D][).]\s*/,""))}${d.q.optionImages?imgHtml(d.q.optionImages[k]):""}`).join("<br>") : ""}</div></details></td>
     <td><b>${esc(d.q.correct_answer)}</b></td></tr>`).join("")
     || `<tr><td colspan="6">None 🎉</td></tr>`;
 
-  $("resultWrap").innerHTML = `
+  // topic-wise analytics
+  const topicMap = {};
+  detail.forEach(d => {
+    const key = (d.q.subject||"") + " — " + (d.q.topic||"General");
+    const t = topicMap[key] || (topicMap[key] = {tot:0,correct:0,wrong:0,unans:0,time:0});
+    t.tot++; t.time += d.timeSec;
+    if (d.verdict==="correct") t.correct++; else if (d.verdict==="wrong") t.wrong++; else t.unans++;
+  });
+  const topicRows = Object.entries(topicMap)
+    .sort((a,b)=> (a[1].correct/a[1].tot) - (b[1].correct/b[1].tot))
+    .map(([k,t]) => { const acc = Math.round(100*t.correct/t.tot);
+      return `<tr><td>${esc(k)}</td><td>${t.tot}</td><td>${t.correct}</td><td>${t.wrong}</td><td>${t.unans}</td>
+        <td><span class="analybar" style="width:${Math.max(2,acc)}px;background:${acc>=60?'var(--green)':acc>=35?'var(--orange)':'var(--red)'}"></span> ${acc}%</td>
+        <td>${fmtSec(t.time)}</td></tr>`; }).join("");
+
+  const malpBanner = attempt.malpractice
+    ? `<div class="malp-banner">⚠ This attempt was flagged for MALPRACTICE: ${esc(attempt.malpracticeReason||"repeated rule violations")} (${attempt.warnings||attempt.violations?.length||0} warnings).</div>` : "";
+
+  $("resultWrap").innerHTML = malpBanner + `
     <div class="statRow">
       <div class="stat"><div class="v">${attempt.score}</div><div class="l">Score</div></div>
       <div class="stat"><div class="v">${cfg.maxMarks}</div><div class="l">Max Marks</div></div>
@@ -1120,8 +1397,11 @@ async function showResult(attempt){
       <div class="stat"><div class="v">${fmtSec(attempt.totalTimeSec)}</div><div class="l">Total Time</div></div>
     </div>
     <button class="btn" id="csvReportBtn">Download Report (CSV)</button>
+    <button class="btn secondary" id="pdfReportBtn">Print / Save as PDF</button>
     <h2 class="sec">Subject-wise</h2>
     <table class="tbl"><thead><tr><th>Subject</th><th>Score</th><th>Time</th></tr></thead><tbody>${subRows}</tbody></table>
+    <h2 class="sec">Topic-wise Analysis (weakest first)</h2>
+    <table class="tbl"><thead><tr><th>Subject — Topic</th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy</th><th>Time</th></tr></thead><tbody>${topicRows}</tbody></table>
     <h2 class="sec">Question-by-question</h2>
     <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th><th>Time Spent</th></tr></thead><tbody>${qRows}</tbody></table>
     <h2 class="sec">Error Log</h2>
@@ -1147,8 +1427,10 @@ async function showResult(attempt){
       d.answer??"",d.q.correct_answer,d.delta,d.timeSec,d.verdict]));
     rows.push([]);
     rows.push(["TOTAL SCORE",lastResultAttempt.score,"MAX",cfg.maxMarks,"TIME",fmtSec(lastResultAttempt.totalTimeSec)]);
+    if (lastResultAttempt.malpractice) rows.push(["MALPRACTICE", lastResultAttempt.malpracticeReason||"yes"]);
     downloadCsv("exam_report.csv", rows);
   };
+  $("pdfReportBtn").onclick = () => window.print();
   typeset($("resultWrap"));
 }
 
