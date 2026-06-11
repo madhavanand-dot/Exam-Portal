@@ -1136,7 +1136,15 @@ function recordViolation(type, label){
 function startProctoring(){
   stopProctoring();
   const onHide = () => { if (document.hidden) recordViolation("tab_hidden","You switched away from the exam tab/window."); };
-  const onBlur = () => { recordViolation("window_blur","The exam window lost focus (possible tab/app switch)."); };
+  // blur fires on transient focus loss too (notifications, IME, OS chrome); only flag a real, sustained switch
+  const onBlur = () => {
+    setTimeout(() => {
+      if (!EX || EX.submitted) return;
+      if (document.hidden) return;            // already handled by visibilitychange
+      if (document.hasFocus()) return;        // focus returned immediately — false alarm, ignore
+      recordViolation("window_blur","You switched to another window or application.");
+    }, 600);
+  };
   const onFsChange = () => {
     if (!document.fullscreenElement && EX && !EX.submitted)
       recordViolation("exit_fullscreen","You exited fullscreen mode.");
