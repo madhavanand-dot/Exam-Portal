@@ -2,61 +2,57 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
-      return request.auth != null;
+    function signedIn() { return request.auth != null; }
+    function myRole() {
+      return signedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : "none";
     }
-    function isAdmin() {
-      return signedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
-    }
-    function isSelf(uid) {
-      return signedIn() && request.auth.uid == uid;
-    }
+    function isSuperAdmin() { return myRole() == "admin"; }
+    function isStaff()      { return myRole() == "admin" || myRole() == "faculty"; }
+    function isSelf(uid)    { return signedIn() && request.auth.uid == uid; }
 
     // ---------- users ----------
     match /users/{uid} {
-      // a user can read their own profile; admin can read all
-      allow read: if isSelf(uid) || isAdmin();
-      // only admin creates/updates/deletes profiles.
-      // Special case: the very first admin doc must be created from the
-      // Firebase console (see README), since no admin exists yet.
-      allow create, update, delete: if isAdmin();
+      // staff need to read the student list (for exam assignment); a user can read self
+      allow read: if isSelf(uid) || isStaff();
+      // ONLY super-admins create/promote/demote/remove accounts.
+      // The very first admin must be created from the Firebase console (see README).
+      allow create, update, delete: if isSuperAdmin();
     }
 
     // ---------- questions ----------
     match /questions/{questionId} {
-      // students need question text during the exam; admin manages bank
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      allow read: if signedIn();                 // students load questions during the exam
+      // staff create their own; only the owner or a super-admin can edit/delete
+      allow create: if isStaff() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isSuperAdmin() ||
+        (isStaff() && resource.data.createdBy == request.auth.uid);
     }
 
     // ---------- exams ----------
     match /exams/{examId} {
       allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      allow create: if isStaff() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isSuperAdmin() ||
+        (isStaff() && resource.data.createdBy == request.auth.uid);
     }
 
     // ---------- attempts ----------
     match /attempts/{attemptId} {
-      // students read all attempts of their exam type is NOT allowed doc-by-doc;
-      // for rank/percentile they may read any attempt (scores only by convention).
-      // Tighten to "own attempts + admin" if rank privacy matters more than
-      // client-side percentile calculation.
+      // signed-in users may read attempts (needed for client-side rank/percentile).
+      // Tighten to own + staff if score privacy matters more than client percentile.
       allow read: if signedIn();
-
-      // a student may create/update only their own attempt
+      // a student creates/updates only their own attempt
       allow create: if signedIn() &&
         request.resource.data.studentUid == request.auth.uid;
-      allow update: if isAdmin() ||
-        (signedIn() &&
-         resource.data.studentUid == request.auth.uid &&
-         request.resource.data.studentUid == request.auth.uid);
-      allow delete: if isAdmin();
+      allow update: if isStaff() ||
+        (signedIn() && resource.data.studentUid == request.auth.uid
+                    && request.resource.data.studentUid == request.auth.uid);
+      allow delete: if isStaff();
     }
 
     // deny everything else
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /{document=**} { allow read, write: if false; }
   }
 }

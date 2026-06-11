@@ -175,29 +175,47 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 
 <!-- ================= ADMIN ================= -->
 <div id="view-admin" class="view hidden">
-  <div class="topbar"><h1>Admin Dashboard</h1><span class="who" id="adminWho"></span><button class="btn secondary" id="adminLogout">Logout</button></div>
+  <div class="topbar"><h1 id="dashTitle">Admin Dashboard</h1><span class="who" id="adminWho"></span><button class="btn secondary" id="adminLogout">Logout</button></div>
   <div class="wrap">
     <div class="tabs">
       <button data-atab="students" class="active">Students</button>
+      <button data-atab="faculty" id="tabFaculty">Faculty</button>
       <button data-atab="questions">Questions</button>
       <button data-atab="exams">Exams</button>
       <button data-atab="reports">Reports</button>
     </div>
 
     <div id="atab-students" class="atab">
-      <div class="card">
+      <div class="card" id="addStudentCard">
         <h2 class="sec" style="margin-top:0">Add Student</h2>
         <div class="flexrow">
           <div class="field"><label>Name</label><input id="stName"></div>
           <div class="field"><label>Email</label><input id="stEmail" type="email"></div>
           <div class="field"><label>Password</label><input id="stPass" type="text" placeholder="min 6 chars"></div>
           <div class="field"><label>Exam Type</label><select id="stType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <div class="field"><label>Batch (optional)</label><input id="stBatch" placeholder="e.g. Batch A"></div>
           <button class="btn" id="addStudentBtn">Create</button>
         </div>
         <div id="studentMsg"></div>
       </div>
       <h2 class="sec">Students</h2>
-      <table class="tbl"><thead><tr><th>Name</th><th>Email</th><th>Exam Type</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>Name</th><th>Email</th><th>Exam Type</th><th>Batch</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
+    </div>
+
+    <div id="atab-faculty" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Add Faculty (exam creator)</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Faculty can add questions and create/run their own exams and see reports for them, but cannot manage students or other faculty's content.</p>
+        <div class="flexrow">
+          <div class="field"><label>Name</label><input id="fcName"></div>
+          <div class="field"><label>Email</label><input id="fcEmail" type="email"></div>
+          <div class="field"><label>Password</label><input id="fcPass" type="text" placeholder="min 6 chars"></div>
+          <button class="btn" id="addFacultyBtn">Create Faculty</button>
+        </div>
+        <div id="facultyMsg"></div>
+      </div>
+      <h2 class="sec">Staff (admins &amp; faculty)</h2>
+      <table class="tbl"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th></th></tr></thead><tbody id="staffRows"></tbody></table>
     </div>
 
     <div id="atab-questions" class="atab hidden">
@@ -238,6 +256,16 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px;margin-top:6px"><input type="checkbox" id="exShuffleOpt"> Shuffle option order per student</label></div>
           <button class="btn secondary" id="exLoadBankBtn">Load Bank</button>
         </div>
+        <div class="flexrow" style="margin-bottom:10px">
+          <div class="field"><label>Who can take this exam?</label><select id="exAudience">
+            <option value="all">All students of this exam type</option>
+            <option value="batch">Specific batch(es)</option>
+            <option value="students">Specific students</option>
+          </select></div>
+          <div class="field" id="exBatchWrap" style="display:none"><label>Batches (comma-separated, must match student batch)</label><input id="exBatches" placeholder="e.g. Batch A, Batch B"></div>
+          <div class="field" id="exStudentsWrap" style="display:none;max-width:320px"><label>Pick students</label>
+            <div id="exStudentPick" class="checklist" style="max-height:140px"></div></div>
+        </div>
         <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Tick any questions you want — any subjects, any count. The "Select first N" buttons help auto-pick. Marks are computed from your selection.</p>
         <div id="exPicker"></div>
         <div id="exMsg"></div>
@@ -245,7 +273,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <button class="btn green" id="exCreateBtn" style="margin-top:8px">Create Exam</button>
       </div>
       <h2 class="sec">Exams</h2>
-      <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Questions</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody id="examRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Qs</th><th>Audience</th><th>Status</th><th>Created By</th><th></th></tr></thead><tbody id="examRows"></tbody></table>
     </div>
 
     <div id="atab-reports" class="atab hidden">
@@ -266,9 +294,9 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 <div id="view-student" class="view hidden">
   <div class="topbar"><h1>Student Dashboard</h1><span class="who" id="studentWho"></span><button class="btn secondary" id="studentLogout">Logout</button></div>
   <div class="wrap">
-    <div class="card" id="activeExamCard">
-      <h2 class="sec" style="margin-top:0">Active Exam</h2>
-      <div id="activeExamInfo">Checking for active exam&hellip;</div>
+    <div id="activeExamCard">
+      <h2 class="sec" style="margin-top:0">Available Exams</h2>
+      <div id="activeExamInfo">Checking for available exams&hellip;</div>
     </div>
     <h2 class="sec">Past Attempts</h2>
     <table class="tbl"><thead><tr><th>Date</th><th>Exam</th><th>Type</th><th>Score</th><th>Rank</th><th>Percentile</th><th></th></tr></thead><tbody id="attemptRows"></tbody></table>
@@ -502,7 +530,7 @@ onAuthStateChanged(auth, async (user) => {
     const snap = await getDoc(doc(db, "users", user.uid));
     if (!snap.exists()) { setMsg($("loginMsg"), "Account has no profile. Contact admin."); await signOut(auth); return; }
     currentUser = { uid: user.uid, ...snap.data() };
-    if (currentUser.role === "admin") { enterAdmin(); } else { enterStudent(); }
+    if (currentUser.role === "admin" || currentUser.role === "faculty") { enterAdmin(); } else { enterStudent(); }
   } catch(e) {
     setMsg($("loginMsg"), "Failed to load profile: " + e.message);
     await signOut(auth);
@@ -510,11 +538,28 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 $("adminLogout").onclick = $("studentLogout").onclick = () => signOut(auth);
-/* ========== ADMIN ========== */
+/* ========== ADMIN / FACULTY ========== */
+const isSuper   = () => currentUser?.role === "admin";
+const isFaculty = () => currentUser?.role === "faculty";
+const ownsItem  = it => isSuper() || it?.createdBy === currentUser?.uid;
+
 function enterAdmin(){
-  $("adminWho").textContent = `${currentUser.name} (admin)`;
+  const roleLabel = isSuper() ? "admin" : "faculty";
+  $("adminWho").textContent = `${currentUser.name} (${roleLabel})`;
+  $("dashTitle").textContent = isSuper() ? "Admin Dashboard" : "Faculty Dashboard";
+  // role-based UI: faculty can't manage students or faculty, and can't clear whole banks
+  $("tabFaculty").classList.toggle("hidden", !isSuper());
+  $("addStudentCard").classList.toggle("hidden", !isSuper());
+  $("qbClearBtn").classList.toggle("hidden", !isSuper());
   showView("view-admin");
+  // default to a tab the user can use
+  const firstTab = isSuper() ? "students" : "questions";
+  document.querySelectorAll("[data-atab]").forEach(x=>x.classList.remove("active"));
+  document.querySelector(`[data-atab="${firstTab}"]`).classList.add("active");
+  document.querySelectorAll(".atab").forEach(x=>x.classList.add("hidden"));
+  $("atab-"+firstTab).classList.remove("hidden");
   loadStudents(); loadExams(); populateQbSubjects();
+  if (isSuper()) loadStaff();
 }
 
 // admin tab switching
@@ -525,13 +570,54 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     document.querySelectorAll(".atab").forEach(x=>x.classList.add("hidden"));
     $("atab-"+b.dataset.atab).classList.remove("hidden");
     if (b.dataset.atab==="reports") loadReports();
+    if (b.dataset.atab==="faculty") loadStaff();
   };
+}
+
+/* ----- faculty / staff management (super-admin only) ----- */
+$("addFacultyBtn").onclick = async () => {
+  const name = $("fcName").value.trim(), email = $("fcEmail").value.trim(), pass = $("fcPass").value;
+  if (!name || !email || pass.length < 6) { setMsg($("facultyMsg"), "Name, email and a 6+ char password are required."); return; }
+  $("addFacultyBtn").disabled = true;
+  const secApp = initializeApp(firebaseConfig, "secondary-" + Date.now());
+  try {
+    const secAuth = getAuth(secApp);
+    const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
+    await setDoc(doc(db, "users", cred.user.uid), {
+      name, email, role: "faculty", examType: "medical", createdAt: serverTimestamp()
+    });
+    await signOut(secAuth);
+    setMsg($("facultyMsg"), `Faculty "${name}" created. They can log in and create exams.`, true);
+    $("fcName").value = $("fcEmail").value = $("fcPass").value = "";
+    loadStaff();
+  } catch(e) { setMsg($("facultyMsg"), friendlyAuthError(e)); }
+  finally { $("addFacultyBtn").disabled = false; deleteApp(secApp).catch(()=>{}); }
+};
+async function loadStaff(){
+  const qs = await getDocs(collection(db,"users"));
+  const staff = qs.docs.map(d=>({uid:d.id,...d.data()})).filter(u=>u.role==="admin"||u.role==="faculty");
+  staff.sort((a,b)=>(a.role||"").localeCompare(b.role||"") || (a.name||"").localeCompare(b.name||""));
+  $("staffRows").innerHTML = staff.map(s => `
+    <tr><td>${esc(s.name)}</td><td>${esc(s.email)}</td>
+    <td>${s.role==="admin"?'<span class="badge pos">admin</span>':'<span class="badge zero">faculty</span>'}</td>
+    <td>${fmtDate(s.createdAt)}</td>
+    <td>${s.uid===currentUser.uid ? '<span style="color:var(--muted)">you</span>' :
+      `${s.role==="faculty"?`<button class="btn secondary" style="padding:3px 9px" data-promote="${s.uid}">Make admin</button>`
+        :`<button class="btn secondary" style="padding:3px 9px" data-demote="${s.uid}">Make faculty</button>`}
+       <button class="btn danger" style="padding:3px 9px" data-delstaff="${s.uid}">Remove</button>`}</td></tr>`).join("")
+    || `<tr><td colspan="5">No staff.</td></tr>`;
+  $("staffRows").querySelectorAll("[data-promote]").forEach(b=>b.onclick=async()=>{ await updateDoc(doc(db,"users",b.dataset.promote),{role:"admin"}); loadStaff(); });
+  $("staffRows").querySelectorAll("[data-demote]").forEach(b=>b.onclick=async()=>{ await updateDoc(doc(db,"users",b.dataset.demote),{role:"faculty"}); loadStaff(); });
+  $("staffRows").querySelectorAll("[data-delstaff]").forEach(b=>b.onclick=async()=>{
+    if (!confirm("Remove this staff member's profile? (Their Auth login must also be removed in the Firebase console.)")) return;
+    await deleteDoc(doc(db,"users",b.dataset.delstaff)); loadStaff();
+  });
 }
 
 /* ----- students ----- */
 $("addStudentBtn").onclick = async () => {
   const name = $("stName").value.trim(), email = $("stEmail").value.trim(),
-        pass = $("stPass").value, examType = $("stType").value;
+        pass = $("stPass").value, examType = $("stType").value, batch = $("stBatch").value.trim();
   if (!name || !email || pass.length < 6) { setMsg($("studentMsg"), "Name, email and a password of 6+ chars are required."); return; }
   $("addStudentBtn").disabled = true;
   // secondary app so the admin's own session is not replaced
@@ -540,11 +626,11 @@ $("addStudentBtn").onclick = async () => {
     const secAuth = getAuth(secApp);
     const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
     await setDoc(doc(db, "users", cred.user.uid), {
-      name, email, role: "student", examType, createdAt: serverTimestamp()
+      name, email, role: "student", examType, batch, createdAt: serverTimestamp()
     });
     await signOut(secAuth);
     setMsg($("studentMsg"), `Student "${name}" created.`, true);
-    $("stName").value = $("stEmail").value = $("stPass").value = "";
+    $("stName").value = $("stEmail").value = $("stPass").value = $("stBatch").value = "";
     loadStudents();
   } catch(e) {
     setMsg($("studentMsg"), friendlyAuthError(e));
@@ -560,15 +646,18 @@ async function loadStudents(){
   studentCache = qs.docs.map(d => ({ uid: d.id, ...d.data() }));
   studentCache.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   $("studentRows").innerHTML = studentCache.map(s => `
-    <tr><td>${esc(s.name)}</td><td>${esc(s.email)}</td><td>${esc(s.examType)}</td>
+    <tr><td>${esc(s.name)}</td><td>${esc(s.email)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td>
     <td>${fmtDate(s.createdAt)}</td>
-    <td><button class="btn danger" style="padding:3px 10px" data-delst="${s.uid}">Delete</button></td></tr>`).join("")
-    || `<tr><td colspan="5">No students yet.</td></tr>`;
+    <td>${isSuper()?`<button class="btn danger" style="padding:3px 10px" data-delst="${s.uid}">Delete</button>`:""}</td></tr>`).join("")
+    || `<tr><td colspan="6">No students yet.</td></tr>`;
   $("studentRows").querySelectorAll("[data-delst]").forEach(b => b.onclick = async () => {
     if (!confirm("Delete this student's profile? (Their Auth login must be removed separately in the Firebase console.)")) return;
     await deleteDoc(doc(db,"users",b.dataset.delst));
     loadStudents();
   });
+  // populate "specific students" picker in exam builder
+  const pick = $("exStudentPick");
+  if (pick) pick.innerHTML = studentCache.map(s=>`<label><input type="checkbox" value="${s.uid}" data-stype="${s.examType}"><span>${esc(s.name)} <small style="color:var(--muted)">(${esc(s.examType)}${s.batch?", "+esc(s.batch):""})</small></span></label>`).join("") || `<div style="color:var(--muted);padding:5px">No students.</div>`;
   // reports filter dropdown
   $("rpStudent").innerHTML = `<option value="">All</option>` +
     studentCache.map(s=>`<option value="${s.uid}">${esc(s.name)}</option>`).join("");
@@ -623,7 +712,7 @@ $("qUploadBtn").onclick = async () => {
   for (let i = 0; i < valid.length; i += 450) {
     const batch = writeBatch(db);
     for (const q of valid.slice(i, i+450))
-      batch.set(doc(db, "questions", q.id), { ...q, createdAt: serverTimestamp() });
+      batch.set(doc(db, "questions", q.id), { ...q, createdBy: currentUser.uid, createdByName: currentUser.name, createdAt: serverTimestamp() });
     await batch.commit();
     written += Math.min(450, valid.length - i);
     say(`Uploaded ${written}/${valid.length}...`);
@@ -649,9 +738,9 @@ $("qbLoadBtn").onclick = async () => {
   const list = await fetchQuestions($("qbType").value, $("qbSubject").value);
   $("qbRows").innerHTML = list.map(q => `
     <tr><td>${esc(q.id)}</td><td>${esc(q.section)}</td>
-    <td>${esc((q.text||"").slice(0,120))}${(q.text||"").length>120?"&hellip;":""}</td>
+    <td>${esc((q.text||"(image)").slice(0,120))}${(q.text||"").length>120?"&hellip;":""}${q.image?" 🖼":""}</td>
     <td>${esc(q.correct_answer)}</td><td>${esc(q.topic)}</td><td>${esc(q.difficulty)}</td>
-    <td><button class="btn danger" style="padding:3px 10px" data-delq="${q.docId}">Delete</button></td></tr>`).join("")
+    <td>${ownsItem(q)?`<button class="btn danger" style="padding:3px 10px" data-delq="${q.docId}">Delete</button>`:`<span style="color:var(--muted);font-size:11px">${esc(q.createdByName||"other")}</span>`}</td></tr>`).join("")
     || `<tr><td colspan="7">No questions in this bank.</td></tr>`;
   $("qbRows").querySelectorAll("[data-delq]").forEach(b => b.onclick = async () => {
     if (!confirm("Delete this question?")) return;
@@ -687,6 +776,10 @@ function builderMarks(){
   }
   return base.marks;
 }
+$("exAudience").onchange = () => {
+  $("exBatchWrap").style.display    = $("exAudience").value === "batch" ? "" : "none";
+  $("exStudentsWrap").style.display = $("exAudience").value === "students" ? "" : "none";
+};
 let exBankCache = []; // [{docId, subject, section, ...}]
 $("exLoadBankBtn").onclick = async () => {
   setMsg($("exMsg"),"");
@@ -743,34 +836,54 @@ $("exCreateBtn").onclick = async () => {
     .sort((a,b)=>ALL_SUBJECTS.indexOf(a)-ALL_SUBJECTS.indexOf(b));
   let maxMarks = 0;
   checked.forEach(c => { maxMarks += (c.dataset.sec==="B"?marks.B:marks.A).correct; });
+  // audience
+  const mode = $("exAudience").value;
+  const audience = { mode };
+  if (mode === "batch") {
+    audience.batches = $("exBatches").value.split(",").map(s=>s.trim()).filter(Boolean);
+    if (!audience.batches.length) { setMsg($("exMsg"),"Enter at least one batch name."); return; }
+  } else if (mode === "students") {
+    audience.studentUids = [...$("exStudentPick").querySelectorAll("input:checked")].map(c=>c.value);
+    if (!audience.studentUids.length) { setMsg($("exMsg"),"Pick at least one student."); return; }
+  }
   await addDoc(collection(db,"exams"), {
     title, examType: t, questionIds: checked.map(c=>c.value),
-    subjects, durationMin: duration, marks, maxMarks,
+    subjects, durationMin: duration, marks, maxMarks, audience,
     shuffleOptions: $("exShuffleOpt").checked,
-    isActive: false, createdAt: serverTimestamp(), createdBy: currentUser.uid
+    isActive: false, createdAt: serverTimestamp(),
+    createdBy: currentUser.uid, createdByName: currentUser.name
   });
   setMsg($("exMsg"), `Exam created (${checked.length} questions, ${subjects.join("/")}, ${duration} min, max ${maxMarks}). Activate it below.`, true);
   loadExams();
 };
+function audienceLabel(e){
+  const a = e.audience;
+  if (!a || a.mode==="all") return "All "+e.examType;
+  if (a.mode==="batch") return "Batch: "+(a.batches||[]).join(", ");
+  if (a.mode==="students") return (a.studentUids||[]).length+" students";
+  return "—";
+}
 
+let examsCache = [];
 async function loadExams(){
   const qs = await getDocs(collection(db,"exams"));
   const exams = qs.docs.map(d=>({ docId:d.id, ...d.data() }));
   exams.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-  $("examRows").innerHTML = exams.map(e => `
+  examsCache = exams;
+  // faculty only see/manage their own exams; super-admin sees all
+  const visible = isSuper() ? exams : exams.filter(e => e.createdBy === currentUser.uid);
+  $("examRows").innerHTML = visible.map(e => `
     <tr><td>${esc(e.title)}</td><td>${esc(e.examType)}</td><td>${e.questionIds?.length||0}</td>
+    <td style="font-size:12px">${esc(audienceLabel(e))}</td>
     <td>${e.isActive?'<span class="badge pos">ACTIVE</span>':'<span class="badge zero">inactive</span>'}</td>
-    <td>${fmtDate(e.createdAt)}</td>
-    <td>
-      <button class="btn ${e.isActive?'secondary':'green'}" style="padding:3px 10px" data-toggle="${e.docId}" data-act="${e.isActive?0:1}" data-etype="${e.examType}">${e.isActive?'Deactivate':'Activate'}</button>
-      <button class="btn danger" style="padding:3px 10px" data-delex="${e.docId}">Delete</button>
-    </td></tr>`).join("") || `<tr><td colspan="6">No exams yet.</td></tr>`;
+    <td style="font-size:12px">${esc(e.createdByName||"—")}</td>
+    <td>${ownsItem(e)?`
+      <button class="btn ${e.isActive?'secondary':'green'}" style="padding:3px 10px" data-toggle="${e.docId}" data-act="${e.isActive?0:1}">${e.isActive?'Deactivate':'Activate'}</button>
+      <button class="btn danger" style="padding:3px 10px" data-delex="${e.docId}">Delete</button>`
+      :`<span style="color:var(--muted);font-size:11px">read-only</span>`}
+    </td></tr>`).join("") || `<tr><td colspan="7">No exams yet.</td></tr>`;
   $("examRows").querySelectorAll("[data-toggle]").forEach(b => b.onclick = async () => {
     const activate = b.dataset.act === "1";
-    if (activate) { // enforce one active exam per examType
-      const others = exams.filter(x => x.examType === b.dataset.etype && x.isActive && x.docId !== b.dataset.toggle);
-      for (const o of others) await updateDoc(doc(db,"exams",o.docId), { isActive:false });
-    }
     await updateDoc(doc(db,"exams",b.dataset.toggle), { isActive: activate });
     loadExams();
   });
@@ -789,7 +902,10 @@ async function loadReports(){
   const su = $("rpStudent").value, ty = $("rpType").value,
         from = $("rpFrom").value ? new Date($("rpFrom").value) : null,
         to   = $("rpTo").value ? new Date($("rpTo").value + "T23:59:59") : null;
+  // faculty: only attempts of exams they created
+  const myExamIds = isSuper() ? null : new Set(examsCache.filter(e=>e.createdBy===currentUser.uid).map(e=>e.docId));
   list = list.filter(a =>
+    (!myExamIds || myExamIds.has(a.examId)) &&
     (!su || a.studentUid===su) && (!ty || a.examType===ty) &&
     (!from || (a.submitTime?.toDate?.() ?? new Date(0)) >= from) &&
     (!to   || (a.submitTime?.toDate?.() ?? new Date(0)) <= to));
@@ -825,20 +941,34 @@ async function enterStudent(){
   loadActiveExam(); loadMyAttempts();
 }
 
+// does this exam target the current student?
+function examTargetsMe(e){
+  if (e.examType !== currentUser.examType) return false;
+  const a = e.audience;
+  if (!a || a.mode === "all") return true;
+  if (a.mode === "batch")    return (a.batches||[]).map(x=>x.toLowerCase()).includes((currentUser.batch||"").toLowerCase());
+  if (a.mode === "students") return (a.studentUids||[]).includes(currentUser.uid);
+  return false;
+}
+let availableExams = [];
 async function loadActiveExam(){
   activeExam = null;
   const qs = await getDocs(query(collection(db,"exams"),
     where("examType","==",currentUser.examType), where("isActive","==",true)));
-  if (qs.empty) { $("activeExamInfo").innerHTML = "No active exam right now. Check back later."; return; }
-  const d = qs.docs[0];
-  activeExam = { docId: d.id, ...d.data() };
-  const cfg = examCfg(activeExam);
-  $("activeExamInfo").innerHTML = `
-    <p style="margin-bottom:10px"><b>${esc(activeExam.title)}</b> &mdash; ${esc(EXAM_CONFIG[activeExam.examType].label)}<br>
-    <span style="color:var(--muted);font-size:13px">${activeExam.questionIds.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${Math.round(cfg.durationSec/60)} minutes &bull; Max ${cfg.maxMarks} marks</span></p>
-    <p style="font-size:12.5px;color:#a4271a;margin-bottom:10px">⚠ This is a proctored test. It runs in fullscreen; switching tabs or leaving fullscreen is recorded. After 3 warnings the test auto-submits as malpractice.</p>
-    <button class="btn green" id="startExamBtn">Start Exam (Fullscreen)</button>`;
-  $("startExamBtn").onclick = startExam;
+  availableExams = qs.docs.map(d=>({ docId:d.id, ...d.data() })).filter(examTargetsMe);
+  if (!availableExams.length) { $("activeExamInfo").innerHTML = "No exam available for you right now. Check back later."; return; }
+  $("activeExamInfo").innerHTML = availableExams.map((ex,i) => {
+    const cfg = examCfg(ex);
+    return `<div class="card" style="margin-bottom:10px">
+      <p style="margin-bottom:8px"><b>${esc(ex.title)}</b> &mdash; ${esc(EXAM_CONFIG[ex.examType].label)}<br>
+      <span style="color:var(--muted);font-size:13px">${ex.questionIds.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${Math.round(cfg.durationSec/60)} min &bull; Max ${cfg.maxMarks}</span></p>
+      <button class="btn green" data-startex="${i}">Start Exam (Fullscreen)</button></div>`;
+  }).join("") +
+    `<p style="font-size:12.5px;color:#a4271a">⚠ These are proctored tests. They run in fullscreen; switching tabs or leaving fullscreen is recorded. After 3 warnings the test auto-submits as malpractice.</p>`;
+  $("activeExamInfo").querySelectorAll("[data-startex]").forEach(b => b.onclick = () => {
+    activeExam = availableExams[+b.dataset.startex];
+    startExam();
+  });
 }
 
 async function loadMyAttempts(){
@@ -877,7 +1007,7 @@ let tickInt = null, autosaveInt = null;
 const STATUS = { NV:"notVisited", NA:"notAnswered", AN:"answered", MA:"markedAnswered", MN:"markedNotAnswered" };
 
 async function startExam(){
-  $("startExamBtn").disabled = true;
+  if (!activeExam) return;
   try { await document.documentElement.requestFullscreen?.(); } catch(e){}  // must be in the click gesture
   const cfg = examCfg(activeExam);
   const cacheKey = `exam_${activeExam.docId}_${currentUser.uid}`;
@@ -906,7 +1036,7 @@ async function startExam(){
     });
     sessionStorage.setItem(cacheKey, JSON.stringify(qlist));
   }
-  if (!qlist.length) { alert("Exam has no questions."); $("startExamBtn").disabled=false; return; }
+  if (!qlist.length) { alert("Exam has no questions."); return; }
 
   // create attempt doc (id = examId_uid so refresh resumes same attempt)
   const attemptId = `${activeExam.docId}_${currentUser.uid}`;
@@ -920,7 +1050,7 @@ async function startExam(){
     savedTimes = p.questionTimeSec || {};
   } else if (prev.exists() && prev.data().submitTime) {
     if (!confirm("You have already submitted this exam. Start a fresh attempt? (Previous result is kept in reports but will be overwritten on this attempt id.)")) {
-      $("startExamBtn").disabled = false; return;
+      return;
     }
     sessionStorage.removeItem(cacheKey);
     await setDoc(attemptRef, {}, { merge:false });
