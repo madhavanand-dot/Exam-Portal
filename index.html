@@ -426,7 +426,7 @@ const db   = getFirestore(app, "default"); // project uses a named Firestore dat
 const EXAM_CONFIG = {
   medical: {
     label: "Medical (NEET-UG)",
-    subjects: ["Physics","Chemistry","Botany","Zoology"],
+    subjects: ["Physics","Chemistry","Botany","Zoology","Biology"],
     perSubject: { A: 45, B: 0 },
     durationSec: 180*60, maxMarks: 720,
     marks: { A:{correct:4,wrong:-1}, B:{correct:4,wrong:-1} }
@@ -441,7 +441,7 @@ const EXAM_CONFIG = {
 };
 
 /* ========== TINY HELPERS ========== */
-const ALL_SUBJECTS = ["Physics","Chemistry","Botany","Zoology","Mathematics"];
+const ALL_SUBJECTS = ["Physics","Chemistry","Botany","Zoology","Biology","Mathematics"];
 // Resolve the effective config for an exam doc (custom fields override the type preset).
 function examCfg(exam){
   const base = EXAM_CONFIG[exam?.examType] || EXAM_CONFIG.medical;

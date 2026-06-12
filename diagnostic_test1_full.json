@@ -1,0 +1,2882 @@
+[
+ {
+  "id": "DT1_PHY_001",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Units and Dimensions",
+  "difficulty": "Easy",
+  "text": "If $E$ and $g$ respectively denote energy and acceleration due to gravity, then $\\dfrac{E}{g}$ has the dimensions of",
+  "options": [
+   "$[ML^2T^0]$",
+   "$[MLT^0]$",
+   "$[MLT^{-1}]$",
+   "$[MLT^{-2}]$"
+  ],
+  "correct_answer": "B"
+ },
+ {
+  "id": "DT1_PHY_002",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Kinematics",
+  "difficulty": "Medium",
+  "text": "A particle is moving along a straight line such that its position is given by the relation $x = (2 - 3t + 4t^3)$ m, where $t$ is in second. Acceleration of the particle when velocity becomes zero, will be",
+  "options": [
+   "$6\\ \\text{m/s}^2$",
+   "$18\\ \\text{m/s}^2$",
+   "$12\\ \\text{m/s}^2$",
+   "Zero"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_003",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Vectors",
+  "difficulty": "Easy",
+  "text": "Two vectors of same physical quantity are unequal if<br>(a) They have the same magnitude and same direction.<br>(b) They have different magnitudes but same direction.<br>(c) They have same magnitude but different directions.<br>(d) They have different magnitudes and different directions.<br>Select the correct option.",
+  "options": [
+   "Only (a) and (b) are true",
+   "Only (c) and (d) are true",
+   "(a), (b), (c) and (d) are true",
+   "Only (b), (c) and (d) are true"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_004",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Projectile Motion",
+  "difficulty": "Medium",
+  "text": "A body projected obliquely with certain velocity has its kinetic energy at the maximum height equal to two times its potential energy there. Its angle of projection with horizontal is",
+  "options": [
+   "$\\tan^{-1}\\left(\\dfrac{1}{2}\\right)$",
+   "$\\tan^{-1}\\left(\\dfrac{1}{\\sqrt{2}}\\right)$",
+   "$\\tan^{-1}\\left(\\dfrac{2}{3}\\right)$",
+   "$\\tan^{-1}\\left(\\dfrac{1}{3}\\right)$"
+  ],
+  "correct_answer": "B"
+ },
+ {
+  "id": "DT1_PHY_005",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Laws of Motion",
+  "difficulty": "Medium",
+  "text": "In the arrangement shown in the figure, the acceleration of the block is (consider surface to be frictionless). <b>[Figure: block M on a frictionless surface with a string over a pulley, force F applied — figure to be added as image]</b>",
+  "options": [
+   "$\\dfrac{F}{4M}$",
+   "$\\dfrac{F}{2M}$",
+   "$\\dfrac{F}{M}$",
+   "$\\dfrac{2F}{M}$"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_006",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Rotational Motion",
+  "difficulty": "Medium",
+  "text": "A constant torque of $300\\ \\text{N m}$ turns a wheel. If angular velocity of wheel after $4\\ \\text{s}$ starting from rest is $12\\ \\text{rad/s}$, then moment of inertia of the wheel will be",
+  "options": [
+   "$300\\ \\text{kg m}^2$",
+   "$100\\ \\text{kg m}^2$",
+   "$200\\ \\text{kg m}^2$",
+   "$50\\ \\text{kg m}^2$"
+  ],
+  "correct_answer": "B"
+ },
+ {
+  "id": "DT1_PHY_007",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Rotational Motion",
+  "difficulty": "Hard",
+  "text": "A disc of mass $M$ and radius $R$ is free to rotate about its centre. A string is tightly wrapped over its rim and a block of mass $M$ is attached to the free end of the string. If system is released from rest, then acceleration of the block will be <b>[Figure: disc (M, R) with string over rim, hanging block M — figure to be added as image]</b>",
+  "options": [
+   "$\\dfrac{g}{3}$",
+   "$\\dfrac{3g}{4}$",
+   "$\\dfrac{g}{4}$",
+   "$\\dfrac{2g}{3}$"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_008",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Gravitation",
+  "difficulty": "Hard",
+  "text": "Two bodies of mass $m$ and $4m$ are placed at a distance $R$. The gravitational potential on the line joining the bodies where the gravitational field is equal to zero, will be ($G$ = gravitational constant)",
+  "options": [
+   "$\\dfrac{-6Gm}{R}$",
+   "$\\dfrac{-3Gm}{R}$",
+   "$\\dfrac{-9Gm}{R}$",
+   "$\\dfrac{-3Gm}{2R}$"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_009",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Elasticity",
+  "difficulty": "Medium",
+  "text": "A rubber ball is taken to depth $2\\ \\text{km}$ inside water so that its volume reduces by $0.1\\%$, what is the bulk modulus of rubber? ($P_0 = 1.0 \\times 10^5\\ \\text{Pa}$)",
+  "options": [
+   "$2 \\times 10^{10}\\ \\text{N/m}^2$",
+   "$2 \\times 10^{11}\\ \\text{N/m}^2$",
+   "$2 \\times 10^{9}\\ \\text{N/m}^2$",
+   "$2 \\times 10^{8}\\ \\text{N/m}^2$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_PHY_010",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Work, Energy and Power",
+  "difficulty": "Easy",
+  "text": "Given below are two statements: one is labelled as <b>Assertion (A)</b> and the other is labelled as <b>Reason (R)</b>.<br><b>Assertion (A):</b> Work done by a force is a vector quantity.<br><b>Reason (R):</b> Work done is defined as the dot product of force and displacement vector.<br>In the light of the above statements, choose the correct answer from the options given below.",
+  "options": [
+   "Both (A) and (R) are true and (R) is the correct explanation of (A).",
+   "(A) is false but (R) is true.",
+   "(A) is true but (R) is false.",
+   "Both (A) and (R) are true but (R) is not the correct explanation of (A)."
+  ],
+  "correct_answer": "B"
+ },
+ {
+  "id": "DT1_PHY_011",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Work, Energy and Power",
+  "difficulty": "Medium",
+  "text": "An object is displaced from position vector $\\vec{r_1} = (2\\hat{i} + \\hat{j})$ m to $\\vec{r_2} = (3\\hat{i} + 2\\hat{j})$ m under a variable force $\\vec{F} = (2x\\hat{i} + \\hat{j})$ N. The work done by the force will be",
+  "options": [
+   "$12\\ \\text{J}$",
+   "$18\\ \\text{J}$",
+   "$6\\ \\text{J}$",
+   "$10\\ \\text{J}$"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_012",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Simple Harmonic Motion",
+  "difficulty": "Medium",
+  "text": "A mass $m$ is attached to two springs as shown in figure. If the frictional force is absent, then time period of horizontal oscillations of the body will be. <b>[Figure: mass m between a spring of constant K (left) and K/2 (right), both fixed to walls — figure to be added as image]</b>",
+  "options": [
+   "$2\\pi\\sqrt{\\dfrac{m}{3K}}$",
+   "$2\\pi\\sqrt{\\dfrac{m}{K}}$",
+   "$2\\pi\\sqrt{\\dfrac{3m}{K}}$",
+   "$2\\pi\\sqrt{\\dfrac{2m}{3K}}$"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_013",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Waves",
+  "difficulty": "Medium",
+  "text": "If tension in a string fixed at both the ends is increased by $44\\%$, then fundamental frequency of vibration of the string",
+  "options": [
+   "Increases by $20\\%$",
+   "Increases by $10\\%$",
+   "Decreases by $10\\%$",
+   "Remains same"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_PHY_014",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Waves (Beats)",
+  "difficulty": "Medium",
+  "text": "Match the columns and choose the correct option. When two progressive waves of nearly equal frequencies $f_1$ and $f_2$ superimpose, then:<br>(a) Number of maxima heard in 1 second &mdash; (P) $\\dfrac{1}{f_1 - f_2}$&nbsp; (Q) $f_1 - f_2$&nbsp; (R) $\\dfrac{1}{2(f_1 - f_2)}$<br>(b) Time interval between two successive maxima of resultant wave<br>(c) Time interval between maxima and minima of the resultant wave",
+  "options": [
+   "a(Q), b(R), c(P)",
+   "a(P), b(Q), c(R)",
+   "a(Q), b(P), c(R)",
+   "a(P), b(R), c(Q)"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_015",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Kinetic Theory of Gases",
+  "difficulty": "Medium",
+  "text": "The average rotational kinetic energy of a diatomic gas molecule at room temperature $T$ will be ($k_B$ = Boltzmann constant)",
+  "options": [
+   "$\\dfrac{1}{2}k_BT$",
+   "$\\dfrac{3}{2}k_BT$",
+   "$k_BT$",
+   "$\\dfrac{5}{2}k_BT$"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_016",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Thermodynamics",
+  "difficulty": "Medium",
+  "text": "One mole of an ideal gas expands obeying the relation shown in the given pressure ($P$)&ndash;volume ($V$) diagram. The work done by the gas in process $A\\to B$ will be, where $A = (P_0, V_0)$ and $B = (P_0/2,\\ 2V_0)$ joined by a straight line.",
+  "options": [
+   "$\\dfrac{P_0V_0}{4}$",
+   "$\\dfrac{3P_0V_0}{4}$",
+   "$\\dfrac{9P_0V_0}{8}$",
+   "$\\dfrac{P_0V_0}{2}$"
+  ],
+  "correct_answer": "B"
+ },
+ {
+  "id": "DT1_PHY_017",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Heat Transfer",
+  "difficulty": "Medium",
+  "text": "When a non-uniform bar that is conducting heat is under steady state condition, then the temperature gradient at different cross-sections of the bar",
+  "options": [
+   "Increases with time",
+   "Decreases with time",
+   "Does not change with time and is same at all the cross-sections of the bar",
+   "Does not change with time but is different at different cross-section of the bar"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_018",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Current Electricity",
+  "difficulty": "Medium",
+  "text": "Consider the following statements A and B and identify the correct answer.<br><b>Statement A:</b> Current flows in a conductor when there is an electric field within the conductor.<br><b>Statement B:</b> The drift velocity of electron is independent of electric field.",
+  "options": [
+   "Both statement (A) and statement (B) are correct",
+   "Both statement (A) and statement (B) are incorrect",
+   "Statement (A) is correct and statement (B) is incorrect",
+   "Statement (A) is incorrect and statement (B) is correct"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_019",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Current Electricity",
+  "difficulty": "Hard",
+  "text": "A current of $3\\ \\text{A}$ flows in a circuit as shown in the figure. The power dissipated in $4\\ \\Omega$ resistance will be. <b>[Figure: diamond/bridge network &mdash; $4\\,\\Omega$ and $6\\,\\Omega$ on the upper branch, $3\\,\\Omega$ and $2\\,\\Omega$ on the lower branch, 3 A input &mdash; figure to be added as image]</b>",
+  "options": [
+   "$4\\ \\text{W}$",
+   "$6\\ \\text{W}$",
+   "$2\\ \\text{W}$",
+   "$1\\ \\text{W}$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_PHY_020",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Magnetism",
+  "difficulty": "Easy",
+  "text": "For a paramagnetic material, the dependence of the magnetic susceptibility $\\chi$ on the absolute temperature $T$ is given by",
+  "options": [
+   "$\\chi \\propto T$",
+   "$\\chi \\propto T^2$",
+   "$\\chi = \\text{constant}$",
+   "$\\chi \\propto \\dfrac{1}{T}$"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_021",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Moving Charges and Magnetism",
+  "difficulty": "Medium",
+  "text": "A galvanometer of resistance $60\\ \\Omega$ is shunted by a $0.3\\ \\Omega$ resistor. The fraction of the main current that flows through the galvanometer is",
+  "options": [
+   "$\\dfrac{1}{201}$",
+   "$\\dfrac{1}{101}$",
+   "$\\dfrac{1}{50}$",
+   "$\\dfrac{1}{100}$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_PHY_022",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Magnetic Effects of Current",
+  "difficulty": "Easy",
+  "text": "A long straight wire is carrying current $I$. The correct graph of magnetic field ($B$) due to this wire at distance ($r$) from the wire will be (B decreases with r as $B \\propto 1/r$). <b>[Figure: four B-vs-r graphs &mdash; figure to be added as image; correct = the decreasing $1/r$ curve]</b>",
+  "options": [
+   "Straight line increasing with r",
+   "Increasing curve that saturates",
+   "Decreasing curve ($B \\propto 1/r$)",
+   "Constant horizontal line"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_023",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Wave Optics",
+  "difficulty": "Medium",
+  "text": "In Young's double slit experiment the phase difference between the waves reaching at the position of second bright fringe will be",
+  "options": [
+   "$2\\pi$",
+   "Zero",
+   "$4\\pi$",
+   "$8\\pi$"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_024",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Wave Optics",
+  "difficulty": "Medium",
+  "text": "Consider the following statements A and B and identify the correct answer.<br><b>Statement (A):</b> Intensity of all bright fringes in diffraction is not same.<br><b>Statement (B):</b> In diffraction, light energy is redistributed.<br>Based on above information, pick the correct option.",
+  "options": [
+   "Both statement (A) and statement (B) are correct",
+   "Both statement (A) and statement (B) are incorrect",
+   "Statement (A) is correct statement (B) is incorrect",
+   "Statement (A) is incorrect and statement (B) is correct"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_PHY_025",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Modern Physics",
+  "difficulty": "Medium",
+  "text": "The frequency of a photon of momentum $P$ will be (symbols have their usual meaning)",
+  "options": [
+   "$\\dfrac{Pc}{h}$",
+   "$\\dfrac{Ph}{c}$",
+   "$\\dfrac{P^2h}{c}$",
+   "$\\dfrac{P^2c}{h}$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_PHY_026",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Nuclear Physics",
+  "difficulty": "Easy",
+  "text": "When two deuterium nuclei fuse together to form a tritium nuclei, we get a",
+  "options": [
+   "Neutron",
+   "Deuteron",
+   "$\\alpha$-particle",
+   "Proton"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_027",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Semiconductors",
+  "difficulty": "Medium",
+  "text": "Which of the following statement is not correct when a junction diode is in forward bias?",
+  "options": [
+   "The width of depletion region decreases",
+   "Free electrons on n-side will move towards the junction",
+   "Holes on p-side move towards the junction",
+   "Electrons on n-side and holes on p-side will move away from junction"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_028",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Semiconductors (Logic Gates)",
+  "difficulty": "Medium",
+  "text": "In Boolean expression, the gate which can be expressed as $y = \\overline{\\bar{A} + \\bar{B}}$ is",
+  "options": [
+   "OR",
+   "AND",
+   "NOR",
+   "NAND"
+  ],
+  "correct_answer": "B"
+ },
+ {
+  "id": "DT1_PHY_029",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Electromagnetic Induction",
+  "difficulty": "Medium",
+  "text": "The magnetic flux linked with a coil having resistance $6\\ \\Omega$ is given by the equation, $\\phi = (5t^2 + 3t + 16)$ Wb, the charge flowing through the coil in time interval $t = 1$ s to $t = 2$ s will be",
+  "options": [
+   "$6\\ \\text{C}$",
+   "$3\\ \\text{C}$",
+   "$4\\ \\text{C}$",
+   "$8\\ \\text{C}$"
+  ],
+  "correct_answer": "B"
+ },
+ {
+  "id": "DT1_PHY_030",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Electromagnetic Waves",
+  "difficulty": "Easy",
+  "text": "For an electromagnetic wave moving in free space, the correct expression among the following is ($c$ is speed of light in vacuum)",
+  "options": [
+   "$c\\sqrt{\\mu_0\\varepsilon_0} = 1$",
+   "$c\\mu_0\\varepsilon_0 = 1$",
+   "$\\dfrac{c}{\\mu_0\\varepsilon_0} = 1$",
+   "$\\dfrac{\\mu_0\\varepsilon_0}{c} = 1$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_PHY_031",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ray Optics",
+  "difficulty": "Medium",
+  "text": "A real object is placed on the principal axis of a concave mirror at a distance of $1.5f$ ($f$ is the focal length) from its pole. The magnification of the image will be",
+  "options": [
+   "$-1$",
+   "$-\\dfrac{3}{2}$",
+   "$-2$",
+   "$-3$"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_032",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ray Optics",
+  "difficulty": "Medium",
+  "text": "A glass slab ($\\mu = 1.5$) of thickness 4 cm is placed on a spot. The shift of spot if it is viewed from top will be",
+  "options": [
+   "$\\dfrac{2}{3}$ cm",
+   "$\\dfrac{1}{3}$ cm",
+   "$\\dfrac{4}{3}$ cm",
+   "$\\dfrac{3}{2}$ cm"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_033",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Alternating Current",
+  "difficulty": "Hard",
+  "text": "The network shown in figure is part of a complete circuit. If at a certain instant, the current $i$ is 3 A and is decreasing at a rate of $10^3$ A/s. Then $V_A - V_B$ will be. <b>[Figure: A &mdash;2&Omega;&mdash; 8V &mdash;4mH&mdash; B, current i from A to B &mdash; figure to be added as image]</b>",
+  "options": [
+   "$10$ V",
+   "$-6$ V",
+   "$-8$ V",
+   "$12$ V"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_034",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Alternating Current",
+  "difficulty": "Medium",
+  "text": "In a series $RLC$ circuit, capacitance is changed from $C$ to $3C$. For the resonance frequency to remain unchanged, the inductance should be changed from $L$ to",
+  "options": [
+   "$2L$",
+   "$3L$",
+   "$\\dfrac{L}{3}$",
+   "$\\dfrac{L}{2}$"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_035",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ray Optics",
+  "difficulty": "Medium",
+  "text": "A convex lens of power $+2$ D is in contact with a concave lens of focal length 20 cm. The power of the combination is",
+  "options": [
+   "$-2$ D",
+   "$-3$ D",
+   "$1$ D",
+   "$5$ D"
+  ],
+  "correct_answer": "B"
+ },
+ {
+  "id": "DT1_PHY_036",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Atomic Physics",
+  "difficulty": "Medium",
+  "text": "A sample of atomic hydrogen is excited from the ground state to the 4th state. The possible maximum number of lines in the emission spectrum will be",
+  "options": [
+   "$4$",
+   "$8$",
+   "$6$",
+   "$2$"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_037",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Electrostatics",
+  "difficulty": "Medium",
+  "text": "An electric dipole of dipole moment $(\\vec{P})$ is placed in a uniform electric field $(\\vec{E})$ in the direction of electric field. The work done by external force to rotate it by angle $\\theta$ is $\\dfrac{3PE}{2}$, then value of $\\theta$ will be",
+  "options": [
+   "$90^\\circ$",
+   "$60^\\circ$",
+   "$120^\\circ$",
+   "$180^\\circ$"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_038",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Electrostatics (Gauss Law)",
+  "difficulty": "Medium",
+  "text": "A closed Gaussian surface in form of a cone is formed in a region of uniform electric field as shown. The electric flux through the cone is. <b>[Figure: a cone of base radius R in a uniform field E (field lines horizontal) &mdash; figure to be added as image]</b>",
+  "options": [
+   "$\\pi R^2 E$",
+   "$2\\pi R E$",
+   "$2\\pi R^2 E$",
+   "Zero"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_039",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Electrostatics (Dipole)",
+  "difficulty": "Hard",
+  "text": "The magnitude of electric dipole moment of the system as shown in the figure is. <b>[Figure: right-angled triangle with $+q$ at top, $-2q$ at the right-angle vertex (bottom-left) and $+q$ at bottom-right; each leg of length $\\sqrt{2}\\,a$ &mdash; figure to be added as image]</b>",
+  "options": [
+   "$qa$",
+   "$\\sqrt{2}qa$",
+   "$2qa$",
+   "Zero"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_040",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Mechanical Properties of Fluids",
+  "difficulty": "Medium",
+  "text": "The viscous drag acting on a metal sphere of diameter 2 mm, falling through a fluid of viscosity 0.5 Pa s is $18 \\times 10^{-3}$ N. Velocity of the metal sphere will be nearly",
+  "options": [
+   "$4$ m/s",
+   "$1$ m/s",
+   "$2$ m/s",
+   "$6$ m/s"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_041",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Thermodynamics",
+  "difficulty": "Medium",
+  "text": "The change in internal energy of one mole of an ideal diatomic gas during process $AB$ as shown in given $P$-$V$ diagram will be. The process is isochoric at volume $V_0$ with pressure changing from $P_0$ (at A) to $3P_0$ (at B).",
+  "options": [
+   "$5P_0V_0$",
+   "$3P_0V_0$",
+   "$4P_0V_0$",
+   "$7P_0V_0$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_PHY_042",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Simple Harmonic Motion",
+  "difficulty": "Medium",
+  "text": "The plot of velocity ($v$) versus displacement ($x$) of a particle executing simple harmonic motion is shown in figure (an ellipse with $v_{max} = 0.3$ m/s and $x_{max} = 10$ cm). The angular frequency of oscillation of the particle is",
+  "options": [
+   "$6$ rad/s",
+   "$3$ rad/s",
+   "$2$ rad/s",
+   "$4$ rad/s"
+  ],
+  "correct_answer": "B"
+ },
+ {
+  "id": "DT1_PHY_043",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Projectile Motion",
+  "difficulty": "Medium",
+  "text": "A particle is thrown with velocity of 40 m/s at an angle $\\theta$ with horizontal. If it passes $A$ and $B$ (at the same height) at $t_1 = 1$ s and $t_2 = 3$ s as shown in figure, then the value of $\\theta$ will be (take $g = 10$ m/s$^2$)",
+  "options": [
+   "$60^\\circ$",
+   "$45^\\circ$",
+   "$37^\\circ$",
+   "$30^\\circ$"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_PHY_044",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Collisions",
+  "difficulty": "Easy",
+  "text": "Consider the following statements ($e$ is coefficient of restitution)<br>(A) For perfectly inelastic collision $e = 0$<br>(B) For perfectly elastic collision $e = 1$<br>(C) For partially elastic collision $0 < e < 1$<br>The correct option is",
+  "options": [
+   "Only (A) and (C) are true",
+   "Only (B) and (C) are true",
+   "All (A), (B) and (C) are true",
+   "Only (A) and (B) are true"
+  ],
+  "correct_answer": "C"
+ },
+ {
+  "id": "DT1_PHY_045",
+  "subject": "Physics",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Mechanical Properties of Solids",
+  "difficulty": "Easy",
+  "text": "Bulk modulus of elasticity is defined for",
+  "options": [
+   "Only solids",
+   "Only liquids",
+   "Only gases",
+   "All solids, liquids and gases"
+  ],
+  "correct_answer": "D"
+ },
+ {
+  "id": "DT1_CHE_046",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Mole Concept",
+  "difficulty": "Medium",
+  "text": "An organic compound contains carbon, hydrogen and oxygen. Its elemental analysis gave C, 38.71% and H, 9.67%. The empirical formula of the compound would be",
+  "options": [
+   "$CH_3O$",
+   "$CH_4O$",
+   "$CHO$",
+   "$CH_2O$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_047",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Atomic Structure",
+  "difficulty": "Medium",
+  "text": "The number of angular nodes and radial nodes respectively in $4d_{x^2-y^2}$ orbital are",
+  "options": [
+   "1 and 2",
+   "2 and 1",
+   "2 and 0",
+   "1 and 0"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_048",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Periodic Table",
+  "difficulty": "Medium",
+  "text": "Match the atomic numbers given in column I with their IUPAC official names given in column II.<br>Column I: (a) 101, (b) 103, (c) 104, (d) 108<br>Column II: (i) Rutherfordium, (ii) Mendelevium, (iii) Lawrencium, (iv) Hassium<br>Choose the correct match from the options given below.",
+  "options": [
+   "a(iii), b(ii), c(iv), d(i)",
+   "a(i), b(ii), c(iii), d(iv)",
+   "a(ii), b(iii), c(i), d(iv)",
+   "a(iii), b(ii), c(i), d(iv)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_049",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Chemical Bonding",
+  "difficulty": "Medium",
+  "text": "The correct order of dipole moment for molecules $H_2O$, $NH_3$, $CCl_4$ and $HI$ is",
+  "options": [
+   "$NH_3 > H_2O > HI > CCl_4$",
+   "$HI > H_2O > NH_3 > CCl_4$",
+   "$CCl_4 > H_2O > NH_3 > HI$",
+   "$H_2O > NH_3 > HI > CCl_4$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_050",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Chemical Bonding (MOT)",
+  "difficulty": "Medium",
+  "text": "A pair of species having same bond order is",
+  "options": [
+   "$N_2,\\ O_2$",
+   "$N_2^-,\\ O_2^-$",
+   "$N_2^-,\\ O_2^+$",
+   "$N_2,\\ O_2^-$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_051",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Thermodynamics",
+  "difficulty": "Medium",
+  "text": "Two moles of an ideal gas at 400 K is expanded isothermally and reversibly from 1 L to 10 L volume. $\\Delta H$ for this process is ($R = 8.314\\ \\text{JK}^{-1}\\text{mol}^{-1}$)",
+  "options": [
+   "0 J",
+   "7659 J",
+   "15317 J",
+   "7523 J"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_052",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ionic Equilibrium",
+  "difficulty": "Hard",
+  "text": "The solubility of AgCl in 0.1 M aqueous solution of $CaCl_2$ is ($K_{sp}$ of AgCl is $1.8 \\times 10^{-10}$)",
+  "options": [
+   "$1.8 \\times 10^{-9}$ mol L$^{-1}$",
+   "$9 \\times 10^{-9}$ mol L$^{-1}$",
+   "$9 \\times 10^{-10}$ mol L$^{-1}$",
+   "$1.8 \\times 10^{-10}$ mol L$^{-1}$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_053",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Electrochemistry",
+  "difficulty": "Medium",
+  "text": "If the standard electrode potential ($E^\\circ$) values of $Sn^{+2}/Sn$, $Fe^{+2}/Fe$, $Na^+/Na$ and $Al^{+3}/Al$ are $-0.14$ V, $-0.44$ V, $-2.71$ V and $-1.66$ V respectively, then the correct order of reducing power of the metals is",
+  "options": [
+   "$Sn > Fe > Al > Na$",
+   "$Na > Al > Fe > Sn$",
+   "$Fe > Sn > Al > Na$",
+   "$Al > Na > Fe > Sn$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_054",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "p-Block (Diborane)",
+  "difficulty": "Medium",
+  "text": "Consider the following statements regarding diborane.<br>(a) Each boron atom uses $sp^3$ hybridised orbital for bonding.<br>(b) The terminal B-H bonds are 2-centre-2-electron bonds.<br>(c) The bridge bonds are 3-centre-2-electron bonds.<br>(d) It is a planar molecule.<br>Select the correct statements.",
+  "options": [
+   "a, b and c only",
+   "a, b and d only",
+   "b, c and d only",
+   "a, b, c and d"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_055",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Qualitative Analysis",
+  "difficulty": "Medium",
+  "text": "On treating sodium fusion extract of organic compound with sodium nitroprusside, violet colour appears which indicates the presence of an element 'A'. The element 'A' and the violet-coloured species formed respectively are",
+  "options": [
+   "Sulphur, $[Fe(SCN)]^{2+}$",
+   "Sulphur, $[Fe(CN)_5NOS]^{4-}$",
+   "Nitrogen, $[Fe_4(Fe(CN)_6)_3]\\cdot xH_2O$",
+   "Phosphorous, $(NH_4)_3PO_4\\cdot 12MoO_3$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_056",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "IUPAC Nomenclature",
+  "difficulty": "Medium",
+  "text": "IUPAC name of the following compound is. <b>[Structure: a cyclohexene ring bearing Br, Cl and NO_2 substituents — structure to be added as image]</b>",
+  "options": [
+   "1-Bromo-3-chloro-4-nitrocyclohex-2-ene",
+   "5-Bromo-1-chloro-6-nitrocyclohex-5-ene",
+   "3-Bromo-1-chloro-6-nitrocyclohex-1-ene",
+   "4-Bromo-2-chloro-1-nitrocyclohex-2-ene"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_057",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Hydrocarbons",
+  "difficulty": "Hard",
+  "text": "Consider the following reaction sequence: $CaC_2 \\xrightarrow{H_2O} A \\xrightarrow{Na(1\\,eq)} B \\xrightarrow{CH_3CH_2-Cl} C \\xrightarrow{\\text{Red hot iron tube, 873 K}} D$. Major product D is. <b>[Reaction scheme is a figure — to be added as image]</b>",
+  "options": [
+   "Benzene",
+   "Ethylbenzene",
+   "Toluene",
+   "1,3,5-triethylbenzene"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_058",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "p-Block (Silicates)",
+  "difficulty": "Medium",
+  "text": "Which among the following is an incorrect statement?",
+  "options": [
+   "The basic structural unit of silicates is $SiO_4^{4-}$",
+   "$SiCl_4$ undergoes hydrolysis to form silicic acid",
+   "$SiO_2$ and PbO are amphoteric in nature",
+   "Hydrated zeolites are used as ion exchangers in softening of “hard” water"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_059",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Solutions (Colligative)",
+  "difficulty": "Hard",
+  "text": "The boiling point of a 0.2 molal aqueous solution of $AlCl_3$ (degree of dissociation = 80%) is ($K_b$ for water is 0.52 K kg mol$^{-1}$)",
+  "options": [
+   "100.53 °C",
+   "100.35 °C",
+   "101.35 °C",
+   "101.53 °C"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_060",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Chemical Kinetics",
+  "difficulty": "Medium",
+  "text": "Given below are two statements:<br><b>Statement I:</b> The decomposition of gaseous ammonia on a hot platinum surface is a zero-order reaction at high pressure.<br><b>Statement II:</b> $t_{1/2}$ for a zero order reaction is directly proportional to the initial concentration of the reactants.<br>In the light of the above statements, choose the most appropriate answer from the options given below.",
+  "options": [
+   "Both statement I and statement II are correct",
+   "Both statement I and statement II are incorrect",
+   "Statement I is correct but statement II is incorrect",
+   "Statement I is incorrect but statement II is correct"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_061",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "p-Block (Group 15)",
+  "difficulty": "Medium",
+  "text": "Correct order of boiling point of hydrides of group-15 elements is",
+  "options": [
+   "$BiH_3 > NH_3 > SbH_3 > AsH_3 > PH_3$",
+   "$NH_3 > PH_3 > AsH_3 > SbH_3 > BiH_3$",
+   "$BiH_3 > SbH_3 > NH_3 > AsH_3 > PH_3$",
+   "$BiH_3 > SbH_3 > AsH_3 > PH_3 > NH_3$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_062",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "s-Block / Minerals",
+  "difficulty": "Medium",
+  "text": "Match List I (Name of Compound) with List II (Formula of Compound).<br>List I: (a) Chile saltpetre, (b) Indian saltpetre, (c) Carnallite, (d) Cryolite<br>List II: (i) $KCl\\cdot MgCl_2\\cdot 6H_2O$, (ii) $NaNO_3$, (iii) $Na_3AlF_6$, (iv) $KNO_3$<br>Choose the correct answer from the options given below.",
+  "options": [
+   "a(iv), b(ii), c(i), d(iii)",
+   "a(ii), b(iv), c(i), d(iii)",
+   "a(ii), b(iv), c(iii), d(i)",
+   "a(iv), b(i), c(iii), d(ii)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_063",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Carbocation Stability",
+  "difficulty": "Medium",
+  "text": "The most stable carbonium ion among the following is. <b>[Four benzylic carbocation structures: (1) p-nitro, (2) unsubstituted, (3) p-amino, (4) p-methyl — structures to be added as image]</b>",
+  "options": [
+   "p-Nitrobenzyl cation",
+   "Benzyl cation",
+   "p-Aminobenzyl cation",
+   "p-Methylbenzyl cation"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_064",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Redox / d-Block",
+  "difficulty": "Hard",
+  "text": "Consider the change in the oxidation state of bromine corresponding to different emf values as shown in the diagram below: $BrO_4^- \\xrightarrow{1.82\\,V} BrO_3^- \\xrightarrow{1.5\\,V} HBrO \\xrightarrow{1.595\\,V} Br_2 \\xrightarrow{1.0652\\,V} Br^-$. The species which will undergo disproportionation reaction is",
+  "options": [
+   "$BrO_3^-$",
+   "$BrO_4^-$",
+   "$Br_2$",
+   "$HBrO$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_065",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Coordination Compounds",
+  "difficulty": "Hard",
+  "text": "Match List I (Coordination entity) with List II (Wavelength of light absorbed in nm).<br>List I: (a) $[CoCl(NH_3)_5]^{2+}$, (b) $[Co(NH_3)_5(H_2O)]^{3+}$, (c) $[Co(NH_3)_6]^{3+}$, (d) $[Co(CN)_6]^{3-}$<br>List II: (i) 500, (ii) 475, (iii) 535, (iv) 310<br>Choose the correct answer from the options given below.",
+  "options": [
+   "a(i), b(iv), c(iii), d(ii)",
+   "a(iii), b(i), c(iv), d(ii)",
+   "a(iii), b(i), c(ii), d(iv)",
+   "a(i), b(iii), c(ii), d(iv)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_066",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "d-Block",
+  "difficulty": "Medium",
+  "text": "Given below are two statements: one is labelled as <b>Assertion (A)</b> and other is labelled as <b>Reason (R)</b>.<br><b>Assertion (A):</b> Manganate ion is paramagnetic in nature.<br><b>Reason (R):</b> Manganate ion contains one unpaired electron.<br>In light of above statements, choose the correct answer.",
+  "options": [
+   "Both (A) and (R) are true statements and (R) is the correct explanation of (A)",
+   "Both (A) and (R) are true statements but (R) is not the correct explanation of (A)",
+   "(A) is false but (R) is true",
+   "(A) is true but (R) is false"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_067",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "f-Block",
+  "difficulty": "Medium",
+  "text": "Given below are two statements.<br><b>Statement-I:</b> The absorption bands in the spectra of lanthanoid ions are narrow probably because of the excitation within f level.<br><b>Statement-II:</b> Both $Ce^{4+}$ and $Yb^{2+}$ are diamagnetic in nature.<br>In the light of above statements, choose the most appropriate answer from the options given below.",
+  "options": [
+   "Both statement I and statement II are correct",
+   "Both statement I and statement II are incorrect",
+   "Statement I is correct but statement II is incorrect",
+   "Statement I is incorrect but statement II is correct"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_068",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Aldehydes & Ketones",
+  "difficulty": "Medium",
+  "text": "Consider the following compounds: (a) $CH_3CH_2OH$, (b) $CH_3-CH(OH)-CH_3$, (c) $CH_3CH_2CHO$, (d) $CH_3-CO-Ph$ (acetophenone). The compounds which will give positive iodoform test are",
+  "options": [
+   "(a), (b) and (c) only",
+   "(a) and (d) only",
+   "(b), (c) and (d) only",
+   "(a), (b) and (d) only"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_069",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Alcohols, Phenols, Ethers",
+  "difficulty": "Medium",
+  "text": "The correct order of boiling point of the following compounds is:<br>a. $CH_3CH_2-O-CH_2CH_3$<br>b. $CH_3CH_2CH_2CH_2-OH$<br>c. $CH_3(CH_2)_2CH_3$",
+  "options": [
+   "a > b > c",
+   "b > a > c",
+   "c > a > b",
+   "b > c > a"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_070",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Aldehydes & Ketones",
+  "difficulty": "Hard",
+  "text": "Consider the following reaction sequence: propan-2-ol $\\xrightarrow{Cu,\\ 573\\,K}$ A (major) $\\xrightarrow{H_2N-CO-NH_2 \\text{ (semicarbazide-type)}}$ B (major). Major product B is. <b>[Product structures are figures — to be added as image]</b>",
+  "options": [
+   "Option 1 structure",
+   "Option 2 structure",
+   "Option 3 structure",
+   "Option 4 structure"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_071",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Carboxylic Acids (Acidity)",
+  "difficulty": "Medium",
+  "text": "Match List I (Acid) with List II (pK_a value).<br>List I: (a) Benzoic acid, (b) 4-Methoxybenzoic acid, (c) 4-Nitrobenzoic acid, (d) HCOOH<br>List II: (i) 3.75, (ii) 4.19, (iii) 3.41, (iv) 4.46<br><b>[Acid structures shown as images in original — to be added as image]</b><br>Choose the correct answer from the options given below.",
+  "options": [
+   "a(iii), b(ii), c(i), d(iv)",
+   "a(ii), b(iv), c(i), d(iii)",
+   "a(ii), b(i), c(iv), d(iii)",
+   "a(ii), b(iv), c(iii), d(i)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_072",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Amines",
+  "difficulty": "Hard",
+  "text": "Consider the following reaction sequence: cyclohexanecarboxylic acid (cyclohexyl-COOH) $\\xrightarrow{NH_3} A \\xrightarrow{\\Delta} B \\xrightarrow{Br_2/NaOH} C$ (major). The product 'C' is. <b>[Product structures are figures — to be added as image]</b>",
+  "options": [
+   "Cyclohexanamine ($-NH_2$)",
+   "Cyclohexanecarboxamide ($-CONH_2$)",
+   "Option 3 structure",
+   "Option 4 structure"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_073",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biomolecules (Amino acids)",
+  "difficulty": "Easy",
+  "text": "Basic amino acid among the following is",
+  "options": [
+   "Leucine",
+   "Valine",
+   "Lysine",
+   "Phenylalanine"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_074",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Purification Methods",
+  "difficulty": "Medium",
+  "text": "Consider the following statements.<br>(a) Steam distillation is used for the separation of aniline from aniline-water mixture.<br>(b) Paper chromatography is a type of adsorption chromatography.<br>(c) Glycerol can be separated from spent-lye in soap industry by using distillation under reduced pressure technique.<br>The correct statements are",
+  "options": [
+   "(a) and (b) only",
+   "(b) and (c) only",
+   "(a) and (c) only",
+   "(a), (b) and (c)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_075",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Chemical Kinetics",
+  "difficulty": "Medium",
+  "text": "The rate constant for a first order reaction is $2.303 \\times 10^{-3}$ s$^{-1}$. The time required to reduce 2 g of reactant to 0.2 g is",
+  "options": [
+   "500 s",
+   "1000 s",
+   "1500 s",
+   "800 s"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_076",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Electrochemistry",
+  "difficulty": "Medium",
+  "text": "Amount of charge needed for the reduction of 0.6 mole of permanganate ion to $Mn^{2+}$ ions will be",
+  "options": [
+   "2 F",
+   "8 F",
+   "6 F",
+   "3 F"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_077",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Solutions",
+  "difficulty": "Medium",
+  "text": "A mixture of two components A and B will show negative deviations from Raoult's law when",
+  "options": [
+   "A-B interaction is stronger than A-A and B-B interaction.",
+   "A-B interaction is weaker than A-A and B-B interaction.",
+   "$\\Delta V_{mix} > 0,\\ \\Delta S_{mix} > 0$",
+   "$\\Delta V_{mix} = 0,\\ \\Delta S_{mix} > 0$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_078",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Chemical Bonding (Overlap)",
+  "difficulty": "Medium",
+  "text": "Which of the given overlapping of orbitals leads to zero overlap? <b>[Four orbital-overlap diagrams along the z-axis: (1) p_z-p_z, (2) p_x-p_x, (3) p_z-s, (4) s-p_x — diagrams to be added as image]</b>",
+  "options": [
+   "$p_z - p_z$ (along z)",
+   "$p_x - p_x$ (along z)",
+   "$p_z - s$ (along z)",
+   "$s - p_x$ (along z)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_079",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "p-Block (Halogens)",
+  "difficulty": "Medium",
+  "text": "How many moles of NaOH are required to react completely with 4 moles of chlorine gas, when it is passed in hot and concentrated NaOH solution?",
+  "options": [
+   "6",
+   "5",
+   "10",
+   "8"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_080",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Thermodynamics (Bond Energy)",
+  "difficulty": "Medium",
+  "text": "If the bond energies of H–H, I–I and H–I are x, y and z kJ mol$^{-1}$ respectively, then $\\Delta H^\\circ$ for the reaction, $H_2(g) + I_2(g) \\to 2HI(g)$ in kJ mol$^{-1}$ will be",
+  "options": [
+   "$2x + 2y - z$",
+   "$x + 2y - 2z$",
+   "$2x + y - 2z$",
+   "$x + y - 4z$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_081",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Chemical Equilibrium",
+  "difficulty": "Medium",
+  "text": "Consider the following reaction: $2H_2(g) + CO(g) \\rightleftharpoons CH_3OH(g)$, $\\Delta H = -92.2$ kJ. Choose the condition(s) from the following which favour(s) the formation of methanol.<br>(a) Decreasing the pressure.<br>(b) Addition of inert gas at constant volume.<br>(c) Decreasing the temperature",
+  "options": [
+   "(a) only",
+   "(a) and (b) only",
+   "(c) only",
+   "(a) and (c) only"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_082",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Atomic Structure",
+  "difficulty": "Hard",
+  "text": "Wavelength of electron in the fourth orbit of $Be^{3+}$ ion is",
+  "options": [
+   "$105.8\\pi$ pm",
+   "$211.6\\pi$ pm",
+   "$92.3\\pi$ pm",
+   "$52.9\\pi$ pm"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_083",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Qualitative Analysis",
+  "difficulty": "Medium",
+  "text": "Match List I (Groups) with List II (Group reagent).<br>List I: (a) Group-I, (b) Group-II, (c) Group-III, (d) Group-IV<br>List II: (i) $H_2S$ gas in presence of dil. HCl, (ii) $NH_4OH$ in presence of $NH_4Cl$, (iii) $H_2S$ in presence of $NH_4OH$, (iv) Dilute HCl<br>Choose the correct answer from the options given below.",
+  "options": [
+   "a(i), b(ii), c(iii), d(iv)",
+   "a(iii), b(ii), c(i), d(iv)",
+   "a(iv), b(i), c(iii), d(ii)",
+   "a(iv), b(i), c(ii), d(iii)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_084",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ionic Equilibrium",
+  "difficulty": "Medium",
+  "text": "If 0.2 M acetic acid solution is 1% ionised, then pH of this acetic acid solution is",
+  "options": [
+   "2.7",
+   "2",
+   "3.7",
+   "2.3"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_085",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Organic Reactions",
+  "difficulty": "Hard",
+  "text": "Select the incorrect reaction among the following. <b>[Four organic reactions shown as structures: (1) benzylamine + CHCl_3 + KOH → benzyl cyanide; (2) ethylbenzene + KMnO_4/KOH then H_3O^+ → benzoic acid; (3) benzoyl chloride + H_2/Pd-BaSO_4 → benzaldehyde (Rosenmund); (4) cumene + O_2 then H_3O^+ → phenol — structures to be added as image]</b>",
+  "options": [
+   "Reaction (1)",
+   "Reaction (2)",
+   "Reaction (3)",
+   "Reaction (4)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_086",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Aldol Condensation",
+  "difficulty": "Medium",
+  "text": "Which among the following species will not give Aldol condensation reaction? (a) Benzaldehyde (PhCHO), (b) Acetophenone (PhCOCH_3), (c) Benzophenone (PhCOPh), (d) Cyclohexanecarbaldehyde. Choose the correct option.",
+  "options": [
+   "(a) and (b) only",
+   "(c) and (d) only",
+   "(a), (b) and (c) only",
+   "(a), (c) and (d) only"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_087",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Coordination Compounds (Isomerism)",
+  "difficulty": "Hard",
+  "text": "The types of isomerism can be exhibited by $[Co(H_2O)_4(NO_2)_2]Cl$ are: (a) Linkage, (b) Ionization, (c) Geometrical, (d) Coordination, (e) Optical. Choose the correct option.",
+  "options": [
+   "(a), (b) and (c) only",
+   "(a), (b) and (d) only",
+   "(b), (c) and (e) only",
+   "(b), (c) and (d) only"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_088",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Qualitative Analysis (Anions)",
+  "difficulty": "Medium",
+  "text": "On addition of dilute $H_2SO_4$ in a salt solution, a colourless and odourless gas is evolved with brisk effervescence which turns lime water milky. Anion present in the salt may be",
+  "options": [
+   "$NO_3^-$",
+   "$Cl^-$",
+   "$NO_2^-$",
+   "$CO_3^{2-}$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_089",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Reduction Reactions",
+  "difficulty": "Hard",
+  "text": "A cyclopentane ring bearing the chain $-CH=CH-CH_2-CHO$ is treated with (i) $LiAlH_4$ (ii) $H_2O$ to give major product 'X'. The major product 'X' is. <b>[Product structures are figures — to be added as image; note LiAlH_4 reduces –CHO to –CH_2OH but not the C=C]</b>",
+  "options": [
+   "$-CH_2-CH_2-CH_2-CHC$ option",
+   "$-CH_2-CH_2-CH_2-CHO$ option",
+   "$-CH=CH-CH_2-CH_2-OH$ option",
+   "$-CH_2-CH_2-CH_2-CH_2-OH$ option"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_CHE_090",
+  "subject": "Chemistry",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biomolecules (Vitamins)",
+  "difficulty": "Easy",
+  "text": "Match List I (Name of vitamin) with List II (Deficiency disease).<br>List I: (a) Riboflavin, (b) Thiamine, (c) Pyridoxine, (d) Ascorbic acid<br>List II: (i) Bleeding gums, (ii) Convulsions, (iii) Digestive disorders and burning sensation of the skin, (iv) Beriberi<br>Choose the correct answer from the options given below.",
+  "options": [
+   "a(iii), b(iv), c(ii), d(i)",
+   "a(iii), b(iv), c(i), d(ii)",
+   "a(iv), b(iii), c(ii), d(i)",
+   "a(iii), b(ii), c(iv), d(i)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_091",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Reproduction in Plants",
+  "difficulty": "Easy",
+  "text": "Water hyacinth and water lily are pollinated by",
+  "options": [
+   "Lemurs",
+   "Water",
+   "Insects",
+   "Bats"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_092",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Cycle",
+  "difficulty": "Medium",
+  "text": "A diploid cell in the $G_1$ phase has 10 chromosomes and 25 pg of DNA. What will be the number of chromosomes and amount of DNA respectively in this cell at $G_2$ phase?",
+  "options": [
+   "10 and 25 pg",
+   "20 and 50 pg",
+   "20 and 25 pg",
+   "10 and 50 pg"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_093",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Respiration",
+  "difficulty": "Medium",
+  "text": "For the conversion of pyruvate to acetyl CoA in the mitochondrial matrix, which of the following are required? a. $Mg^{2+}$  b. $NAD^+$  c. $CO_2$  d. $NADH + H^+$  e. CoA",
+  "options": [
+   "a, c, d and e",
+   "b, c and d",
+   "a, b and e",
+   "a, c and d"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_094",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Biology",
+  "difficulty": "Easy",
+  "text": "Single circular dsDNA molecule is found in all, except",
+  "options": [
+   "Chloroplast",
+   "Mitochondria",
+   "Nucleus",
+   "Nucleoid"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_095",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Morphology of Flowering Plants",
+  "difficulty": "Hard",
+  "text": "The floral formula $\\oplus\\ \\rlap{/}{\\circ}\\ K_{(5)}\\,C_{(5)}\\,A_5\\,\\underline{G}_{(2)}$ is of",
+  "options": [
+   "Cotton family that has tap root system",
+   "Grass family that has basal placentation",
+   "Potato family that has endospermous seeds",
+   "Largest dicot family that has head or capitulum type of inflorescence"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_096",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biological Classification",
+  "difficulty": "Easy",
+  "text": "______ are the smallest living cells known which are pathogenic to animals and plants. Select the correct option to fill in the blank.",
+  "options": [
+   "Cyanobacteria",
+   "Mycoplasma",
+   "Viroids",
+   "Archaebacteria"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_097",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Kingdom (Algae)",
+  "difficulty": "Medium",
+  "text": "Which of the following organisms has chlorophyll $a$ and $d$ along with phycoerythrin as the major pigments?",
+  "options": [
+   "Polysiphonia",
+   "Chlamydomonas",
+   "Fucus",
+   "Ectocarpus"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_098",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Genetics (Pedigree)",
+  "difficulty": "Hard",
+  "text": "Study the given pedigree. <b>[Pedigree chart (3 generations) — figure to be added as image]</b><br>a. The trait shown in above pedigree can be of sickle cell anaemia.<br>b. Males in generation II are the carriers if the trait is colour blindness.<br>c. The genotype of the affected female in generation II can be Aa or aa.<br>d. If we consider this trait as autosomal recessive, then the responsible allele would be found only in females.<br>Which of the given statements w.r.t the above pedigree would be true?",
+  "options": [
+   "a and d",
+   "b and d",
+   "b and c",
+   "a and c"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_099",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Molecular Biology",
+  "difficulty": "Medium",
+  "text": "Read the following statements and select the correct option.<br><b>Statement-A:</b> Viruses having RNA genome mutate at a faster rate.<br><b>Statement-B:</b> Non-histone chromosomal proteins are required for DNA packaging to form the “beads on string” structure in chromatin.",
+  "options": [
+   "Only statement A is incorrect",
+   "Only statement B is incorrect",
+   "Both the statements A and B are correct",
+   "Both the statements A and B are incorrect"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_100",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Division (Meiosis)",
+  "difficulty": "Medium",
+  "text": "Crossing over between non-sister chromatids of homologous chromosome occurs in __A__ stage. Dissolution of synaptonemal complex occurs in __B__ stage of meiotic cell division. Select the correct option to fill in the blanks A and B. (Format: A, B)",
+  "options": [
+   "Zygotene, Pachytene",
+   "Zygotene, Diplotene",
+   "Pachytene, Diplotene",
+   "Diplotene, Diakinesis"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_101",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Growth & Development",
+  "difficulty": "Easy",
+  "text": "The plant hormone that is responsible for quicker early growth in juvenile conifers is",
+  "options": [
+   "Auxin",
+   "Gibberellin",
+   "Ethylene",
+   "Cytokinin"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_102",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Genetics (Disorders)",
+  "difficulty": "Medium",
+  "text": "Which amongst the following statements are true for sickle cell anemia?<br>a. It is an autosomal recessive trait.<br>b. It occurs due to the substitution of a purine by pyrimidine in the coding strand of DNA of a particular gene.<br>c. Substitution of valine by glutamic acid at the 6th position of the beta globin chain of haemoglobin molecule.<br>d. Heterozygous individuals have 50% probability of transmission of mutated gene to progeny.<br>e. It is a quantitative problem of too few haemoglobin molecules.",
+  "options": [
+   "a, b, c and e",
+   "b, d and e",
+   "c and e only",
+   "a, b and d"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_103",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ecology (Interactions)",
+  "difficulty": "Easy",
+  "text": "Interaction between plover bird and crocodile is an example of",
+  "options": [
+   "Mutualism",
+   "Protocooperation",
+   "Commensalism",
+   "Predation"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_104",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Microbes in Human Welfare",
+  "difficulty": "Medium",
+  "text": "__A__ is an immunosuppressive agent, which is produced by a fungus called __B__. Select the correct option to fill in the blanks A and B. (Format: A, B)",
+  "options": [
+   "Statin, Trichoderma polysporum",
+   "Cyclosporin A, Monascus purpureus",
+   "Cyclosporin A, Trichoderma polysporum",
+   "Statin, Aspergillus niger"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_105",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Morphology of Flowering Plants",
+  "difficulty": "Medium",
+  "text": "How many plants in the list given below have axile placentation? (Tomato, Tobacco, Chilli, Pea, Muliathi, China rose, Sunflower, Petunia, Lemon)",
+  "options": [
+   "Four",
+   "Five",
+   "Six",
+   "Seven"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_106",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Reproduction",
+  "difficulty": "Medium",
+  "text": "In a female frog, the ovaries are",
+  "options": [
+   "Functionally connected to the kidneys",
+   "Connected to cloaca through urogenital ducts",
+   "Situated near the kidneys",
+   "Not able to produce more than 3000 ova in its lifetime"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_107",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Excretion",
+  "difficulty": "Medium",
+  "text": "In context of regulation of kidney functions in humans, all of the following hormones increase the blood pressure, except",
+  "options": [
+   "Angiotensin II",
+   "Aldosterone",
+   "ANF",
+   "ADH"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_108",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Tissues",
+  "difficulty": "Easy",
+  "text": "In humans, the type of epithelium present in the inner walls of blood vessels is",
+  "options": [
+   "Simple cuboidal epithelium",
+   "Simple squamous epithelium",
+   "Compound epithelium",
+   "Simple columnar epithelium"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_109",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Kingdom",
+  "difficulty": "Medium",
+  "text": "Select the correct set of animals that are triploblastic, coelomate and segmented.",
+  "options": [
+   "Taenia, Ancylostoma, Chaetopleura",
+   "Ctenoplana, Adamsia, Sycon",
+   "Fasciola, Aplysia, Ophiura",
+   "Hirudinaria, Culex, Laccifer"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_110",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Kingdom",
+  "difficulty": "Medium",
+  "text": "Choose the correct option to complete the analogy. ________ : Monoecious :: Nereis : Dioecious",
+  "options": [
+   "Ascaris",
+   "Anopheles",
+   "Trygon",
+   "Pheretima"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_111",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Neural Control",
+  "difficulty": "Medium",
+  "text": "In human brain, the region 'X' is responsible for complex functions like intersensory associations, memory and communication. 'X' is a part of",
+  "options": [
+   "Cerebellum",
+   "Corpora quadrigemina",
+   "Cerebral cortex",
+   "Brain stem"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_112",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Neural Control",
+  "difficulty": "Hard",
+  "text": "Select the correct option w.r.t. neurons at resting state in humans.",
+  "options": [
+   "The axonal membrane is completely permeable to $Na^+$ present in axoplasm.",
+   "The fluid outside the axon contains very high concentration of $K^+$ as compared to inside.",
+   "Outer surface of the axonal membrane possesses a positive charge.",
+   "The axoplasm contains very low concentration of negatively charged proteins and $K^+$ as compared to outside."
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_113",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Locomotion & Movement",
+  "difficulty": "Medium",
+  "text": "The muscle fibres present in biceps of humans are",
+  "options": [
+   "Cylindrical, Voluntary, Non-striated",
+   "Multi-nucleated, Unbranched, Voluntary",
+   "Fusiform, Voluntary, Striated",
+   "Uninucleated, Striated, Branched"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_114",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Reproductive Health",
+  "difficulty": "Easy",
+  "text": "All of the following sexually transmitted diseases are completely curable if detected early and treated properly, except",
+  "options": [
+   "Trichomoniasis",
+   "Genital warts",
+   "Genital herpes",
+   "Chlamydiasis"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_115",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Chemical Coordination",
+  "difficulty": "Medium",
+  "text": "Read the following statements:<br><b>Statement (A):</b> All the hormones which interact with intracellular receptors are steroidal in nature.<br><b>Statement (B):</b> Secretin and CCK are peptide hormones and generate second messengers as they do not enter the target cells.<br>Select the correct option.",
+  "options": [
+   "Only statement (B) is incorrect",
+   "Both statements (A) and (B) are correct",
+   "Both statements (A) and (B) are incorrect",
+   "Only statement (A) is incorrect"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_116",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Bacteria",
+  "difficulty": "Medium",
+  "text": "Elongated tubular structures, generally found in gram-negative bacteria, which are known to play a role in the bacterial mating process are",
+  "options": [
+   "Pili",
+   "Fimbrae",
+   "Mesosomes",
+   "Plasmids"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_117",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Anatomy of Flowering Plants",
+  "difficulty": "Medium",
+  "text": "Where do you expect to find pericycle in the form of semi-lunar patches made up of sclerenchymatous cells?",
+  "options": [
+   "Dicot stem",
+   "Monocot stem",
+   "Dicot root",
+   "Monocot root"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_118",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Morphology (Seed)",
+  "difficulty": "Easy",
+  "text": "Scutellum is a",
+  "options": [
+   "Structure enclosing the plumule",
+   "Shield shape cotyledon in monocot seed",
+   "Part of the embryonal axis in dicots",
+   "Outer protein layer of the endosperm in monocot seeds"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_119",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biological Classification",
+  "difficulty": "Medium",
+  "text": "Match list-I with list-II and choose the correct option.<br>List-I: (a) Diatoms, (b) Aspergillus, (c) Alternaria, (d) Gonyaulax<br>List-II: (i) Causes red tides of the sea due to rapid multiplication, (ii) Only the asexual or vegetative phases are known to occur, (iii) Sexual spores called ascospores are produced endogenously in sac like asci, (iv) Chief producers in the oceans",
+  "options": [
+   "a(ii), b(iv), c(i), d(iii)",
+   "a(iv), b(ii), c(iii), d(i)",
+   "a(iv), b(iii), c(ii), d(i)",
+   "a(i), b(ii), c(iv), d(iii)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_120",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Respiration (Glycolysis)",
+  "difficulty": "Medium",
+  "text": "How many ATP molecules will be formed by substrate level phosphorylation during glycolysis, if one molecule of fructose-1,6-bisphosphate is used as a substrate?",
+  "options": [
+   "1",
+   "2",
+   "8",
+   "4"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_121",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Growth & Development",
+  "difficulty": "Medium",
+  "text": "Richmond Lang effect is associated with",
+  "options": [
+   "Cell elongation",
+   "Suppression of apical dominance",
+   "Breaking dormancy",
+   "Delaying senescence"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_122",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Kingdom",
+  "difficulty": "Easy",
+  "text": "Which of the following groups of plants are considered the first embryophytes?",
+  "options": [
+   "Algae",
+   "Bryophytes",
+   "Pteridophytes",
+   "Gymnosperms"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_123",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Molecular Biology",
+  "difficulty": "Medium",
+  "text": "State true (T) or false (F) for the given statements and choose the option accordingly.<br>a. In bacteria, translation can begin much before mRNA is fully formed.<br>b. In the process of tailing of hnRNA, adenylate residues (250-300) are added at the 3' in a template dependent manner.<br>c. The genetic code is absolutely universal.<br>d. The presence of introns in split-gene is reminiscent of antiquity. (Format a,b,c,d)",
+  "options": [
+   "F, T, T, T",
+   "T, F, F, T",
+   "T, F, T, F",
+   "F, T, F, F"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_124",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Genetics",
+  "difficulty": "Medium",
+  "text": "Total 480 seeds were obtained by a Mendelian dihybrid cross between the plants having genotype, AaBb × AaBb. Find the number of seeds produced in F1 generation showing both the recessive traits.",
+  "options": [
+   "210",
+   "60",
+   "48",
+   "30"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_125",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Population Ecology",
+  "difficulty": "Medium",
+  "text": "Exponential growth in organisms is represented by the equation",
+  "options": [
+   "$\\dfrac{dN}{dt} = rN\\left(\\dfrac{K-N}{K}\\right)$",
+   "$\\dfrac{dN}{dt} = rN\\left(\\dfrac{N-K}{N}\\right)$",
+   "$\\dfrac{dN}{dt} = KN\\left(\\dfrac{r-N}{N}\\right)$",
+   "$\\dfrac{dN}{dt} = rN$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_126",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ecosystem",
+  "difficulty": "Medium",
+  "text": "Spindle shaped pyramid of number can be seen for which of the following food chains?<br>a. Grass → grasshopper → frog<br>b. Phytoplankton → Zooplankton → Small fish → Big fish<br>c. Tree → Small birds → Hawk<br>d. Big tree → Insects → Small birds<br>Select the correct ones.",
+  "options": [
+   "a, b and c",
+   "b and d",
+   "a and d",
+   "c and d"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_127",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ecosystem",
+  "difficulty": "Easy",
+  "text": "Each trophic level has a certain mass of living material at a particular time called as the",
+  "options": [
+   "Standing crop",
+   "Gross primary productivity",
+   "Net primary productivity",
+   "Standing state"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_128",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Microbes in Human Welfare",
+  "difficulty": "Medium",
+  "text": "In paddy fields, the most active, non-symbiotic nitrogen fixing microbe in India is",
+  "options": [
+   "Glomus",
+   "Azotobacter",
+   "Rhizobium",
+   "Aulosira"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_129",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Respiration (ETS)",
+  "difficulty": "Hard",
+  "text": "Read the following statements and state them as True (T) or False (F).<br>a. When the electrons pass from one carrier to another via complex I to IV in ETS, they are coupled to complex V for ATP production.<br>b. Two copper centres are present in the complex III of ETS.<br>c. F1 is an integral membrane protein, that forms a channel through which protons cross the inner membrane of mitochondria.<br>d. Inner membrane of mitochondria is permeable to protons, in the region of ATP synthase. (Format a,b,c,d)",
+  "options": [
+   "T, F, F, T",
+   "F, T, T, F",
+   "F, T, F, T",
+   "T, T, T, F"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_130",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Growth & Development",
+  "difficulty": "Medium",
+  "text": "Senescence of leaves in plants is delayed by __A__ and it is promoted by __B__ respectively. Select the correct option to fill in the blanks A and B respectively.",
+  "options": [
+   "ABA and cytokinins",
+   "Ethylene and auxins",
+   "Cytokinins and ethylene",
+   "Gibberellins and cytokinins"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_131",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Chemical Coordination",
+  "difficulty": "Medium",
+  "text": "Choose the correct option to complete the analogy. Hyperglycemic hormone : Glucagon :: Hypercalcemic hormone : ____",
+  "options": [
+   "Thyroxine",
+   "Parathormone",
+   "Thyrocalcitonin",
+   "Insulin"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_132",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Kingdom (Chordata)",
+  "difficulty": "Medium",
+  "text": "The notochord persists throughout the life in",
+  "options": [
+   "All the members of the phylum Chordata",
+   "Members of the subphylum Urochordata",
+   "All the members of the subphylum Vertebrata",
+   "Members of the class Chondrichthyes"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_133",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Kingdom (Chordata)",
+  "difficulty": "Easy",
+  "text": "In members of the phylum Chordata, notochord is present __X__ to gut but __Y__ to nerve cord. Select the correct option to fill in the respective blanks. (Format: X, Y)",
+  "options": [
+   "Ventral, Dorsal",
+   "Lateral, Dorsal",
+   "Dorsal, Ventral",
+   "Ventral, Lateral"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_134",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Breathing & Exchange of Gases",
+  "difficulty": "Medium",
+  "text": "In humans, there is a chemosensitive area situated adjacent to the respiratory rhythm centre which is highly sensitive to $pCO_2$ and concentration of hydrogen ions. This chemosensitive area is located in",
+  "options": [
+   "Medulla oblongata",
+   "Aortic arch",
+   "Cerebellum",
+   "Pons"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_135",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Body Fluids & Circulation",
+  "difficulty": "Medium",
+  "text": "How many of the factors given in the box below favour(s) the dissociation of oxygen from the oxyhaemoglobin? (Low $pCO_2$, Low pH, High $pO_2$, Higher temperature). Select the correct option.",
+  "options": [
+   "Two",
+   "One",
+   "Three",
+   "Four"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_136",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Frog (Animal Type)",
+  "difficulty": "Medium",
+  "text": "Choose the correct match w.r.t. frogs.",
+  "options": [
+   "A pair of optic lobes — Present in midbrain",
+   "Chief excretory nitrogenous waste — Uric acid",
+   "RBCs — Enucleated and carry haemoglobin",
+   "Copulatory pad — Present in females"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_137",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cockroach (Animal Type)",
+  "difficulty": "Medium",
+  "text": "<b>Assertion (A):</b> If the head of a cockroach is cut off, it will still live for as long as one week.<br><b>Reason (R):</b> The head holds only a bit of nervous system while the rest is situated along the ventral part of its body.<br>In the light of above statements, select the correct option.",
+  "options": [
+   "Both (A) and (R) are false",
+   "(A) is true but (R) is false",
+   "Both (A) and (R) are true and (R) is the correct explanation of (A)",
+   "Both (A) and (R) are true but (R) is not the correct explanation of (A)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_138",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Skeletal System",
+  "difficulty": "Easy",
+  "text": "Decreased levels of which of the following hormones is a common cause of osteoporosis in aged women?",
+  "options": [
+   "Testosterone",
+   "Aldosterone",
+   "Estrogen",
+   "Prolactin"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_139",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Molecular Biology",
+  "difficulty": "Medium",
+  "text": "In a nucleotide, the bond present between the phosphate and hydroxyl group of sugar is",
+  "options": [
+   "Peptide bond",
+   "Hydrogen bond",
+   "Glycosidic bond",
+   "Ester bond"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_140",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology (Tissue Culture)",
+  "difficulty": "Medium",
+  "text": "Choose the correct statement w.r.t. tissue culture.",
+  "options": [
+   "Production of very few but specific plants through tissue culture is called micropropagation.",
+   "Explant is only the root part of the plant, which if grown in a sterile condition can regenerate the whole plant.",
+   "Protoplast is a cell that is surrounded by cell wall as well as the cell membrane.",
+   "Removing the apical meristem from a virus infected plant and growing it in vitro can help us to grow a virus-free plant."
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_141",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biomolecules",
+  "difficulty": "Medium",
+  "text": "Select the incorrect match.",
+  "options": [
+   "Insulin — A peptide hormone which decreases blood glucose levels",
+   "Trypsin — Secretion of an exocrine gland",
+   "Antibody — Secreted by T-lymphocytes and provides humoral immunity",
+   "GLUT-4 — A proteinaceous receptor which enables glucose transport into the cells"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_142",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Human Health & Disease",
+  "difficulty": "Medium",
+  "text": "The drug which binds to specific receptors in GIT and acts as a depressant on CNS is extracted from",
+  "options": [
+   "Erythroxylum coca",
+   "Atropa belladona",
+   "Datura",
+   "Papaver somniferum"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_143",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Skeletal System",
+  "difficulty": "Medium",
+  "text": "In adult humans, vertebrochondral ribs do not directly articulate with the flat bone present in the ventral midline of thorax but join the ______ rib with the help of hyaline cartilage. Choose the correct option to fill in the blank.",
+  "options": [
+   "6th",
+   "7th",
+   "8th",
+   "11th"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_144",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology",
+  "difficulty": "Medium",
+  "text": "Mobile genetic elements, that provide complementary RNA and replicate via an RNA intermediate to perform silencing of mRNA, are generally used in",
+  "options": [
+   "PCR",
+   "ELISA",
+   "RNAi",
+   "Gene therapy"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_145",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology (PCR)",
+  "difficulty": "Medium",
+  "text": "During PCR, if it is found that the primers added are not complementary to the target template DNA, then which of the following is most likely to get affected first?",
+  "options": [
+   "Extension",
+   "Denaturation",
+   "Elution",
+   "Annealing"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_146",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology",
+  "difficulty": "Hard",
+  "text": "By using which of the following restriction endonucleases, one can perform insertional inactivation of 'rop' gene in pBR322?",
+  "options": [
+   "Bam HI",
+   "Eco RI",
+   "Pvu I",
+   "Pvu II"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_147",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Tissues",
+  "difficulty": "Medium",
+  "text": "Select the correct match.",
+  "options": [
+   "Tendons — Dense irregular connective tissue",
+   "Bone — Hard and pliable ground substance",
+   "Ligaments — Attach skeletal muscles to bones",
+   "Blood — Fibroblasts are absent"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_148",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Body Fluids & Circulation",
+  "difficulty": "Medium",
+  "text": "The event represented by the QRS-complex in a standard ECG of a normal adult man is the",
+  "options": [
+   "End of the ventricular systole",
+   "Excitation of the atria",
+   "Repolarisation of the ventricles",
+   "Depolarisation of the ventricles"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_149",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Enzymes",
+  "difficulty": "Hard",
+  "text": "Observe the given graph of a chemical reaction and select the correct option w.r.t. it. <b>[Potential-energy vs progress-of-reaction graph with X (larger barrier) and Y (smaller barrier) — figure to be added as image]</b>",
+  "options": [
+   "X represents activation energy in the presence of enzyme",
+   "Y represents activation energy without enzyme",
+   "The above graph depicts an exothermic reaction",
+   "Transition state is a highly stable and a lower energy state"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_150",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Neural Control",
+  "difficulty": "Medium",
+  "text": "Consider the following: (a) Decrease in the rate of heart beat, (b) Decrease in the speed of conduction of action potentials, (c) Decrease in the cardiac output. The above-mentioned effects are observed due to the neural signals reaching to the heart through a component of",
+  "options": [
+   "Central nervous system",
+   "Somatic nervous system",
+   "Autonomic nervous system",
+   "Sympathetic nervous system"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_151",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biomolecules",
+  "difficulty": "Easy",
+  "text": "A cyclic ring is present in the structure of",
+  "options": [
+   "Alanine",
+   "Glutamic acid",
+   "Lysine",
+   "Tyrosine"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_152",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Human Reproduction",
+  "difficulty": "Medium",
+  "text": "The cell which contains only one sex chromosome is",
+  "options": [
+   "Spermatogonium",
+   "Primary spermatocyte",
+   "Primary oocyte",
+   "Secondary spermatocyte"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_153",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Excretion",
+  "difficulty": "Hard",
+  "text": "A special sensitive region formed by cellular modifications in the DCT and afferent arteriole at the location of their contact in human kidneys can get activated due to",
+  "options": [
+   "Decrease in GFR",
+   "Increase in blood volume",
+   "Increase in blood pressure",
+   "Decrease in the amount of blood urea"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_154",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Body Fluids & Circulation",
+  "difficulty": "Medium",
+  "text": "Consider a case where the cardiac output of a person is 5250 mL and the stroke volume is 70 mL. What would be the duration of the cardiac cycle in this person?",
+  "options": [
+   "0.90 second",
+   "0.80 second",
+   "0.45 second",
+   "1.20 seconds"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_155",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biomolecules",
+  "difficulty": "Medium",
+  "text": "The palmitic acid belongs to a group of biomolecules that/whose",
+  "options": [
+   "Molecular weight is about 1800 Daltons",
+   "Is found in the acid-soluble fraction upon chemical analysis of a living tissue",
+   "Are strictly macromolecules",
+   "Are present in cell membrane and form vesicles (water-insoluble) when broken into pieces"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_156",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Photosynthesis",
+  "difficulty": "Medium",
+  "text": "Which of the following is not required in the chemiosmosis process?",
+  "options": [
+   "Proton pump",
+   "ATP synthase",
+   "Electron gradient",
+   "A membrane"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_157",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Photosynthesis",
+  "difficulty": "Medium",
+  "text": "Select the incorrectly matched pair.",
+  "options": [
+   "Sorghum — Shows double fixation of $CO_2$ for photosynthesis",
+   "PEP carboxylase — Responsible for the fixation of $CO_2$ in the mesophyll cells of $C_4$ plants",
+   "Blackman — Gave the law of limiting factor",
+   "PS-II — Involved in cyclic flow of electrons during photophosphorylation"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_158",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Kingdom (Bryophytes)",
+  "difficulty": "Medium",
+  "text": "Read the following statements and choose the incorrect one among the following.",
+  "options": [
+   "Plant body in bryophytes is thallus-like and may be prostrate or erect.",
+   "The spores of bryophytes get disseminated by wind.",
+   "Mosses reproduce asexually by fragmentation and gemmae formation in primary protonema.",
+   "In rocky and ice-cold areas, mosses are good source of food for birds."
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_159",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Reproduction in Plants",
+  "difficulty": "Medium",
+  "text": "Select the characteristic features that are favourable for pollination in anemophilous flowers.<br>a. Flowers packed into inflorescence<br>b. Presence of nectaries<br>c. Well exposed stamens<br>d. Light and sticky pollens<br>e. Feathery stigma<br>f. Foul odour<br>Choose the option for correct ones.",
+  "options": [
+   "a, b, d and f",
+   "c and e only",
+   "a, c and e",
+   "a, b, e and f"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_160",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biodiversity & Conservation",
+  "difficulty": "Easy",
+  "text": "Select the odd one w.r.t. ex-situ conservation strategy for biodiversity.",
+  "options": [
+   "Cryopreservation",
+   "Wildlife safari parks",
+   "Wildlife sanctuary",
+   "Botanical garden"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_161",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Cycle",
+  "difficulty": "Hard",
+  "text": "G2 to M transition is triggered by",
+  "options": [
+   "cdc 2 kinase only",
+   "G1 cyclin",
+   "Anaphase promoting and cdc 2 kinase",
+   "MPF formed by mitotic cyclin and cdc 2 kinase"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_162",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Division (Meiosis)",
+  "difficulty": "Medium",
+  "text": "<b>Statement-A:</b> During zygotene, homologous chromosomes come to lie side by side in pairs and this pairing is known as synapsis.<br><b>Statement-B:</b> Chromosomal synapsis is accompanied by a structure called synaptonemal complex.<br>In the light of the above statements, choose the correct answer from the options given below.",
+  "options": [
+   "Only statement A is incorrect",
+   "Only statement B is incorrect",
+   "Both the statements A and B are correct",
+   "Both the statements A and B are incorrect"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_163",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Genetics (Disorders)",
+  "difficulty": "Hard",
+  "text": "Read the following statements.<br>a. It is an example of pleiotropy.<br>b. It is an inborn error of metabolism.<br>c. It is an autosomal recessive disorder.<br>d. It is due to lack of an enzyme that causes conversion of tyrosine into phenylalanine.<br>e. There is accumulation of phenylpyruvic acid and other derivatives in human brain.<br>The correct statements regarding phenylketonuria are",
+  "options": [
+   "a, d and e only",
+   "b, c and e only",
+   "a, b, c and d",
+   "a, b, c and e"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_164",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Division",
+  "difficulty": "Medium",
+  "text": "Mark the event which takes place during interkinesis of meiosis in animals.",
+  "options": [
+   "Chromosomes uncoil to form extremely extended chromatin fibres",
+   "Replication of DNA",
+   "Centriole duplication",
+   "Doubling of chromosomes"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_165",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Genetics",
+  "difficulty": "Easy",
+  "text": "The term 'linkage' was coined by",
+  "options": [
+   "Alfred Sturtevant",
+   "Mendel",
+   "de Vries",
+   "T.H. Morgan"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_166",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Molecular Biology",
+  "difficulty": "Medium",
+  "text": "In prokaryotes, the RNA polymerase as a core enzyme is only capable of catalysing the process of",
+  "options": [
+   "Transcription initiation",
+   "Polymerisation of amino acid",
+   "Elongation during transcription",
+   "Termination of transcription"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_167",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology",
+  "difficulty": "Medium",
+  "text": "The sensitivity of the technique for DNA fingerprinting has been increased by using",
+  "options": [
+   "RFLP (Restriction fragment length polymorphism)",
+   "Autoradiography",
+   "Polymerase chain reaction",
+   "Agarose gel electrophoresis"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_168",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Taxonomy",
+  "difficulty": "Medium",
+  "text": "Which of the following statements is not true?",
+  "options": [
+   "The term 'systema' was used by Linnaeus in the title of his book published as “Systema Naturae”.",
+   "Systematics is a wider field of study as compared to taxonomy as it takes into account evolutionary relationships between organisms along with taxonomy.",
+   "The word systematics is derived from a Greek word “systema”.",
+   "Systematics means systematic arrangement of organisms."
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_169",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Morphology of Flowering Plants",
+  "difficulty": "Easy",
+  "text": "The example of hypogynous flower is",
+  "options": [
+   "Petunia",
+   "Rose",
+   "Guava",
+   "Peach"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_170",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biological Classification",
+  "difficulty": "Medium",
+  "text": "Read the following statements and choose the incorrect one.",
+  "options": [
+   "Diatomaceous earth is used in polishing, filtration of oils and syrups",
+   "Toxins are produced by certain dinoflagellates which may kill other marine animals such as fishes",
+   "Euglenoids cannot survive in the absence of sunlight",
+   "Diatoms are good indicators of water pollution"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_171",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Evolution",
+  "difficulty": "Medium",
+  "text": "When more than one adaptive radiation appeared to have occurred in an isolated geographical area (representing different habitats), then this can be called",
+  "options": [
+   "Stabilising selection",
+   "Parallel evolution",
+   "Convergent evolution",
+   "Cyclical evolution"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_172",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology",
+  "difficulty": "Medium",
+  "text": "Periodic infusion of genetically engineered lymphocytes to patients having ADA deficiency is required as lymphocytes",
+  "options": [
+   "Continue to divide and produce large number of progeny",
+   "Are not nucleated",
+   "Have uncontrolled cell division and regulation",
+   "Are not immortal"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_173",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Human Evolution",
+  "difficulty": "Medium",
+  "text": "Consider the following facts w.r.t. a primate: (a) Probably did not eat meat, (b) Brain capacity was in between 650 to 800 cc, (c) First human-like being, the hominid. This primate is most likely",
+  "options": [
+   "Homo sapiens",
+   "Homo erectus",
+   "Homo habilis",
+   "Homo neanderthalensis"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_174",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology",
+  "difficulty": "Hard",
+  "text": "Observe the given schematic representation. The sample represents a linear DNA of 15 kb that has two restriction sites for restriction enzyme 'X' (segments 5 kb, 5 kb, 5 kb). After complete restriction digestion with 'X', if the DNA fragments are separated by agarose gel electrophoresis, then the number of band(s) visible on the gel will be. <b>[Restriction map figure — to be added as image]</b>",
+  "options": [
+   "Two",
+   "One",
+   "Three",
+   "Zero"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_175",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Human Health & Disease",
+  "difficulty": "Medium",
+  "text": "Read the following statements.<br><b>Statement (A):</b> Non-ionising radiations like UV rays cause DNA damage leading to neoplastic transformation of normal cells.<br><b>Statement (B):</b> For cancer detection and diagnosis, technique like radiography uses X-rays which are ionising in nature.<br>Select the correct option.",
+  "options": [
+   "Only statement (A) is correct",
+   "Both statements (A) and (B) are correct",
+   "Both statements (A) and (B) are incorrect",
+   "Only statement (B) is correct"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_176",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology (Vectors)",
+  "difficulty": "Hard",
+  "text": "In vector pBR322, if the gene of interest is inserted at the site where recognition site for Sal I is present, then after transformation in E. coli, the non-recombinant transformants would be",
+  "options": [
+   "Sensitive to tetracycline but resistant to ampicillin",
+   "Resistant to both tetracycline and ampicillin",
+   "Sensitive to both ampicillin and tetracycline",
+   "Sensitive to ampicillin but resistant to tetracycline"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_177",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Immunity",
+  "difficulty": "Medium",
+  "text": "The most abundant cells of the total WBCs and an agranulocyte that forms 6-8% of the total WBCs, both provide innate immunity. Identify the cells and select the correct option w.r.t. them.",
+  "options": [
+   "Former has a kidney-shaped nucleus",
+   "They both are phagocytic in nature",
+   "Categorized under cytokine barriers of innate immunity",
+   "Secrete histaminase and serotonin"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_178",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology (RNAi)",
+  "difficulty": "Hard",
+  "text": "The parasite 'Meloidogyne incognita' is not able to survive in a transgenic tobacco host carrying dsRNA that initiates RNAi, because",
+  "options": [
+   "Transcription in Agrobacterium is blocked",
+   "Translation of mRNA of transgenic tobacco plant is stopped",
+   "Proteins that are essential for survival of tobacco plant are not synthesised",
+   "Target mRNA of the nematode gets silenced"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_179",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Evolution",
+  "difficulty": "Medium",
+  "text": "The theory given by Darwin does not explain the concept of",
+  "options": [
+   "Reproductive fitness",
+   "Mutations",
+   "Minor inheritable variations",
+   "Branching descent"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_180",
+  "subject": "Biology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Human Reproduction",
+  "difficulty": "Easy",
+  "text": "In humans, the acellular layer of ovum on which receptors for binding of sperm are present is",
+  "options": [
+   "Vitelline membrane",
+   "Zona pellucida",
+   "Corona radiata",
+   "Perivitelline space"
+  ],
+  "correct_answer": "A"
+ }
+]
