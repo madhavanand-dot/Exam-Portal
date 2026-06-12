@@ -284,8 +284,11 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div class="field"><label>To</label><input type="date" id="rpTo"></div>
         <button class="btn secondary" id="rpLoadBtn">Apply</button>
         <button class="btn" id="rpCsvBtn">Export CSV</button>
+        <button class="btn danger" id="rpDelAllBtn">Delete All Shown</button>
       </div>
-      <table class="tbl"><thead><tr><th>Date</th><th>Student</th><th>Type</th><th>Exam</th><th>Score</th><th>Time (min)</th><th>Wrong</th><th>Unanswered</th><th>Flag</th></tr></thead><tbody id="rpRows"></tbody></table>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Tip: to clear one test's results, filter by that exam type/date, check the export looks right, then "Delete All Shown". Deletions are permanent.</p>
+      <div id="rpMsg"></div>
+      <table class="tbl"><thead><tr><th>Date</th><th>Student</th><th>Type</th><th>Exam</th><th>Score</th><th>Time (min)</th><th>Wrong</th><th>Unanswered</th><th>Flag</th><th></th></tr></thead><tbody id="rpRows"></tbody></table>
     </div>
   </div>
 </div>
@@ -911,19 +914,41 @@ async function loadReports(){
     (!to   || (a.submitTime?.toDate?.() ?? new Date(0)) <= to));
   list.sort((a,b)=>(b.submitTime?.seconds||0)-(a.submitTime?.seconds||0));
   reportCache = list;
+  setMsg($("rpMsg"),"");
   $("rpRows").innerHTML = list.map(a => `
     <tr><td>${fmtDate(a.submitTime)}</td><td>${esc(a.studentName)}</td><td>${esc(a.examType)}</td>
     <td><button class="btn secondary" style="padding:2px 9px" data-rpview="${a.docId}">${esc(a.examTitle||a.examId)}</button></td><td><b>${a.score}</b> / ${attemptCfg(a).maxMarks}</td>
     <td>${Math.round((a.totalTimeSec||0)/60)}</td>
     <td>${a.wrongQuestions?.length||0}</td><td>${a.unansweredQuestions?.length||0}</td>
-    <td>${a.malpractice?'<span class="badge neg">MALPRACTICE</span>':'<span class="badge pos">clean</span>'}</td></tr>`).join("")
-    || `<tr><td colspan="9">No attempts found.</td></tr>`;
+    <td>${a.malpractice?'<span class="badge neg">MALPRACTICE</span>':'<span class="badge pos">clean</span>'}</td>
+    <td><button class="btn danger" style="padding:2px 9px" data-rpdel="${a.docId}">Delete</button></td></tr>`).join("")
+    || `<tr><td colspan="10">No attempts found.</td></tr>`;
   $("rpRows").querySelectorAll("[data-rpview]").forEach(b => b.onclick = () => {
     const a = reportCache.find(x=>x.docId===b.dataset.rpview);
     if (a) showResult({ ...a });
   });
+  $("rpRows").querySelectorAll("[data-rpdel]").forEach(b => b.onclick = async () => {
+    const a = reportCache.find(x=>x.docId===b.dataset.rpdel);
+    if (!confirm(`Delete this attempt by ${a?.studentName||"student"} for "${a?.examTitle||a?.examId}"? This is permanent.`)) return;
+    await deleteDoc(doc(db,"attempts",b.dataset.rpdel));
+    loadReports();
+  });
 }
 $("rpLoadBtn").onclick = loadReports;
+$("rpDelAllBtn").onclick = async () => {
+  if (!reportCache.length) { setMsg($("rpMsg"),"Nothing to delete — apply a filter to list attempts first."); return; }
+  if (!confirm(`Permanently delete ALL ${reportCache.length} attempts currently shown? This cannot be undone.\n\n(Tip: export CSV first as a backup.)`)) return;
+  $("rpDelAllBtn").disabled = true;
+  const ids = reportCache.map(a=>a.docId);
+  for (let i=0; i<ids.length; i+=450) {
+    const batch = writeBatch(db);
+    ids.slice(i,i+450).forEach(id => batch.delete(doc(db,"attempts",id)));
+    await batch.commit();
+  }
+  $("rpDelAllBtn").disabled = false;
+  setMsg($("rpMsg"), `Deleted ${ids.length} attempts.`, true);
+  loadReports();
+};
 $("rpCsvBtn").onclick = () => {
   const rows = [["Date","Student","ExamType","Exam","Score","MaxMarks","TotalTimeMin","Wrong","Unanswered","Malpractice"]];
   for (const a of reportCache) rows.push([

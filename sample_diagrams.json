@@ -1,0 +1,67 @@
+[
+  {
+    "id": "DIA_PHY_001",
+    "subject": "Physics",
+    "section": "A",
+    "examType": "medical",
+    "topic": "Kinematics",
+    "difficulty": "Medium",
+    "text": "The velocity-time graph of a particle is shown. Which statement is correct?",
+    "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMjAiIGhlaWdodD0iMjIwIiB2aWV3Qm94PSIwIDAgMzIwIDIyMCI+PHJlY3Qgd2lkdGg9IjMyMCIgaGVpZ2h0PSIyMjAiIGZpbGw9IiNmZmYiLz48bGluZSB4MT0iNDUiIHkxPSIxODAiIHgyPSIzMDAiIHkyPSIxODAiIHN0cm9rZT0iIzIyMiIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9IjQ1IiB5MT0iMTgwIiB4Mj0iNDUiIHkyPSIyMCIgc3Ryb2tlPSIjMjIyIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSIxNTAiIHk9IjIxMCIgZm9udC1zaXplPSIxNCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPnRpbWUgKHMpPC90ZXh0Pjx0ZXh0IHg9IjEwIiB5PSIxMDAiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiB0cmFuc2Zvcm09InJvdGF0ZSgtOTAgMTIsMTAwKSI+diAobS9zKTwvdGV4dD48cG9seWxpbmUgcG9pbnRzPSI0NSwxODAgMTUwLDkwIDMwMCw5MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMWE1YjljIiBzdHJva2Utd2lkdGg9IjMiLz48Y2lyY2xlIGN4PSIxNTAiIGN5PSI5MCIgcj0iMyIgZmlsbD0iI2MwMzkyYiIvPjx0ZXh0IHg9IjEyMCIgeT0iODAiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj5BPC90ZXh0Pjx0ZXh0IHg9IjI3MCIgeT0iODIiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj5CPC90ZXh0Pjwvc3ZnPg==",
+    "options": ["A) The particle decelerates throughout", "B) From O to A it accelerates, then A to B moves at constant velocity", "C) The particle is at rest from A to B", "D) Velocity decreases from A to B"],
+    "correct_answer": "B"
+  },
+  {
+    "id": "DIA_CHE_001",
+    "subject": "Chemistry",
+    "section": "A",
+    "examType": "medical",
+    "topic": "Organic Chemistry",
+    "difficulty": "Easy",
+    "text": "The structure shown represents which compound?",
+    "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTkwIiB2aWV3Qm94PSIwIDAgMTgwIDE5MCI+PHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIxOTAiIGZpbGw9IiNmZmYiLz48cG9seWdvbiBwb2ludHM9IjkwLDIwIDE1MCw1NSAxNTAsMTI1IDkwLDE2MCAzMCwxMjUgMzAsNTUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzIyMiIgc3Ryb2tlLXdpZHRoPSIzIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSI5MCIgcj0iMzgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzIyMiIgc3Ryb2tlLXdpZHRoPSIzIi8+PC9zdmc+",
+    "options": ["A) Cyclohexane", "B) Benzene", "C) Cyclohexene", "D) Hexane"],
+    "correct_answer": "B"
+  },
+  {
+    "id": "DIA_CHE_002",
+    "subject": "Chemistry",
+    "section": "A",
+    "examType": "medical",
+    "topic": "Organic Chemistry",
+    "difficulty": "Medium",
+    "text": "Which of the following structures is benzene? (Select the correct image.)",
+    "options": ["", "", "", ""],
+    "optionImages": [
+      "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTYwIiB2aWV3Qm94PSIwIDAgMTUwIDE2MCI+PHJlY3Qgd2lkdGg9IjE1MCIgaGVpZ2h0PSIxNjAiIGZpbGw9IiNmZmYiLz48cG9seWdvbiBwb2ludHM9Ijc1LDE4IDEyOCw0OCAxMjgsMTA4IDc1LDEzOCAyMiwxMDggMjIsNDgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzIyMiIgc3Ryb2tlLXdpZHRoPSIzIi8+PC9zdmc+",
+      "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTYwIiB2aWV3Qm94PSIwIDAgMTUwIDE2MCI+PHJlY3Qgd2lkdGg9IjE1MCIgaGVpZ2h0PSIxNjAiIGZpbGw9IiNmZmYiLz48cG9seWdvbiBwb2ludHM9Ijc1LDE4IDEyOCw0OCAxMjgsMTA4IDc1LDEzOCAyMiwxMDggMjIsNDgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzIyMiIgc3Ryb2tlLXdpZHRoPSIzIi8+PGNpcmNsZSBjeD0iNzUiIGN5PSI3OCIgcj0iMzIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzIyMiIgc3Ryb2tlLXdpZHRoPSIzIi8+PC9zdmc+",
+      "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTYwIiB2aWV3Qm94PSIwIDAgMTUwIDE2MCI+PHJlY3Qgd2lkdGg9IjE1MCIgaGVpZ2h0PSIxNjAiIGZpbGw9IiNmZmYiLz48bGluZSB4MT0iNDAiIHkxPSI3MCIgeDI9IjExMCIgeTI9IjcwIiBzdHJva2U9IiMyMjIiIHN0cm9rZS13aWR0aD0iMyIvPjxsaW5lIHgxPSI0MCIgeTE9Ijg2IiB4Mj0iMTEwIiB5Mj0iODYiIHN0cm9rZT0iIzIyMiIgc3Ryb2tlLXdpZHRoPSIzIi8+PHRleHQgeD0iMjIiIHk9Ijg0IiBmb250LXNpemU9IjIwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+QzwvdGV4dD48dGV4dCB4PSIxMTYiIHk9Ijg0IiBmb250LXNpemU9IjIwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+QzwvdGV4dD48L3N2Zz4=",
+      "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTYwIiB2aWV3Qm94PSIwIDAgMTUwIDE2MCI+PHJlY3Qgd2lkdGg9IjE1MCIgaGVpZ2h0PSIxNjAiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSI2MCIgeT0iODYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj5DPC90ZXh0PjxsaW5lIHgxPSI3NSIgeTE9IjgwIiB4Mj0iNzUiIHkyPSI0MCIgc3Ryb2tlPSIjMjIyIiBzdHJva2Utd2lkdGg9IjMiLz48bGluZSB4MT0iNzUiIHkxPSI4MCIgeDI9Ijc1IiB5Mj0iMTIwIiBzdHJva2U9IiMyMjIiIHN0cm9rZS13aWR0aD0iMyIvPjxsaW5lIHgxPSI3NSIgeTE9IjgwIiB4Mj0iNDAiIHkyPSI4MCIgc3Ryb2tlPSIjMjIyIiBzdHJva2Utd2lkdGg9IjMiLz48bGluZSB4MT0iNzUiIHkxPSI4MCIgeDI9IjExMCIgeTI9IjgwIiBzdHJva2U9IiMyMjIiIHN0cm9rZS13aWR0aD0iMyIvPjwvc3ZnPg=="
+    ],
+    "correct_answer": "B"
+  },
+  {
+    "id": "DIA_BOT_001",
+    "subject": "Botany",
+    "section": "A",
+    "examType": "medical",
+    "topic": "Cell Biology",
+    "difficulty": "Easy",
+    "text": "The diagram shows a typical plant cell. The green oval bodies are:",
+    "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNDAiIGhlaWdodD0iMTgwIiB2aWV3Qm94PSIwIDAgMjQwIDE4MCI+PHJlY3Qgd2lkdGg9IjI0MCIgaGVpZ2h0PSIxODAiIGZpbGw9IiNmZmYiLz48cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSIyMDAiIGhlaWdodD0iMTQwIiByeD0iMTAiIGZpbGw9IiNlYWY2ZWEiIHN0cm9rZT0iIzJlOGI1NyIgc3Ryb2tlLXdpZHRoPSI0Ii8+PGNpcmNsZSBjeD0iOTAiIGN5PSI5MCIgcj0iMjYiIGZpbGw9IiNjYmU3Y2IiIHN0cm9rZT0iIzFlN2E0NCIgc3Ryb2tlLXdpZHRoPSIyIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSI5MCIgcj0iMTAiIGZpbGw9IiMxZTdhNDQiLz48ZWxsaXBzZSBjeD0iMTYwIiBjeT0iNjAiIHJ4PSIyMiIgcnk9IjExIiBmaWxsPSIjM2NiMzcxIi8+PGVsbGlwc2UgY3g9IjE3MCIgY3k9IjExNSIgcng9IjIyIiByeT0iMTEiIGZpbGw9IiMzY2IzNzEiLz48dGV4dCB4PSI2OCIgeT0iMTUwIiBmb250LXNpemU9IjExIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+bnVjbGV1cyAmYW1wOyBjaGxvcm9wbGFzdHM8L3RleHQ+PC9zdmc+",
+    "options": ["A) Mitochondria", "B) Chloroplasts", "C) Vacuoles", "D) Lysosomes"],
+    "correct_answer": "B"
+  },
+  {
+    "id": "DIA_ZOO_001",
+    "subject": "Zoology",
+    "section": "A",
+    "examType": "medical",
+    "topic": "Nervous System",
+    "difficulty": "Medium",
+    "text": "Identify the cell shown in the diagram and its long conducting process (labelled):",
+    "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMzAwIDE1MCI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSI2MCIgY3k9Ijc1IiByPSIyNiIgZmlsbD0iI2ZkZTJjMCIgc3Ryb2tlPSIjYzAzOTJiIiBzdHJva2Utd2lkdGg9IjMiLz48Y2lyY2xlIGN4PSI2MCIgY3k9Ijc1IiByPSI5IiBmaWxsPSIjYzAzOTJiIi8+PGxpbmUgeDE9IjQwIiB5MT0iNTUiIHgyPSIxOCIgeTI9IjQwIiBzdHJva2U9IiNjMDM5MmIiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSI0MCIgeTE9Ijk1IiB4Mj0iMTgiIHkyPSIxMTIiIHN0cm9rZT0iI2MwMzkyYiIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9Ijg2IiB5MT0iNzUiIHgyPSIyNTAiIHkyPSI3NSIgc3Ryb2tlPSIjYzAzOTJiIiBzdHJva2Utd2lkdGg9IjQiLz48bGluZSB4MT0iMjUwIiB5MT0iNzUiIHgyPSIyNzAiIHkyPSI2MCIgc3Ryb2tlPSIjYzAzOTJiIiBzdHJva2Utd2lkdGg9IjIiLz48bGluZSB4MT0iMjUwIiB5MT0iNzUiIHgyPSIyNzAiIHkyPSI5MCIgc3Ryb2tlPSIjYzAzOTJiIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSI0MCIgeT0iMTM1IiBmb250LXNpemU9IjEyIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+Y2VsbCBib2R5IOKGkiBheG9uIOKGkiB0ZXJtaW5hbHM8L3RleHQ+PC9zdmc+",
+    "options": ["A) Muscle cell; tendon", "B) Neuron; axon", "C) Epithelial cell; cilium", "D) Neuron; dendrite"],
+    "correct_answer": "B"
+  }
+]
