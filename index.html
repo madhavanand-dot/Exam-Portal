@@ -287,7 +287,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <button class="btn danger" id="qbClearBtn">Clear This Subject Bank</button>
       </div>
       <div id="qbMsg"></div>
-      <table class="tbl"><thead><tr><th>ID</th><th>Sec</th><th>Question</th><th>Ans</th><th>Topic</th><th>Difficulty</th><th></th></tr></thead><tbody id="qbRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>ID</th><th>Sec</th><th>Question</th><th>Ans</th><th>Topic</th><th>Uploaded</th><th>Used in test(s)</th><th></th></tr></thead><tbody id="qbRows"></tbody></table>
     </div>
 
     <div id="atab-exams" class="atab hidden">
@@ -455,6 +455,17 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 
 <!-- lightbox for image zoom -->
 <div id="lightbox" class="hidden"><img id="lightboxImg" src="" alt=""></div>
+
+<!-- question preview modal -->
+<div id="qpvBack" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="width:680px;max-width:96vw;max-height:88vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h3 style="color:var(--blue)">Question Preview</h3>
+      <button class="btn secondary" id="qpvClose" style="padding:3px 12px">Close</button>
+    </div>
+    <div id="qpvBody"></div>
+  </div>
+</div>
 
 <!-- malpractice / tab-switch warning -->
 <div id="cheatModal" class="hidden">
@@ -1062,21 +1073,49 @@ async function fetchQuestions(examType, subject){
   list.sort((a,b)=>(a.section||"A").localeCompare(b.section||"A") || (a.id||"").localeCompare(b.id||""));
   return list;
 }
+let qbList = [];
 $("qbLoadBtn").onclick = async () => {
   setMsg($("qbMsg"),"");
-  const list = await fetchQuestions($("qbType").value, $("qbSubject").value);
-  $("qbRows").innerHTML = list.map(q => `
-    <tr><td>${esc(q.id)}</td><td>${esc(q.section)}</td>
-    <td>${esc((q.text||"(image)").slice(0,120))}${(q.text||"").length>120?"&hellip;":""}${q.image?" 🖼":""}</td>
-    <td>${esc(q.correct_answer)}</td><td>${esc(q.topic)}</td><td>${esc(q.difficulty)}</td>
-    <td>${ownsItem(q)?`<button class="btn danger" style="padding:3px 10px" data-delq="${q.docId}">Delete</button>`:`<span style="color:var(--muted);font-size:11px">${esc(q.createdByName||"other")}</span>`}</td></tr>`).join("")
-    || `<tr><td colspan="7">No questions in this bank.</td></tr>`;
+  qbList = await fetchQuestions($("qbType").value, $("qbSubject").value);
+  // map question id -> exam titles that use it
+  const examsOf = qid => examsCache.filter(e => (e.questionIds||[]).includes(qid))
+    .map(e => esc(e.title)).join(", ");
+  $("qbRows").innerHTML = qbList.map((q,i) => {
+    const used = examsOf(q.docId);
+    return `<tr><td>${esc(q.id)}</td><td>${esc(q.section)}</td>
+    <td>${esc((q.text||"(image)").slice(0,90))}${(q.text||"").length>90?"&hellip;":""}${q.image?" 🖼":""}</td>
+    <td>${esc(q.correct_answer)}</td><td>${esc(q.topic)}</td>
+    <td style="font-size:12px">${fmtDate(q.createdAt)}</td>
+    <td style="font-size:12px">${used || '<span style="color:var(--muted)">— not used yet</span>'}</td>
+    <td style="white-space:nowrap"><button class="btn secondary" style="padding:3px 9px" data-prev="${i}">Preview</button>${ownsItem(q)?` <button class="btn danger" style="padding:3px 9px" data-delq="${q.docId}">Delete</button>`:""}</td></tr>`;
+  }).join("") || `<tr><td colspan="8">No questions in this bank.</td></tr>`;
+  $("qbRows").querySelectorAll("[data-prev]").forEach(b => b.onclick = () => previewQuestion(qbList[+b.dataset.prev]));
   $("qbRows").querySelectorAll("[data-delq]").forEach(b => b.onclick = async () => {
     if (!confirm("Delete this question?")) return;
     await deleteDoc(doc(db,"questions",b.dataset.delq));
     $("qbLoadBtn").click();
   });
 };
+function previewQuestion(q){
+  const used = examsCache.filter(e => (e.questionIds||[]).includes(q.docId)).map(e=>esc(e.title));
+  const order = "ABCD";
+  const opts = (q.section||"A")==="A" ? (q.options||[]).map((o,k)=>{
+    const correct = order[k]===q.correct_answer;
+    const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
+    return `<div class="opt ${correct?'sel':''}" style="cursor:default"><span><b>(${order[k]})</b> ${String(o).replace(/^\s*[A-D][).]\s*/,"")}${oimg}${correct?' &nbsp;✓':''}</span></div>`;
+  }).join("") : `<div style="margin-top:8px"><b>Correct numerical answer:</b> ${esc(q.correct_answer)}</div>`;
+  $("qpvBody").innerHTML = `
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">
+      <b>${esc(q.id)}</b> &bull; ${esc(q.subject)} &bull; Section ${esc(q.section||"A")} &bull; ${esc(q.topic||"")} &bull; ${esc(q.difficulty||"")}<br>
+      Uploaded ${fmtDate(q.createdAt)}${q.createdByName?` by ${esc(q.createdByName)}`:""} &bull; Used in: ${used.length?used.join(", "):"— not added to any test yet"}</div>
+    <div style="font-size:15.5px;line-height:1.6;margin-bottom:10px">${q.text||""}${imgHtml(q.image)}</div>
+    ${opts}
+    <div style="margin-top:8px;font-size:13px"><b>Correct answer:</b> ${esc(q.correct_answer)}</div>`;
+  $("qpvBack").classList.remove("hidden");
+  typeset($("qpvBody"));
+}
+$("qpvClose").onclick = () => $("qpvBack").classList.add("hidden");
+$("qpvBack").addEventListener("click", e => { if (e.target===$("qpvBack")) $("qpvBack").classList.add("hidden"); });
 $("qbClearBtn").onclick = async () => {
   const t = $("qbType").value, s = $("qbSubject").value;
   if (!confirm(`Delete ALL ${t} / ${s} questions? This cannot be undone.`)) return;
