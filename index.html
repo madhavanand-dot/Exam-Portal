@@ -144,8 +144,9 @@ details.qexp div{margin-top:6px;font-size:13px;line-height:1.5}
 /* question images */
 .qimg{max-width:100%;max-height:340px;border:1px solid var(--border);border-radius:6px;margin:6px 0;cursor:zoom-in;display:block}
 .opt .qimg{max-height:120px;margin:2px 0}
-#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
-#lightbox img{max-width:94vw;max-height:94vh;border-radius:6px}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+#lightbox img{max-width:92vw;max-height:92vh;border-radius:6px;background:#fff}
+#lightboxClose{position:fixed;top:14px;right:18px;width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.9);color:#222;font-size:26px;line-height:1;cursor:pointer;z-index:301}
 /* cheat warning modal */
 #cheatModal{position:fixed;inset:0;background:rgba(140,0,0,.45);z-index:150;display:flex;align-items:center;justify-content:center}
 #cheatModal .card{width:460px;max-width:92vw;border:3px solid #c0392b}
@@ -454,7 +455,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 </div>
 
 <!-- lightbox for image zoom -->
-<div id="lightbox" class="hidden"><img id="lightboxImg" src="" alt=""></div>
+<div id="lightbox" class="hidden"><button id="lightboxClose" title="Close (Esc)">&times;</button><img id="lightboxImg" src="" alt=""></div>
 
 <!-- question preview modal -->
 <div id="qpvBack" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;display:flex;align-items:center;justify-content:center;padding:20px">
@@ -590,7 +591,16 @@ document.addEventListener("click", e => {
     $("lightbox").classList.remove("hidden");
   }
 });
-function initLightbox(){ $("lightbox").onclick = () => $("lightbox").classList.add("hidden"); }
+function closeLightbox(){ $("lightbox").classList.add("hidden"); }
+function initLightbox(){ closeLightbox(); }
+// always-on close wiring (works in preview, exam, and result)
+$("lightbox").onclick = closeLightbox;                 // click anywhere on the dark backdrop or image
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    if (!$("lightbox").classList.contains("hidden")) { closeLightbox(); return; }
+    if (!$("qpvBack").classList.contains("hidden")) { $("qpvBack").classList.add("hidden"); }
+  }
+});
 function typeset(el){ if (window.MathJax?.typesetPromise) MathJax.typesetPromise(el?[el]:undefined).catch(()=>{}); }
 function downloadCsv(filename, rows){
   const csv = rows.map(r => r.map(c => {
