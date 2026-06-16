@@ -222,6 +222,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="exams">Exams</button>
       <button data-atab="reports">Reports</button>
       <button data-atab="leaderboard">Leaderboard</button>
+      <button data-atab="attendance">Attendance</button>
       <button data-atab="progress">Progress</button>
     </div>
 
@@ -230,17 +231,18 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <h2 class="sec" style="margin-top:0">Add Student</h2>
         <div class="flexrow">
           <div class="field"><label>Name</label><input id="stName"></div>
+          <div class="field"><label>PS-ID</label><input id="stPsid" placeholder="e.g. 12345678"></div>
           <div class="field"><label>Email</label><input id="stEmail" type="email"></div>
           <div class="field"><label>Password</label><input id="stPass" type="text" placeholder="min 6 chars"></div>
           <div class="field"><label>Exam Type</label><select id="stType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
-          <div class="field"><label>Batch (optional)</label><input id="stBatch" placeholder="e.g. Batch A"></div>
+          <div class="field"><label>Batch</label><input id="stBatch" placeholder="e.g. TR01"></div>
           <button class="btn" id="addStudentBtn">Create</button>
         </div>
         <div id="studentMsg"></div>
       </div>
       <div class="card" id="bulkImportCard">
         <h2 class="sec" style="margin-top:0">Bulk Import (CSV)</h2>
-        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">CSV columns (with header): <code>name,email,password,examType,batch</code>. examType = medical or engineering. password min 6 chars. One student per row.
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">CSV columns (with header): <code>name,psid,email,password,examType,batch</code>. examType = medical or engineering. password min 6 chars. One student per row.
           <a href="#" id="csvTemplate">Download template</a></p>
         <input type="file" id="csvFile" accept=".csv,text/csv">
         <button class="btn" id="csvImportBtn" style="margin-left:10px">Import</button>
@@ -250,8 +252,8 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div class="field"><label>Filter by batch</label><input id="stFilterBatch" placeholder="(all)"></div>
         <button class="btn secondary" id="stFilterBtn" style="align-self:flex-end">Filter</button>
       </div>
-      <h2 class="sec">Students (<span id="stCount">0</span>)</h2>
-      <table class="tbl"><thead><tr><th>Name</th><th>Email</th><th>Exam Type</th><th>Batch</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
+      <h2 class="sec">Students (<span id="stCount">0</span>) <button class="btn secondary" id="stExportBtn" style="padding:3px 12px;font-size:12px">Export roster CSV</button></h2>
+      <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Email</th><th>Exam Type</th><th>Batch</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
     </div>
 
     <div id="atab-faculty" class="atab hidden">
@@ -357,6 +359,17 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       </div>
       <div id="lbSummary" style="font-size:13px;color:var(--blue);font-weight:600;margin-bottom:8px"></div>
       <div id="lbWrap" style="overflow:auto"></div>
+    </div>
+
+    <div id="atab-attendance" class="atab hidden">
+      <div class="flexrow" style="margin-bottom:12px">
+        <div class="field"><label>Exam</label><select id="atExam"></select></div>
+        <button class="btn secondary" id="atLoadBtn">Check Attendance</button>
+        <button class="btn" id="atCsvBtn">Export Absentees CSV</button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Compares the students assigned to a test (by its audience/batch) against who actually submitted it. Absentees = assigned students with no submitted attempt.</p>
+      <div id="atSummary" style="font-size:14px;font-weight:600;margin-bottom:10px"></div>
+      <div id="atWrap"></div>
     </div>
 
     <div id="atab-progress" class="atab hidden">
@@ -674,9 +687,55 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="reports") loadReports();
     if (b.dataset.atab==="faculty") loadStaff();
     if (b.dataset.atab==="leaderboard") initLeaderboard();
+    if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
   };
 }
+
+/* ----- attendance / absentees ----- */
+let atAbsent = [], atExamTitle = "";
+function initAttendance(){
+  const exams = isSuper() ? examsCache : examsCache.filter(e=>e.createdBy===currentUser.uid);
+  $("atExam").innerHTML = exams.map(e=>`<option value="${e.docId}">${esc(e.title)} (${esc(e.examType)})</option>`).join("") || `<option value="">No exams</option>`;
+}
+// students assigned to an exam, based on its audience
+function assignedStudents(exam){
+  const a = exam.audience;
+  let list = studentCache.filter(s => s.examType === exam.examType);
+  if (a && a.mode === "batch") {
+    const set = (a.batches||[]).map(x=>x.toLowerCase());
+    list = list.filter(s => set.includes((s.batch||"").toLowerCase()));
+  } else if (a && a.mode === "students") {
+    const set = new Set(a.studentUids||[]);
+    list = list.filter(s => set.has(s.uid));
+  }
+  return list;
+}
+$("atLoadBtn").onclick = async () => {
+  const examId = $("atExam").value; if (!examId) return;
+  const exam = examsCache.find(e=>e.docId===examId); if (!exam) return;
+  atExamTitle = exam.title;
+  const assigned = assignedStudents(exam);
+  const qs = await getDocs(query(collection(db,"attempts"), where("examId","==",examId)));
+  const attempted = new Set(qs.docs.map(d=>d.data()).filter(a=>a.submitTime!=null).map(a=>a.studentUid));
+  const present = assigned.filter(s=>attempted.has(s.uid));
+  const absent  = assigned.filter(s=>!attempted.has(s.uid));
+  atAbsent = absent;
+  const pct = assigned.length ? Math.round(100*present.length/assigned.length) : 0;
+  $("atSummary").innerHTML = `Assigned: <b>${assigned.length}</b> &nbsp;|&nbsp; Present: <span class="badge pos">${present.length}</span> &nbsp;|&nbsp; <b>Absent: <span class="badge neg">${absent.length}</span></b> &nbsp;|&nbsp; Attendance: ${pct}%`;
+  const row = s => `<tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.batch||"—")}</td><td>${esc(s.email)}</td></tr>`;
+  $("atWrap").innerHTML = `
+    <h4 style="color:#b03a2e;margin:8px 0 4px">Absentees (${absent.length})</h4>
+    <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Batch</th><th>Email</th></tr></thead><tbody>${absent.map(row).join("")||`<tr><td colspan="4">None — everyone attended 🎉</td></tr>`}</tbody></table>
+    <h4 style="color:#1e7a44;margin:14px 0 4px">Present (${present.length})</h4>
+    <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Batch</th><th>Email</th></tr></thead><tbody>${present.map(row).join("")||`<tr><td colspan="4">None yet.</td></tr>`}</tbody></table>`;
+};
+$("atCsvBtn").onclick = () => {
+  if (!atAbsent.length) { alert("No absentees to export (run Check Attendance first)."); return; }
+  const rows = [["PS-ID","Name","Batch","Email","Exam","Status"]];
+  atAbsent.forEach(s=>rows.push([s.psid||"",s.name||"",s.batch||"",s.email||"",atExamTitle,"ABSENT"]));
+  downloadCsv("absentees.csv", rows);
+};
 
 /* ----- leaderboard ----- */
 let lbAttempts = [], lbStudents = {};
@@ -823,7 +882,8 @@ async function loadStaff(){
 /* ----- students ----- */
 $("addStudentBtn").onclick = async () => {
   const name = $("stName").value.trim(), email = $("stEmail").value.trim(),
-        pass = $("stPass").value, examType = $("stType").value, batch = $("stBatch").value.trim();
+        pass = $("stPass").value, examType = $("stType").value, batch = $("stBatch").value.trim(),
+        psid = $("stPsid").value.trim();
   if (!name || !email || pass.length < 6) { setMsg($("studentMsg"), "Name, email and a password of 6+ chars are required."); return; }
   $("addStudentBtn").disabled = true;
   // secondary app so the admin's own session is not replaced
@@ -832,11 +892,11 @@ $("addStudentBtn").onclick = async () => {
     const secAuth = getAuth(secApp);
     const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
     await setDoc(doc(db, "users", cred.user.uid), {
-      name, email, role: "student", examType, batch, createdAt: serverTimestamp()
+      name, psid, email, role: "student", examType, batch, createdAt: serverTimestamp()
     });
     await signOut(secAuth);
     setMsg($("studentMsg"), `Student "${name}" created.`, true);
-    $("stName").value = $("stEmail").value = $("stPass").value = $("stBatch").value = "";
+    $("stName").value = $("stPsid").value = $("stEmail").value = $("stPass").value = $("stBatch").value = "";
     loadStudents();
   } catch(e) {
     setMsg($("studentMsg"), friendlyAuthError(e));
@@ -864,10 +924,10 @@ function renderStudents(){
   const list = f ? studentCache.filter(s=>(s.batch||"").toLowerCase()===f) : studentCache;
   $("stCount").textContent = list.length;
   $("studentRows").innerHTML = list.map(s => `
-    <tr><td>${esc(s.name)}</td><td>${esc(s.email)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td>
+    <tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.email)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td>
     <td>${fmtDate(s.createdAt)}</td>
     <td>${isSuper()?`<button class="btn danger" style="padding:3px 10px" data-delst="${s.uid}">Delete</button>`:""}</td></tr>`).join("")
-    || `<tr><td colspan="6">No students.</td></tr>`;
+    || `<tr><td colspan="7">No students.</td></tr>`;
   $("studentRows").querySelectorAll("[data-delst]").forEach(b => b.onclick = async () => {
     if (!confirm("Delete this student's profile? (Their Auth login must be removed separately in the Firebase console.)")) return;
     await deleteDoc(doc(db,"users",b.dataset.delst));
@@ -889,9 +949,14 @@ function parseCSV(text){
 }
 $("csvTemplate").onclick = e => {
   e.preventDefault();
-  downloadCsv("students_template.csv", [["name","email","password","examType","batch"],
-    ["Asha Rao","asha@example.com","pass1234","medical","TR01"],
-    ["Vikram S","vikram@example.com","pass1234","engineering","SW01"]]);
+  downloadCsv("students_template.csv", [["name","psid","email","password","examType","batch"],
+    ["Asha Rao","10000001","asha@example.com","pass1234","medical","TR01"],
+    ["Vikram S","10000002","vikram@example.com","pass1234","engineering","SW01"]]);
+};
+$("stExportBtn").onclick = () => {
+  const rows = [["PS-ID","Name","Email","ExamType","Batch","Created"]];
+  studentCache.forEach(s=>rows.push([s.psid||"",s.name||"",s.email||"",s.examType||"",s.batch||"",fmtDate(s.createdAt)]));
+  downloadCsv("student_roster.csv", rows);
 };
 $("csvImportBtn").onclick = async () => {
   const f = $("csvFile").files[0];
@@ -902,21 +967,21 @@ $("csvImportBtn").onclick = async () => {
   if (!rows.length) { say("Empty file."); return; }
   let start = 0;
   const head = rows[0].map(h=>h.trim().toLowerCase());
-  const idx = { name:head.indexOf("name"), email:head.indexOf("email"), password:head.indexOf("password"), examType:head.indexOf("examtype"), batch:head.indexOf("batch") };
-  if (idx.name>=0 && idx.email>=0) start = 1; else { Object.assign(idx,{name:0,email:1,password:2,examType:3,batch:4}); say("No header detected; assuming name,email,password,examType,batch order."); }
+  const idx = { name:head.indexOf("name"), psid:head.indexOf("psid"), email:head.indexOf("email"), password:head.indexOf("password"), examType:head.indexOf("examtype"), batch:head.indexOf("batch") };
+  if (idx.name>=0 && idx.email>=0) start = 1; else { Object.assign(idx,{name:0,psid:1,email:2,password:3,examType:4,batch:5}); say("No header detected; assuming name,psid,email,password,examType,batch order."); }
   $("csvImportBtn").disabled = true;
   let ok=0, fail=0;
   for (let r=start; r<rows.length; r++){
     const row = rows[r];
     const name=(row[idx.name]||"").trim(), email=(row[idx.email]||"").trim(),
           pass=(row[idx.password]||"").trim(), examType=((row[idx.examType]||"medical").trim().toLowerCase()),
-          batch=(idx.batch>=0?(row[idx.batch]||"").trim():"");
+          batch=(idx.batch>=0?(row[idx.batch]||"").trim():""), psid=(idx.psid>=0?(row[idx.psid]||"").trim():"");
     if (!name||!email||pass.length<6||!["medical","engineering"].includes(examType)) { say(`Row ${r+1}: SKIP (need name,email,6+char password,valid examType) — ${email||"?"}`); fail++; continue; }
     const secApp = initializeApp(firebaseConfig, "imp-"+Date.now()+"-"+r);
     try {
       const secAuth = getAuth(secApp);
       const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
-      await setDoc(doc(db,"users",cred.user.uid), { name, email, role:"student", examType, batch, createdAt: serverTimestamp() });
+      await setDoc(doc(db,"users",cred.user.uid), { name, psid, email, role:"student", examType, batch, createdAt: serverTimestamp() });
       await signOut(secAuth);
       ok++; say(`Row ${r+1}: OK — ${name} (${batch||"no batch"})`);
     } catch(e){ fail++; say(`Row ${r+1}: ERROR — ${email}: ${friendlyAuthError(e)}`); }
