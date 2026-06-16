@@ -1,0 +1,1445 @@
+[
+ {
+  "id": "DT1_BIO_091",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Reproduction in Plants",
+  "difficulty": "Easy",
+  "text": "Water hyacinth and water lily are pollinated by",
+  "options": [
+   "Lemurs",
+   "Water",
+   "Insects",
+   "Bats"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_092",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Cycle",
+  "difficulty": "Medium",
+  "text": "A diploid cell in the $G_1$ phase has 10 chromosomes and 25 pg of DNA. What will be the number of chromosomes and amount of DNA respectively in this cell at $G_2$ phase?",
+  "options": [
+   "10 and 25 pg",
+   "20 and 50 pg",
+   "20 and 25 pg",
+   "10 and 50 pg"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_093",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Respiration",
+  "difficulty": "Medium",
+  "text": "For the conversion of pyruvate to acetyl CoA in the mitochondrial matrix, which of the following are required? a. $Mg^{2+}$  b. $NAD^+$  c. $CO_2$  d. $NADH + H^+$  e. CoA",
+  "options": [
+   "a, c, d and e",
+   "b, c and d",
+   "a, b and e",
+   "a, c and d"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_094",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Biology",
+  "difficulty": "Easy",
+  "text": "Single circular dsDNA molecule is found in all, except",
+  "options": [
+   "Chloroplast",
+   "Mitochondria",
+   "Nucleus",
+   "Nucleoid"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_095",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Morphology of Flowering Plants",
+  "difficulty": "Hard",
+  "text": "The floral formula $\\oplus\\ \\rlap{/}{\\circ}\\ K_{(5)}\\,C_{(5)}\\,A_5\\,\\underline{G}_{(2)}$ is of",
+  "options": [
+   "Cotton family that has tap root system",
+   "Grass family that has basal placentation",
+   "Potato family that has endospermous seeds",
+   "Largest dicot family that has head or capitulum type of inflorescence"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_096",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biological Classification",
+  "difficulty": "Easy",
+  "text": "______ are the smallest living cells known which are pathogenic to animals and plants. Select the correct option to fill in the blank.",
+  "options": [
+   "Cyanobacteria",
+   "Mycoplasma",
+   "Viroids",
+   "Archaebacteria"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_097",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Kingdom (Algae)",
+  "difficulty": "Medium",
+  "text": "Which of the following organisms has chlorophyll $a$ and $d$ along with phycoerythrin as the major pigments?",
+  "options": [
+   "Polysiphonia",
+   "Chlamydomonas",
+   "Fucus",
+   "Ectocarpus"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_098",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Genetics (Pedigree)",
+  "difficulty": "Hard",
+  "text": "Study the given pedigree.<br>a. The trait shown in above pedigree can be of sickle cell anaemia.<br>b. Males in generation II are the carriers if the trait is colour blindness.<br>c. The genotype of the affected female in generation II can be Aa or aa.<br>d. If we consider this trait as autosomal recessive, then the responsible allele would be found only in females.<br>Which of the given statements w.r.t the above pedigree would be true?",
+  "options": [
+   "a and d",
+   "b and d",
+   "b and c",
+   "a and c"
+  ],
+  "correct_answer": "A",
+  "image": "data:image/png;base64,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"
+ },
+ {
+  "id": "DT1_BIO_099",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Molecular Biology",
+  "difficulty": "Medium",
+  "text": "Read the following statements and select the correct option.<br><b>Statement-A:</b> Viruses having RNA genome mutate at a faster rate.<br><b>Statement-B:</b> Non-histone chromosomal proteins are required for DNA packaging to form the “beads on string” structure in chromatin.",
+  "options": [
+   "Only statement A is incorrect",
+   "Only statement B is incorrect",
+   "Both the statements A and B are correct",
+   "Both the statements A and B are incorrect"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_100",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Division (Meiosis)",
+  "difficulty": "Medium",
+  "text": "Crossing over between non-sister chromatids of homologous chromosome occurs in __A__ stage. Dissolution of synaptonemal complex occurs in __B__ stage of meiotic cell division. Select the correct option to fill in the blanks A and B. (Format: A, B)",
+  "options": [
+   "Zygotene, Pachytene",
+   "Zygotene, Diplotene",
+   "Pachytene, Diplotene",
+   "Diplotene, Diakinesis"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_101",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Growth & Development",
+  "difficulty": "Easy",
+  "text": "The plant hormone that is responsible for quicker early growth in juvenile conifers is",
+  "options": [
+   "Auxin",
+   "Gibberellin",
+   "Ethylene",
+   "Cytokinin"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_102",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Genetics (Disorders)",
+  "difficulty": "Medium",
+  "text": "Which amongst the following statements are true for sickle cell anemia?<br>a. It is an autosomal recessive trait.<br>b. It occurs due to the substitution of a purine by pyrimidine in the coding strand of DNA of a particular gene.<br>c. Substitution of valine by glutamic acid at the 6th position of the beta globin chain of haemoglobin molecule.<br>d. Heterozygous individuals have 50% probability of transmission of mutated gene to progeny.<br>e. It is a quantitative problem of too few haemoglobin molecules.",
+  "options": [
+   "a, b, c and e",
+   "b, d and e",
+   "c and e only",
+   "a, b and d"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_103",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ecology (Interactions)",
+  "difficulty": "Easy",
+  "text": "Interaction between plover bird and crocodile is an example of",
+  "options": [
+   "Mutualism",
+   "Protocooperation",
+   "Commensalism",
+   "Predation"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_104",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Microbes in Human Welfare",
+  "difficulty": "Medium",
+  "text": "__A__ is an immunosuppressive agent, which is produced by a fungus called __B__. Select the correct option to fill in the blanks A and B. (Format: A, B)",
+  "options": [
+   "Statin, Trichoderma polysporum",
+   "Cyclosporin A, Monascus purpureus",
+   "Cyclosporin A, Trichoderma polysporum",
+   "Statin, Aspergillus niger"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_105",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Morphology of Flowering Plants",
+  "difficulty": "Medium",
+  "text": "How many plants in the list given below have axile placentation? (Tomato, Tobacco, Chilli, Pea, Muliathi, China rose, Sunflower, Petunia, Lemon)",
+  "options": [
+   "Four",
+   "Five",
+   "Six",
+   "Seven"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_106",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Reproduction",
+  "difficulty": "Medium",
+  "text": "In a female frog, the ovaries are",
+  "options": [
+   "Functionally connected to the kidneys",
+   "Connected to cloaca through urogenital ducts",
+   "Situated near the kidneys",
+   "Not able to produce more than 3000 ova in its lifetime"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_107",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Excretion",
+  "difficulty": "Medium",
+  "text": "In context of regulation of kidney functions in humans, all of the following hormones increase the blood pressure, except",
+  "options": [
+   "Angiotensin II",
+   "Aldosterone",
+   "ANF",
+   "ADH"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_108",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Tissues",
+  "difficulty": "Easy",
+  "text": "In humans, the type of epithelium present in the inner walls of blood vessels is",
+  "options": [
+   "Simple cuboidal epithelium",
+   "Simple squamous epithelium",
+   "Compound epithelium",
+   "Simple columnar epithelium"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_109",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Kingdom",
+  "difficulty": "Medium",
+  "text": "Select the correct set of animals that are triploblastic, coelomate and segmented.",
+  "options": [
+   "Taenia, Ancylostoma, Chaetopleura",
+   "Ctenoplana, Adamsia, Sycon",
+   "Fasciola, Aplysia, Ophiura",
+   "Hirudinaria, Culex, Laccifer"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_110",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Kingdom",
+  "difficulty": "Medium",
+  "text": "Choose the correct option to complete the analogy. ________ : Monoecious :: Nereis : Dioecious",
+  "options": [
+   "Ascaris",
+   "Anopheles",
+   "Trygon",
+   "Pheretima"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_111",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Neural Control",
+  "difficulty": "Medium",
+  "text": "In human brain, the region 'X' is responsible for complex functions like intersensory associations, memory and communication. 'X' is a part of",
+  "options": [
+   "Cerebellum",
+   "Corpora quadrigemina",
+   "Cerebral cortex",
+   "Brain stem"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_112",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Neural Control",
+  "difficulty": "Hard",
+  "text": "Select the correct option w.r.t. neurons at resting state in humans.",
+  "options": [
+   "The axonal membrane is completely permeable to $Na^+$ present in axoplasm.",
+   "The fluid outside the axon contains very high concentration of $K^+$ as compared to inside.",
+   "Outer surface of the axonal membrane possesses a positive charge.",
+   "The axoplasm contains very low concentration of negatively charged proteins and $K^+$ as compared to outside."
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_113",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Locomotion & Movement",
+  "difficulty": "Medium",
+  "text": "The muscle fibres present in biceps of humans are",
+  "options": [
+   "Cylindrical, Voluntary, Non-striated",
+   "Multi-nucleated, Unbranched, Voluntary",
+   "Fusiform, Voluntary, Striated",
+   "Uninucleated, Striated, Branched"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_114",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Reproductive Health",
+  "difficulty": "Easy",
+  "text": "All of the following sexually transmitted diseases are completely curable if detected early and treated properly, except",
+  "options": [
+   "Trichomoniasis",
+   "Genital warts",
+   "Genital herpes",
+   "Chlamydiasis"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_115",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Chemical Coordination",
+  "difficulty": "Medium",
+  "text": "Read the following statements:<br><b>Statement (A):</b> All the hormones which interact with intracellular receptors are steroidal in nature.<br><b>Statement (B):</b> Secretin and CCK are peptide hormones and generate second messengers as they do not enter the target cells.<br>Select the correct option.",
+  "options": [
+   "Only statement (B) is incorrect",
+   "Both statements (A) and (B) are correct",
+   "Both statements (A) and (B) are incorrect",
+   "Only statement (A) is incorrect"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_116",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Bacteria",
+  "difficulty": "Medium",
+  "text": "Elongated tubular structures, generally found in gram-negative bacteria, which are known to play a role in the bacterial mating process are",
+  "options": [
+   "Pili",
+   "Fimbrae",
+   "Mesosomes",
+   "Plasmids"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_117",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Anatomy of Flowering Plants",
+  "difficulty": "Medium",
+  "text": "Where do you expect to find pericycle in the form of semi-lunar patches made up of sclerenchymatous cells?",
+  "options": [
+   "Dicot stem",
+   "Monocot stem",
+   "Dicot root",
+   "Monocot root"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_118",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Morphology (Seed)",
+  "difficulty": "Easy",
+  "text": "Scutellum is a",
+  "options": [
+   "Structure enclosing the plumule",
+   "Shield shape cotyledon in monocot seed",
+   "Part of the embryonal axis in dicots",
+   "Outer protein layer of the endosperm in monocot seeds"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_119",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biological Classification",
+  "difficulty": "Medium",
+  "text": "Match list-I with list-II and choose the correct option.<br>List-I: (a) Diatoms, (b) Aspergillus, (c) Alternaria, (d) Gonyaulax<br>List-II: (i) Causes red tides of the sea due to rapid multiplication, (ii) Only the asexual or vegetative phases are known to occur, (iii) Sexual spores called ascospores are produced endogenously in sac like asci, (iv) Chief producers in the oceans",
+  "options": [
+   "a(ii), b(iv), c(i), d(iii)",
+   "a(iv), b(ii), c(iii), d(i)",
+   "a(iv), b(iii), c(ii), d(i)",
+   "a(i), b(ii), c(iv), d(iii)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_120",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Respiration (Glycolysis)",
+  "difficulty": "Medium",
+  "text": "How many ATP molecules will be formed by substrate level phosphorylation during glycolysis, if one molecule of fructose-1,6-bisphosphate is used as a substrate?",
+  "options": [
+   "1",
+   "2",
+   "8",
+   "4"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_121",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Growth & Development",
+  "difficulty": "Medium",
+  "text": "Richmond Lang effect is associated with",
+  "options": [
+   "Cell elongation",
+   "Suppression of apical dominance",
+   "Breaking dormancy",
+   "Delaying senescence"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_122",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Kingdom",
+  "difficulty": "Easy",
+  "text": "Which of the following groups of plants are considered the first embryophytes?",
+  "options": [
+   "Algae",
+   "Bryophytes",
+   "Pteridophytes",
+   "Gymnosperms"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_123",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Molecular Biology",
+  "difficulty": "Medium",
+  "text": "State true (T) or false (F) for the given statements and choose the option accordingly.<br>a. In bacteria, translation can begin much before mRNA is fully formed.<br>b. In the process of tailing of hnRNA, adenylate residues (250-300) are added at the 3' in a template dependent manner.<br>c. The genetic code is absolutely universal.<br>d. The presence of introns in split-gene is reminiscent of antiquity. (Format a,b,c,d)",
+  "options": [
+   "F, T, T, T",
+   "T, F, F, T",
+   "T, F, T, F",
+   "F, T, F, F"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_124",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Genetics",
+  "difficulty": "Medium",
+  "text": "Total 480 seeds were obtained by a Mendelian dihybrid cross between the plants having genotype, AaBb × AaBb. Find the number of seeds produced in F1 generation showing both the recessive traits.",
+  "options": [
+   "210",
+   "60",
+   "48",
+   "30"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_125",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Population Ecology",
+  "difficulty": "Medium",
+  "text": "Exponential growth in organisms is represented by the equation",
+  "options": [
+   "$\\dfrac{dN}{dt} = rN\\left(\\dfrac{K-N}{K}\\right)$",
+   "$\\dfrac{dN}{dt} = rN\\left(\\dfrac{N-K}{N}\\right)$",
+   "$\\dfrac{dN}{dt} = KN\\left(\\dfrac{r-N}{N}\\right)$",
+   "$\\dfrac{dN}{dt} = rN$"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_126",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ecosystem",
+  "difficulty": "Medium",
+  "text": "Spindle shaped pyramid of number can be seen for which of the following food chains?<br>a. Grass → grasshopper → frog<br>b. Phytoplankton → Zooplankton → Small fish → Big fish<br>c. Tree → Small birds → Hawk<br>d. Big tree → Insects → Small birds<br>Select the correct ones.",
+  "options": [
+   "a, b and c",
+   "b and d",
+   "a and d",
+   "c and d"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_127",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Ecosystem",
+  "difficulty": "Easy",
+  "text": "Each trophic level has a certain mass of living material at a particular time called as the",
+  "options": [
+   "Standing crop",
+   "Gross primary productivity",
+   "Net primary productivity",
+   "Standing state"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_128",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Microbes in Human Welfare",
+  "difficulty": "Medium",
+  "text": "In paddy fields, the most active, non-symbiotic nitrogen fixing microbe in India is",
+  "options": [
+   "Glomus",
+   "Azotobacter",
+   "Rhizobium",
+   "Aulosira"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_129",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Respiration (ETS)",
+  "difficulty": "Hard",
+  "text": "Read the following statements and state them as True (T) or False (F).<br>a. When the electrons pass from one carrier to another via complex I to IV in ETS, they are coupled to complex V for ATP production.<br>b. Two copper centres are present in the complex III of ETS.<br>c. F1 is an integral membrane protein, that forms a channel through which protons cross the inner membrane of mitochondria.<br>d. Inner membrane of mitochondria is permeable to protons, in the region of ATP synthase. (Format a,b,c,d)",
+  "options": [
+   "T, F, F, T",
+   "F, T, T, F",
+   "F, T, F, T",
+   "T, T, T, F"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_130",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Growth & Development",
+  "difficulty": "Medium",
+  "text": "Senescence of leaves in plants is delayed by __A__ and it is promoted by __B__ respectively. Select the correct option to fill in the blanks A and B respectively.",
+  "options": [
+   "ABA and cytokinins",
+   "Ethylene and auxins",
+   "Cytokinins and ethylene",
+   "Gibberellins and cytokinins"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_131",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Chemical Coordination",
+  "difficulty": "Medium",
+  "text": "Choose the correct option to complete the analogy. Hyperglycemic hormone : Glucagon :: Hypercalcemic hormone : ____",
+  "options": [
+   "Thyroxine",
+   "Parathormone",
+   "Thyrocalcitonin",
+   "Insulin"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_132",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Kingdom (Chordata)",
+  "difficulty": "Medium",
+  "text": "The notochord persists throughout the life in",
+  "options": [
+   "All the members of the phylum Chordata",
+   "Members of the subphylum Urochordata",
+   "All the members of the subphylum Vertebrata",
+   "Members of the class Chondrichthyes"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_133",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Kingdom (Chordata)",
+  "difficulty": "Easy",
+  "text": "In members of the phylum Chordata, notochord is present __X__ to gut but __Y__ to nerve cord. Select the correct option to fill in the respective blanks. (Format: X, Y)",
+  "options": [
+   "Ventral, Dorsal",
+   "Lateral, Dorsal",
+   "Dorsal, Ventral",
+   "Ventral, Lateral"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_134",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Breathing & Exchange of Gases",
+  "difficulty": "Medium",
+  "text": "In humans, there is a chemosensitive area situated adjacent to the respiratory rhythm centre which is highly sensitive to $pCO_2$ and concentration of hydrogen ions. This chemosensitive area is located in",
+  "options": [
+   "Medulla oblongata",
+   "Aortic arch",
+   "Cerebellum",
+   "Pons"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_135",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Body Fluids & Circulation",
+  "difficulty": "Medium",
+  "text": "How many of the factors given in the box below favour(s) the dissociation of oxygen from the oxyhaemoglobin? (Low $pCO_2$, Low pH, High $pO_2$, Higher temperature). Select the correct option.",
+  "options": [
+   "Two",
+   "One",
+   "Three",
+   "Four"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_136",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Frog (Animal Type)",
+  "difficulty": "Medium",
+  "text": "Choose the correct match w.r.t. frogs.",
+  "options": [
+   "A pair of optic lobes — Present in midbrain",
+   "Chief excretory nitrogenous waste — Uric acid",
+   "RBCs — Enucleated and carry haemoglobin",
+   "Copulatory pad — Present in females"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_137",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cockroach (Animal Type)",
+  "difficulty": "Medium",
+  "text": "<b>Assertion (A):</b> If the head of a cockroach is cut off, it will still live for as long as one week.<br><b>Reason (R):</b> The head holds only a bit of nervous system while the rest is situated along the ventral part of its body.<br>In the light of above statements, select the correct option.",
+  "options": [
+   "Both (A) and (R) are false",
+   "(A) is true but (R) is false",
+   "Both (A) and (R) are true and (R) is the correct explanation of (A)",
+   "Both (A) and (R) are true but (R) is not the correct explanation of (A)"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_138",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Skeletal System",
+  "difficulty": "Easy",
+  "text": "Decreased levels of which of the following hormones is a common cause of osteoporosis in aged women?",
+  "options": [
+   "Testosterone",
+   "Aldosterone",
+   "Estrogen",
+   "Prolactin"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_139",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Molecular Biology",
+  "difficulty": "Medium",
+  "text": "In a nucleotide, the bond present between the phosphate and hydroxyl group of sugar is",
+  "options": [
+   "Peptide bond",
+   "Hydrogen bond",
+   "Glycosidic bond",
+   "Ester bond"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_140",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology (Tissue Culture)",
+  "difficulty": "Medium",
+  "text": "Choose the correct statement w.r.t. tissue culture.",
+  "options": [
+   "Production of very few but specific plants through tissue culture is called micropropagation.",
+   "Explant is only the root part of the plant, which if grown in a sterile condition can regenerate the whole plant.",
+   "Protoplast is a cell that is surrounded by cell wall as well as the cell membrane.",
+   "Removing the apical meristem from a virus infected plant and growing it in vitro can help us to grow a virus-free plant."
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_141",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biomolecules",
+  "difficulty": "Medium",
+  "text": "Select the incorrect match.",
+  "options": [
+   "Insulin — A peptide hormone which decreases blood glucose levels",
+   "Trypsin — Secretion of an exocrine gland",
+   "Antibody — Secreted by T-lymphocytes and provides humoral immunity",
+   "GLUT-4 — A proteinaceous receptor which enables glucose transport into the cells"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_142",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Human Health & Disease",
+  "difficulty": "Medium",
+  "text": "The drug which binds to specific receptors in GIT and acts as a depressant on CNS is extracted from",
+  "options": [
+   "Erythroxylum coca",
+   "Atropa belladona",
+   "Datura",
+   "Papaver somniferum"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_143",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Skeletal System",
+  "difficulty": "Medium",
+  "text": "In adult humans, vertebrochondral ribs do not directly articulate with the flat bone present in the ventral midline of thorax but join the ______ rib with the help of hyaline cartilage. Choose the correct option to fill in the blank.",
+  "options": [
+   "6th",
+   "7th",
+   "8th",
+   "11th"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_144",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology",
+  "difficulty": "Medium",
+  "text": "Mobile genetic elements, that provide complementary RNA and replicate via an RNA intermediate to perform silencing of mRNA, are generally used in",
+  "options": [
+   "PCR",
+   "ELISA",
+   "RNAi",
+   "Gene therapy"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_145",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology (PCR)",
+  "difficulty": "Medium",
+  "text": "During PCR, if it is found that the primers added are not complementary to the target template DNA, then which of the following is most likely to get affected first?",
+  "options": [
+   "Extension",
+   "Denaturation",
+   "Elution",
+   "Annealing"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_146",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology",
+  "difficulty": "Hard",
+  "text": "By using which of the following restriction endonucleases, one can perform insertional inactivation of 'rop' gene in pBR322?",
+  "options": [
+   "Bam HI",
+   "Eco RI",
+   "Pvu I",
+   "Pvu II"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_147",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Animal Tissues",
+  "difficulty": "Medium",
+  "text": "Select the correct match.",
+  "options": [
+   "Tendons — Dense irregular connective tissue",
+   "Bone — Hard and pliable ground substance",
+   "Ligaments — Attach skeletal muscles to bones",
+   "Blood — Fibroblasts are absent"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_148",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Body Fluids & Circulation",
+  "difficulty": "Medium",
+  "text": "The event represented by the QRS-complex in a standard ECG of a normal adult man is the",
+  "options": [
+   "End of the ventricular systole",
+   "Excitation of the atria",
+   "Repolarisation of the ventricles",
+   "Depolarisation of the ventricles"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_149",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Enzymes",
+  "difficulty": "Hard",
+  "text": "Observe the given graph of a chemical reaction and select the correct option w.r.t. it.",
+  "options": [
+   "X represents activation energy in the presence of enzyme",
+   "Y represents activation energy without enzyme",
+   "The above graph depicts an exothermic reaction",
+   "Transition state is a highly stable and a lower energy state"
+  ],
+  "correct_answer": "A",
+  "image": "data:image/png;base64,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"
+ },
+ {
+  "id": "DT1_BIO_150",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Neural Control",
+  "difficulty": "Medium",
+  "text": "Consider the following: (a) Decrease in the rate of heart beat, (b) Decrease in the speed of conduction of action potentials, (c) Decrease in the cardiac output. The above-mentioned effects are observed due to the neural signals reaching to the heart through a component of",
+  "options": [
+   "Central nervous system",
+   "Somatic nervous system",
+   "Autonomic nervous system",
+   "Sympathetic nervous system"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_151",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biomolecules",
+  "difficulty": "Easy",
+  "text": "A cyclic ring is present in the structure of",
+  "options": [
+   "Alanine",
+   "Glutamic acid",
+   "Lysine",
+   "Tyrosine"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_152",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Human Reproduction",
+  "difficulty": "Medium",
+  "text": "The cell which contains only one sex chromosome is",
+  "options": [
+   "Spermatogonium",
+   "Primary spermatocyte",
+   "Primary oocyte",
+   "Secondary spermatocyte"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_153",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Excretion",
+  "difficulty": "Hard",
+  "text": "A special sensitive region formed by cellular modifications in the DCT and afferent arteriole at the location of their contact in human kidneys can get activated due to",
+  "options": [
+   "Decrease in GFR",
+   "Increase in blood volume",
+   "Increase in blood pressure",
+   "Decrease in the amount of blood urea"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_154",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Body Fluids & Circulation",
+  "difficulty": "Medium",
+  "text": "Consider a case where the cardiac output of a person is 5250 mL and the stroke volume is 70 mL. What would be the duration of the cardiac cycle in this person?",
+  "options": [
+   "0.90 second",
+   "0.80 second",
+   "0.45 second",
+   "1.20 seconds"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_155",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biomolecules",
+  "difficulty": "Medium",
+  "text": "The palmitic acid belongs to a group of biomolecules that/whose",
+  "options": [
+   "Molecular weight is about 1800 Daltons",
+   "Is found in the acid-soluble fraction upon chemical analysis of a living tissue",
+   "Are strictly macromolecules",
+   "Are present in cell membrane and form vesicles (water-insoluble) when broken into pieces"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_156",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Photosynthesis",
+  "difficulty": "Medium",
+  "text": "Which of the following is not required in the chemiosmosis process?",
+  "options": [
+   "Proton pump",
+   "ATP synthase",
+   "Electron gradient",
+   "A membrane"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_157",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Photosynthesis",
+  "difficulty": "Medium",
+  "text": "Select the incorrectly matched pair.",
+  "options": [
+   "Sorghum — Shows double fixation of $CO_2$ for photosynthesis",
+   "PEP carboxylase — Responsible for the fixation of $CO_2$ in the mesophyll cells of $C_4$ plants",
+   "Blackman — Gave the law of limiting factor",
+   "PS-II — Involved in cyclic flow of electrons during photophosphorylation"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_158",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Plant Kingdom (Bryophytes)",
+  "difficulty": "Medium",
+  "text": "Read the following statements and choose the incorrect one among the following.",
+  "options": [
+   "Plant body in bryophytes is thallus-like and may be prostrate or erect.",
+   "The spores of bryophytes get disseminated by wind.",
+   "Mosses reproduce asexually by fragmentation and gemmae formation in primary protonema.",
+   "In rocky and ice-cold areas, mosses are good source of food for birds."
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_159",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Reproduction in Plants",
+  "difficulty": "Medium",
+  "text": "Select the characteristic features that are favourable for pollination in anemophilous flowers.<br>a. Flowers packed into inflorescence<br>b. Presence of nectaries<br>c. Well exposed stamens<br>d. Light and sticky pollens<br>e. Feathery stigma<br>f. Foul odour<br>Choose the option for correct ones.",
+  "options": [
+   "a, b, d and f",
+   "c and e only",
+   "a, c and e",
+   "a, b, e and f"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_160",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biodiversity & Conservation",
+  "difficulty": "Easy",
+  "text": "Select the odd one w.r.t. ex-situ conservation strategy for biodiversity.",
+  "options": [
+   "Cryopreservation",
+   "Wildlife safari parks",
+   "Wildlife sanctuary",
+   "Botanical garden"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_161",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Cycle",
+  "difficulty": "Hard",
+  "text": "G2 to M transition is triggered by",
+  "options": [
+   "cdc 2 kinase only",
+   "G1 cyclin",
+   "Anaphase promoting and cdc 2 kinase",
+   "MPF formed by mitotic cyclin and cdc 2 kinase"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_162",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Division (Meiosis)",
+  "difficulty": "Medium",
+  "text": "<b>Statement-A:</b> During zygotene, homologous chromosomes come to lie side by side in pairs and this pairing is known as synapsis.<br><b>Statement-B:</b> Chromosomal synapsis is accompanied by a structure called synaptonemal complex.<br>In the light of the above statements, choose the correct answer from the options given below.",
+  "options": [
+   "Only statement A is incorrect",
+   "Only statement B is incorrect",
+   "Both the statements A and B are correct",
+   "Both the statements A and B are incorrect"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_163",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Genetics (Disorders)",
+  "difficulty": "Hard",
+  "text": "Read the following statements.<br>a. It is an example of pleiotropy.<br>b. It is an inborn error of metabolism.<br>c. It is an autosomal recessive disorder.<br>d. It is due to lack of an enzyme that causes conversion of tyrosine into phenylalanine.<br>e. There is accumulation of phenylpyruvic acid and other derivatives in human brain.<br>The correct statements regarding phenylketonuria are",
+  "options": [
+   "a, d and e only",
+   "b, c and e only",
+   "a, b, c and d",
+   "a, b, c and e"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_164",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Cell Division",
+  "difficulty": "Medium",
+  "text": "Mark the event which takes place during interkinesis of meiosis in animals.",
+  "options": [
+   "Chromosomes uncoil to form extremely extended chromatin fibres",
+   "Replication of DNA",
+   "Centriole duplication",
+   "Doubling of chromosomes"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_165",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Genetics",
+  "difficulty": "Easy",
+  "text": "The term 'linkage' was coined by",
+  "options": [
+   "Alfred Sturtevant",
+   "Mendel",
+   "de Vries",
+   "T.H. Morgan"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_166",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Molecular Biology",
+  "difficulty": "Medium",
+  "text": "In prokaryotes, the RNA polymerase as a core enzyme is only capable of catalysing the process of",
+  "options": [
+   "Transcription initiation",
+   "Polymerisation of amino acid",
+   "Elongation during transcription",
+   "Termination of transcription"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_167",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology",
+  "difficulty": "Medium",
+  "text": "The sensitivity of the technique for DNA fingerprinting has been increased by using",
+  "options": [
+   "RFLP (Restriction fragment length polymorphism)",
+   "Autoradiography",
+   "Polymerase chain reaction",
+   "Agarose gel electrophoresis"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_168",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Taxonomy",
+  "difficulty": "Medium",
+  "text": "Which of the following statements is not true?",
+  "options": [
+   "The term 'systema' was used by Linnaeus in the title of his book published as “Systema Naturae”.",
+   "Systematics is a wider field of study as compared to taxonomy as it takes into account evolutionary relationships between organisms along with taxonomy.",
+   "The word systematics is derived from a Greek word “systema”.",
+   "Systematics means systematic arrangement of organisms."
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_169",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Morphology of Flowering Plants",
+  "difficulty": "Easy",
+  "text": "The example of hypogynous flower is",
+  "options": [
+   "Petunia",
+   "Rose",
+   "Guava",
+   "Peach"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_170",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biological Classification",
+  "difficulty": "Medium",
+  "text": "Read the following statements and choose the incorrect one.",
+  "options": [
+   "Diatomaceous earth is used in polishing, filtration of oils and syrups",
+   "Toxins are produced by certain dinoflagellates which may kill other marine animals such as fishes",
+   "Euglenoids cannot survive in the absence of sunlight",
+   "Diatoms are good indicators of water pollution"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_171",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Evolution",
+  "difficulty": "Medium",
+  "text": "When more than one adaptive radiation appeared to have occurred in an isolated geographical area (representing different habitats), then this can be called",
+  "options": [
+   "Stabilising selection",
+   "Parallel evolution",
+   "Convergent evolution",
+   "Cyclical evolution"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_172",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology",
+  "difficulty": "Medium",
+  "text": "Periodic infusion of genetically engineered lymphocytes to patients having ADA deficiency is required as lymphocytes",
+  "options": [
+   "Continue to divide and produce large number of progeny",
+   "Are not nucleated",
+   "Have uncontrolled cell division and regulation",
+   "Are not immortal"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_173",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Human Evolution",
+  "difficulty": "Medium",
+  "text": "Consider the following facts w.r.t. a primate: (a) Probably did not eat meat, (b) Brain capacity was in between 650 to 800 cc, (c) First human-like being, the hominid. This primate is most likely",
+  "options": [
+   "Homo sapiens",
+   "Homo erectus",
+   "Homo habilis",
+   "Homo neanderthalensis"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_174",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology",
+  "difficulty": "Hard",
+  "text": "Observe the given schematic representation. The sample represents a linear DNA of 15 kb that has two restriction sites for restriction enzyme 'X' (segments 5 kb, 5 kb, 5 kb). After complete restriction digestion with 'X', if the DNA fragments are separated by agarose gel electrophoresis, then the number of band(s) visible on the gel will be.",
+  "options": [
+   "Two",
+   "One",
+   "Three",
+   "Zero"
+  ],
+  "correct_answer": "A",
+  "image": "data:image/png;base64,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"
+ },
+ {
+  "id": "DT1_BIO_175",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Human Health & Disease",
+  "difficulty": "Medium",
+  "text": "Read the following statements.<br><b>Statement (A):</b> Non-ionising radiations like UV rays cause DNA damage leading to neoplastic transformation of normal cells.<br><b>Statement (B):</b> For cancer detection and diagnosis, technique like radiography uses X-rays which are ionising in nature.<br>Select the correct option.",
+  "options": [
+   "Only statement (A) is correct",
+   "Both statements (A) and (B) are correct",
+   "Both statements (A) and (B) are incorrect",
+   "Only statement (B) is correct"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_176",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology (Vectors)",
+  "difficulty": "Hard",
+  "text": "In vector pBR322, if the gene of interest is inserted at the site where recognition site for Sal I is present, then after transformation in E. coli, the non-recombinant transformants would be",
+  "options": [
+   "Sensitive to tetracycline but resistant to ampicillin",
+   "Resistant to both tetracycline and ampicillin",
+   "Sensitive to both ampicillin and tetracycline",
+   "Sensitive to ampicillin but resistant to tetracycline"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_177",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Immunity",
+  "difficulty": "Medium",
+  "text": "The most abundant cells of the total WBCs and an agranulocyte that forms 6-8% of the total WBCs, both provide innate immunity. Identify the cells and select the correct option w.r.t. them.",
+  "options": [
+   "Former has a kidney-shaped nucleus",
+   "They both are phagocytic in nature",
+   "Categorized under cytokine barriers of innate immunity",
+   "Secrete histaminase and serotonin"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_178",
+  "subject": "Botany",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Biotechnology (RNAi)",
+  "difficulty": "Hard",
+  "text": "The parasite 'Meloidogyne incognita' is not able to survive in a transgenic tobacco host carrying dsRNA that initiates RNAi, because",
+  "options": [
+   "Transcription in Agrobacterium is blocked",
+   "Translation of mRNA of transgenic tobacco plant is stopped",
+   "Proteins that are essential for survival of tobacco plant are not synthesised",
+   "Target mRNA of the nematode gets silenced"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_179",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Evolution",
+  "difficulty": "Medium",
+  "text": "The theory given by Darwin does not explain the concept of",
+  "options": [
+   "Reproductive fitness",
+   "Mutations",
+   "Minor inheritable variations",
+   "Branching descent"
+  ],
+  "correct_answer": "A"
+ },
+ {
+  "id": "DT1_BIO_180",
+  "subject": "Zoology",
+  "section": "A",
+  "examType": "medical",
+  "topic": "Human Reproduction",
+  "difficulty": "Easy",
+  "text": "In humans, the acellular layer of ovum on which receptors for binding of sperm are present is",
+  "options": [
+   "Vitelline membrane",
+   "Zona pellucida",
+   "Corona radiata",
+   "Perivitelline space"
+  ],
+  "correct_answer": "A"
+ }
+]

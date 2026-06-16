@@ -52,6 +52,11 @@ service cloud.firestore {
       allow delete: if isStaff();
     }
 
+    // ---------- sessions (single active device per account) ----------
+    match /sessions/{uid} {
+      allow read, write: if isSelf(uid);
+    }
+
     // deny everything else
     match /{document=**} { allow read, write: if false; }
   }
