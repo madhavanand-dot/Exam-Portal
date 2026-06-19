@@ -1932,6 +1932,8 @@ async function showResult(attempt){
   $("resultWrap").innerHTML = "Loading result&hellip;";
 
   const cfg = attemptCfg(attempt);
+  // Staff (admin/faculty) see full timing analytics; students see only result + error log.
+  const staffView = currentUser?.role === "admin" || currentUser?.role === "faculty";
 
   // rebuild per-question detail if not provided (viewing an old attempt)
   let detail = attempt._detail;
@@ -1977,7 +1979,7 @@ async function showResult(attempt){
     <tr><td>${i+1}</td><td>${esc(d.q.subject)}</td><td>${esc(d.q.topic)}</td>
     <td>${d.answer ?? "<i>—</i>"}</td><td>${esc(d.q.correct_answer)}</td>
     <td><span class="badge ${d.delta>0?'pos':d.delta<0?'neg':'zero'}">${d.delta>0?'+':''}${d.delta}</span></td>
-    <td>${fmtSec(d.timeSec)}</td></tr>`).join("");
+    ${staffView?`<td>${fmtSec(d.timeSec)}</td>`:""}</tr>`).join("");
 
   const errRows = kind => detail.filter(d=>d.verdict===kind).map((d,i) => `
     <tr><td>${i+1}</td><td>${esc(d.q.subject)}</td><td>${esc(d.q.topic)}</td><td>${esc(d.q.difficulty)}</td>
@@ -2035,15 +2037,16 @@ async function showResult(attempt){
     <button class="btn secondary" id="pdfReportBtn">Print / Save as PDF</button>
     <h2 class="sec">Subject-wise</h2>
     <table class="tbl"><thead><tr><th>Subject</th><th>Score</th><th>Time</th></tr></thead><tbody>${subRows}</tbody></table>
+    ${staffView?`
     <h2 class="sec">Pace Analysis (time management)</h2>
     <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">Overall average ≈ <b>${totalAvg.toFixed(0)}s</b> per attempted question. "Slow Qs" = questions where more than 2 minutes were spent.</p>
     <table class="tbl"><thead><tr><th>Subject</th><th>Questions</th><th>Attempted</th><th>Time Spent</th><th>Avg / attempted</th><th>Slow Qs (&gt;2min)</th></tr></thead><tbody>${paceRows}</tbody></table>
     <h4 style="margin:12px 0 6px;color:var(--blue)">Questions you spent the most time on</h4>
-    <table class="tbl"><thead><tr><th>#</th><th>Subject</th><th>Topic</th><th>Time</th><th>Result</th></tr></thead><tbody>${slowest}</tbody></table>
+    <table class="tbl"><thead><tr><th>#</th><th>Subject</th><th>Topic</th><th>Time</th><th>Result</th></tr></thead><tbody>${slowest}</tbody></table>`:""}
     <h2 class="sec">Topic-wise Analysis (weakest first)</h2>
     <table class="tbl"><thead><tr><th>Subject — Topic</th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy</th><th>Time</th></tr></thead><tbody>${topicRows}</tbody></table>
     <h2 class="sec">Question-by-question</h2>
-    <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th><th>Time Spent</th></tr></thead><tbody>${qRows}</tbody></table>
+    <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th>${staffView?"<th>Time Spent</th>":""}</tr></thead><tbody>${qRows}</tbody></table>
     <h2 class="sec">Error Log</h2>
     <div class="subTabs">
       <button class="active" data-etab="wrong">Wrong Answers (${detail.filter(d=>d.verdict==="wrong").length})</button>
@@ -2062,11 +2065,16 @@ async function showResult(attempt){
     $("etab-unanswered").classList.toggle("hidden", b.dataset.etab!=="unanswered");
   });
   $("csvReportBtn").onclick = () => {
-    const rows = [["Q#","QuestionID","Subject","Section","Topic","Difficulty","YourAnswer","CorrectAnswer","Marks","TimeSec","Verdict"]];
-    lastResultDetail.forEach((d,i)=>rows.push([i+1,d.q.id,d.q.subject,d.q.section||"A",d.q.topic,d.q.difficulty,
-      d.answer??"",d.q.correct_answer,d.delta,d.timeSec,d.verdict]));
+    const rows = [staffView
+      ? ["Q#","QuestionID","Subject","Section","Topic","Difficulty","YourAnswer","CorrectAnswer","Marks","TimeSec","Verdict"]
+      : ["Q#","QuestionID","Subject","Section","Topic","Difficulty","YourAnswer","CorrectAnswer","Marks","Verdict"]];
+    lastResultDetail.forEach((d,i)=>rows.push(staffView
+      ? [i+1,d.q.id,d.q.subject,d.q.section||"A",d.q.topic,d.q.difficulty,d.answer??"",d.q.correct_answer,d.delta,d.timeSec,d.verdict]
+      : [i+1,d.q.id,d.q.subject,d.q.section||"A",d.q.topic,d.q.difficulty,d.answer??"",d.q.correct_answer,d.delta,d.verdict]));
     rows.push([]);
-    rows.push(["TOTAL SCORE",lastResultAttempt.score,"MAX",cfg.maxMarks,"TIME",fmtSec(lastResultAttempt.totalTimeSec)]);
+    rows.push(staffView
+      ? ["TOTAL SCORE",lastResultAttempt.score,"MAX",cfg.maxMarks,"TIME",fmtSec(lastResultAttempt.totalTimeSec)]
+      : ["TOTAL SCORE",lastResultAttempt.score,"MAX",cfg.maxMarks]);
     if (lastResultAttempt.malpractice) rows.push(["MALPRACTICE", lastResultAttempt.malpracticeReason||"yes"]);
     downloadCsv("exam_report.csv", rows);
   };
