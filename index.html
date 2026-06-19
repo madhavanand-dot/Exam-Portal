@@ -672,12 +672,19 @@ async function claimSession(uid){
   try { await setDoc(doc(db,"sessions",uid), { token: mySessionToken, at: serverTimestamp(), ua: navigator.userAgent.slice(0,120) }); } catch(e){}
   // watch for another device taking over this account
   if (sessionUnsub) sessionUnsub();
-  sessionUnsub = onSnapshot(doc(db,"sessions",uid), s => {
+  sessionUnsub = onSnapshot(doc(db,"sessions",uid), async s => {
     const t = s.data()?.token;
     if (t && mySessionToken && t !== mySessionToken && !kickedOut) {
       kickedOut = true;
-      if (EX && !EX.submitted) { try { submitExam(false, {}); } catch(e){} }  // save exam progress before kicking
-      alert("This account was just signed in on another device. You have been signed out here.");
+      // Save (do NOT submit) so the new device resumes the same in-progress attempt.
+      // The exam timer keeps running on wall-clock because startTime is persisted and
+      // the new device recomputes endTime = startTime + duration on resume.
+      if (EX && !EX.submitted) {
+        try { await saveProgress(); } catch(e){}
+        clearInterval(tickInt); clearInterval(autosaveInt);
+        try { stopProctoring(); } catch(e){}
+      }
+      alert("This account was just signed in on another device. You have been signed out here. The exam can be continued on the new device.");
       signOut(auth);
     }
   });
