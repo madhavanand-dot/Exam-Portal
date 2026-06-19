@@ -202,7 +202,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <div class="card">
         <h2 style="color:var(--blue);margin-bottom:4px">Candidate / Staff Login</h2>
         <p class="sub">Enter the credentials provided by your institute</p>
-        <div class="field"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div>
+        <div class="field"><label>PS-ID / Employee ID</label><input type="text" id="loginId" autocomplete="username" placeholder="Students: 11-digit PS-ID · Staff: Employee ID"></div>
         <div class="field"><label>Password</label><input type="password" id="loginPass" autocomplete="current-password"></div>
         <button class="btn" id="loginBtn" style="width:100%">Sign In</button>
         <div id="loginMsg"></div>
@@ -232,8 +232,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <h2 class="sec" style="margin-top:0">Add Student</h2>
         <div class="flexrow">
           <div class="field"><label>Name</label><input id="stName"></div>
-          <div class="field"><label>PS-ID</label><input id="stPsid" placeholder="e.g. 12345678"></div>
-          <div class="field"><label>Email</label><input id="stEmail" type="email"></div>
+          <div class="field"><label>PS-ID</label><input id="stPsid" inputmode="numeric" placeholder="11-digit PS-ID"></div>
           <div class="field"><label>Password</label><input id="stPass" type="text" placeholder="min 6 chars"></div>
           <div class="field"><label>Exam Type</label><select id="stType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
           <div class="field"><label>Batch</label><input id="stBatch" placeholder="e.g. TR01"></div>
@@ -243,7 +242,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       </div>
       <div class="card" id="bulkImportCard">
         <h2 class="sec" style="margin-top:0">Bulk Import (CSV)</h2>
-        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">CSV columns (with header): <code>name,psid,email,password,examType,batch</code>. examType = medical or engineering. password min 6 chars. One student per row.
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">CSV columns (with header): <code>name,psid,password,examType,batch</code>. psid = 11-digit PS-ID (the login ID). examType = medical or engineering. password min 6 chars. One student per row.
           <a href="#" id="csvTemplate">Download template</a></p>
         <input type="file" id="csvFile" accept=".csv,text/csv">
         <button class="btn" id="csvImportBtn" style="margin-left:10px">Import</button>
@@ -254,7 +253,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <button class="btn secondary" id="stFilterBtn" style="align-self:flex-end">Filter</button>
       </div>
       <h2 class="sec">Students (<span id="stCount">0</span>) <button class="btn secondary" id="stExportBtn" style="padding:3px 12px;font-size:12px">Export roster CSV</button></h2>
-      <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Email</th><th>Exam Type</th><th>Batch</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Exam Type</th><th>Batch</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
     </div>
 
     <div id="atab-faculty" class="atab hidden">
@@ -263,14 +262,14 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Faculty can add questions and create/run their own exams and see reports for them, but cannot manage students or other faculty's content.</p>
         <div class="flexrow">
           <div class="field"><label>Name</label><input id="fcName"></div>
-          <div class="field"><label>Email</label><input id="fcEmail" type="email"></div>
+          <div class="field"><label>Employee ID</label><input id="fcEmpId" placeholder="login ID for staff"></div>
           <div class="field"><label>Password</label><input id="fcPass" type="text" placeholder="min 6 chars"></div>
           <button class="btn" id="addFacultyBtn">Create Faculty</button>
         </div>
         <div id="facultyMsg"></div>
       </div>
       <h2 class="sec">Staff (admins &amp; faculty)</h2>
-      <table class="tbl"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th></th></tr></thead><tbody id="staffRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>Name</th><th>Employee ID</th><th>Role</th><th>Created</th><th></th></tr></thead><tbody id="staffRows"></tbody></table>
     </div>
 
     <div id="atab-questions" class="atab hidden">
@@ -566,6 +565,14 @@ function attemptCfg(att){
     marks: att?.examMarks || base.marks
   };
 }
+// ID-based login: Firebase Auth still needs an email, so every account's login ID
+// (student PS-ID or faculty Employee ID) is deterministically mapped to a synthetic
+// email. No real email is collected. Students log in with PS-ID, staff with Employee ID.
+const ID_DOMAIN = "id.exam.local";
+const isPsid = v => /^\d{11}$/.test(String(v||"").trim());
+const idToEmail = id => `${String(id||"").trim().toLowerCase()}@${ID_DOMAIN}`;
+// kept for compatibility with existing callers
+const psidToEmail = idToEmail;
 const $  = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function showView(id){
@@ -624,7 +631,26 @@ $("loginBtn").onclick = async () => {
   setMsg($("loginMsg"), "");
   $("loginBtn").disabled = true;
   try {
-    await signInWithEmailAndPassword(auth, $("loginEmail").value.trim(), $("loginPass").value);
+    const idv = $("loginId").value.trim();
+    // Students log in with an 11-digit PS-ID only. Strip spaces/dashes so a pasted
+    // "0000 6353 549" still works, then convert to the synthetic email. Staff
+    // Employee IDs (non-numeric) and legacy literal emails still pass through.
+    let emailToUse;
+    if (idv.includes("@")) {
+      emailToUse = idv;                       // legacy literal email
+    } else {
+      const digits = idv.replace(/[\s-]/g, "");
+      if (/^\d+$/.test(digits)) {             // numeric -> student PS-ID, must be 11 digits
+        if (digits.length !== 11) {
+          setMsg($("loginMsg"), "PS-ID must be exactly 11 digits.");
+          $("loginBtn").disabled = false; return;
+        }
+        emailToUse = idToEmail(digits);
+      } else {
+        emailToUse = idToEmail(idv);          // staff Employee ID
+      }
+    }
+    await signInWithEmailAndPassword(auth, emailToUse, $("loginPass").value);
   } catch(e) {
     setMsg($("loginMsg"), friendlyAuthError(e));
   } finally { $("loginBtn").disabled = false; }
@@ -633,7 +659,7 @@ $("loginPass").addEventListener("keydown", e => { if (e.key==="Enter") $("loginB
 
 function friendlyAuthError(e){
   const c = e.code || "";
-  if (c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found")) return "Invalid email or password.";
+  if (c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found")) return "Invalid PS-ID / email or password.";
   if (c.includes("too-many-requests")) return "Too many attempts. Try again later.";
   if (c.includes("invalid-email")) return "Invalid email address.";
   return e.message || "Login failed.";
@@ -744,17 +770,17 @@ $("atLoadBtn").onclick = async () => {
   atAbsent = absent;
   const pct = assigned.length ? Math.round(100*present.length/assigned.length) : 0;
   $("atSummary").innerHTML = `Assigned: <b>${assigned.length}</b> &nbsp;|&nbsp; Present: <span class="badge pos">${present.length}</span> &nbsp;|&nbsp; <b>Absent: <span class="badge neg">${absent.length}</span></b> &nbsp;|&nbsp; Attendance: ${pct}%`;
-  const row = s => `<tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.batch||"—")}</td><td>${esc(s.email)}</td></tr>`;
+  const row = s => `<tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.batch||"—")}</td></tr>`;
   $("atWrap").innerHTML = `
     <h4 style="color:#b03a2e;margin:8px 0 4px">Absentees (${absent.length})</h4>
-    <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Batch</th><th>Email</th></tr></thead><tbody>${absent.map(row).join("")||`<tr><td colspan="4">None — everyone attended 🎉</td></tr>`}</tbody></table>
+    <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Batch</th></tr></thead><tbody>${absent.map(row).join("")||`<tr><td colspan="3">None — everyone attended 🎉</td></tr>`}</tbody></table>
     <h4 style="color:#1e7a44;margin:14px 0 4px">Present (${present.length})</h4>
-    <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Batch</th><th>Email</th></tr></thead><tbody>${present.map(row).join("")||`<tr><td colspan="4">None yet.</td></tr>`}</tbody></table>`;
+    <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Batch</th></tr></thead><tbody>${present.map(row).join("")||`<tr><td colspan="3">None yet.</td></tr>`}</tbody></table>`;
 };
 $("atCsvBtn").onclick = () => {
   if (!atAbsent.length) { alert("No absentees to export (run Check Attendance first)."); return; }
-  const rows = [["PS-ID","Name","Batch","Email","Exam","Status"]];
-  atAbsent.forEach(s=>rows.push([s.psid||"",s.name||"",s.batch||"",s.email||"",atExamTitle,"ABSENT"]));
+  const rows = [["PS-ID","Name","Batch","Exam","Status"]];
+  atAbsent.forEach(s=>rows.push([s.psid||"",s.name||"",s.batch||"",atExamTitle,"ABSENT"]));
   downloadCsv("absentees.csv", rows);
 };
 
@@ -862,19 +888,21 @@ function lineChart(pts, labels, ylab, color){
 
 /* ----- faculty / staff management (super-admin only) ----- */
 $("addFacultyBtn").onclick = async () => {
-  const name = $("fcName").value.trim(), email = $("fcEmail").value.trim(), pass = $("fcPass").value;
-  if (!name || !email || pass.length < 6) { setMsg($("facultyMsg"), "Name, email and a 6+ char password are required."); return; }
+  const name = $("fcName").value.trim(), empId = $("fcEmpId").value.trim(), pass = $("fcPass").value;
+  if (!name || !empId || pass.length < 6) { setMsg($("facultyMsg"), "Name, Employee ID and a 6+ char password are required."); return; }
   $("addFacultyBtn").disabled = true;
+  // Employee ID is the login identifier; Firebase Auth uses a synthetic email derived from it.
+  const authEmail = idToEmail(empId);
   const secApp = initializeApp(firebaseConfig, "secondary-" + Date.now());
   try {
     const secAuth = getAuth(secApp);
-    const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
+    const cred = await createUserWithEmailAndPassword(secAuth, authEmail, pass);
     await setDoc(doc(db, "users", cred.user.uid), {
-      name, email, role: "faculty", examType: "medical", createdAt: serverTimestamp()
+      name, empId, email: authEmail, role: "faculty", examType: "medical", createdAt: serverTimestamp()
     });
     await signOut(secAuth);
-    setMsg($("facultyMsg"), `Faculty "${name}" created. They can log in and create exams.`, true);
-    $("fcName").value = $("fcEmail").value = $("fcPass").value = "";
+    setMsg($("facultyMsg"), `Faculty "${name}" created. They can log in with their Employee ID.`, true);
+    $("fcName").value = $("fcEmpId").value = $("fcPass").value = "";
     loadStaff();
   } catch(e) { setMsg($("facultyMsg"), friendlyAuthError(e)); }
   finally { $("addFacultyBtn").disabled = false; deleteApp(secApp).catch(()=>{}); }
@@ -884,7 +912,7 @@ async function loadStaff(){
   const staff = qs.docs.map(d=>({uid:d.id,...d.data()})).filter(u=>u.role==="admin"||u.role==="faculty");
   staff.sort((a,b)=>(a.role||"").localeCompare(b.role||"") || (a.name||"").localeCompare(b.name||""));
   $("staffRows").innerHTML = staff.map(s => `
-    <tr><td>${esc(s.name)}</td><td>${esc(s.email)}</td>
+    <tr><td>${esc(s.name)}</td><td>${esc(s.empId || s.email || "—")}</td>
     <td>${s.role==="admin"?'<span class="badge pos">admin</span>':'<span class="badge zero">faculty</span>'}</td>
     <td>${fmtDate(s.createdAt)}</td>
     <td>${s.uid===currentUser.uid ? '<span style="color:var(--muted)">you</span>' :
@@ -902,22 +930,24 @@ async function loadStaff(){
 
 /* ----- students ----- */
 $("addStudentBtn").onclick = async () => {
-  const name = $("stName").value.trim(), email = $("stEmail").value.trim(),
+  const name = $("stName").value.trim(),
         pass = $("stPass").value, examType = $("stType").value, batch = $("stBatch").value.trim(),
         psid = $("stPsid").value.trim();
-  if (!name || !email || pass.length < 6) { setMsg($("studentMsg"), "Name, email and a password of 6+ chars are required."); return; }
+  if (!name || !isPsid(psid) || pass.length < 6) { setMsg($("studentMsg"), "Name, an 11-digit PS-ID and a password of 6+ chars are required."); return; }
   $("addStudentBtn").disabled = true;
+  // PS-ID is the login identifier; Firebase Auth uses a synthetic email derived from it.
+  const authEmail = idToEmail(psid);
   // secondary app so the admin's own session is not replaced
   const secApp = initializeApp(firebaseConfig, "secondary-" + Date.now());
   try {
     const secAuth = getAuth(secApp);
-    const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
+    const cred = await createUserWithEmailAndPassword(secAuth, authEmail, pass);
     await setDoc(doc(db, "users", cred.user.uid), {
-      name, psid, email, role: "student", examType, batch, createdAt: serverTimestamp()
+      name, psid, email: authEmail, role: "student", examType, batch, createdAt: serverTimestamp()
     });
     await signOut(secAuth);
     setMsg($("studentMsg"), `Student "${name}" created.`, true);
-    $("stName").value = $("stPsid").value = $("stEmail").value = $("stPass").value = $("stBatch").value = "";
+    $("stName").value = $("stPsid").value = $("stPass").value = $("stBatch").value = "";
     loadStudents();
   } catch(e) {
     setMsg($("studentMsg"), friendlyAuthError(e));
@@ -945,10 +975,10 @@ function renderStudents(){
   const list = f ? studentCache.filter(s=>(s.batch||"").toLowerCase()===f) : studentCache;
   $("stCount").textContent = list.length;
   $("studentRows").innerHTML = list.map(s => `
-    <tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.email)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td>
+    <tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td>
     <td>${fmtDate(s.createdAt)}</td>
     <td>${isSuper()?`<button class="btn danger" style="padding:3px 10px" data-delst="${s.uid}">Delete</button>`:""}</td></tr>`).join("")
-    || `<tr><td colspan="7">No students.</td></tr>`;
+    || `<tr><td colspan="6">No students.</td></tr>`;
   $("studentRows").querySelectorAll("[data-delst]").forEach(b => b.onclick = async () => {
     if (!confirm("Delete this student's profile? (Their Auth login must be removed separately in the Firebase console.)")) return;
     await deleteDoc(doc(db,"users",b.dataset.delst));
@@ -970,13 +1000,13 @@ function parseCSV(text){
 }
 $("csvTemplate").onclick = e => {
   e.preventDefault();
-  downloadCsv("students_template.csv", [["name","psid","email","password","examType","batch"],
-    ["Asha Rao","10000001","asha@example.com","pass1234","medical","TR01"],
-    ["Vikram S","10000002","vikram@example.com","pass1234","engineering","SW01"]]);
+  downloadCsv("students_template.csv", [["name","psid","password","examType","batch"],
+    ["Asha Rao","10000000001","pass1234","medical","TR01"],
+    ["Vikram S","10000000002","pass1234","engineering","SW01"]]);
 };
 $("stExportBtn").onclick = () => {
-  const rows = [["PS-ID","Name","Email","ExamType","Batch","Created"]];
-  studentCache.forEach(s=>rows.push([s.psid||"",s.name||"",s.email||"",s.examType||"",s.batch||"",fmtDate(s.createdAt)]));
+  const rows = [["PS-ID","Name","ExamType","Batch","Created"]];
+  studentCache.forEach(s=>rows.push([s.psid||"",s.name||"",s.examType||"",s.batch||"",fmtDate(s.createdAt)]));
   downloadCsv("student_roster.csv", rows);
 };
 $("csvImportBtn").onclick = async () => {
@@ -989,23 +1019,24 @@ $("csvImportBtn").onclick = async () => {
   let start = 0;
   const head = rows[0].map(h=>h.trim().toLowerCase());
   const idx = { name:head.indexOf("name"), psid:head.indexOf("psid"), email:head.indexOf("email"), password:head.indexOf("password"), examType:head.indexOf("examtype"), batch:head.indexOf("batch") };
-  if (idx.name>=0 && idx.email>=0) start = 1; else { Object.assign(idx,{name:0,psid:1,email:2,password:3,examType:4,batch:5}); say("No header detected; assuming name,psid,email,password,examType,batch order."); }
+  if (idx.name>=0 && idx.psid>=0) start = 1; else { Object.assign(idx,{name:0,psid:1,password:2,examType:3,batch:4}); say("No header detected; assuming name,psid,password,examType,batch order."); }
   $("csvImportBtn").disabled = true;
   let ok=0, fail=0;
   for (let r=start; r<rows.length; r++){
     const row = rows[r];
-    const name=(row[idx.name]||"").trim(), email=(row[idx.email]||"").trim(),
+    const name=(row[idx.name]||"").trim(),
           pass=(row[idx.password]||"").trim(), examType=((row[idx.examType]||"medical").trim().toLowerCase()),
           batch=(idx.batch>=0?(row[idx.batch]||"").trim():""), psid=(idx.psid>=0?(row[idx.psid]||"").trim():"");
-    if (!name||!email||pass.length<6||!["medical","engineering"].includes(examType)) { say(`Row ${r+1}: SKIP (need name,email,6+char password,valid examType) — ${email||"?"}`); fail++; continue; }
+    if (!name||!isPsid(psid)||pass.length<6||!["medical","engineering"].includes(examType)) { say(`Row ${r+1}: SKIP (need name,11-digit psid,6+char password,valid examType) — ${psid||name||"?"}`); fail++; continue; }
+    const authEmail = idToEmail(psid);
     const secApp = initializeApp(firebaseConfig, "imp-"+Date.now()+"-"+r);
     try {
       const secAuth = getAuth(secApp);
-      const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
-      await setDoc(doc(db,"users",cred.user.uid), { name, psid, email, role:"student", examType, batch, createdAt: serverTimestamp() });
+      const cred = await createUserWithEmailAndPassword(secAuth, authEmail, pass);
+      await setDoc(doc(db,"users",cred.user.uid), { name, psid, email: authEmail, role:"student", examType, batch, createdAt: serverTimestamp() });
       await signOut(secAuth);
       ok++; say(`Row ${r+1}: OK — ${name} (${batch||"no batch"})`);
-    } catch(e){ fail++; say(`Row ${r+1}: ERROR — ${email}: ${friendlyAuthError(e)}`); }
+    } catch(e){ fail++; say(`Row ${r+1}: ERROR — ${psid}: ${friendlyAuthError(e)}`); }
     finally { deleteApp(secApp).catch(()=>{}); }
   }
   say(`Done. Created ${ok}, failed/skipped ${fail}.`);
