@@ -1087,23 +1087,26 @@ $("csvImportBtn").onclick = async () => {
           batch=(idx.batch>=0?(row[idx.batch]||"").trim():""), psid=(idx.psid>=0?(row[idx.psid]||"").trim():"");
     if (!name||!isPsid(psid)||pass.length<6||!["medical","engineering"].includes(examType)) { say(`Row ${r+1}: SKIP (need name,11-digit psid,6+char password,valid examType) — ${psid||name||"?"}`); fail++; continue; }
     const authEmail = idToEmail(psid);
+    // 1) Existing profile → backfill password via Firestore ONLY (no Auth call → no rate limit).
+    try {
+      let ex = await getDocs(query(collection(db,"users"), where("psid","==",psid)));
+      if (ex.empty) ex = await getDocs(query(collection(db,"users"), where("email","==",authEmail)));
+      if (!ex.empty) { await updateDoc(ex.docs[0].ref, { password: pass, name, batch }); ok++; say(`Row ${r+1}: UPDATED — ${name}`); continue; }
+    } catch(e0){ fail++; say(`Row ${r+1}: ERROR reading — ${psid}: ${e0.message}`); continue; }
+    // 2) No profile → create new Auth account (or recover an orphaned Auth account by signing in).
     const secApp = initializeApp(firebaseConfig, "imp-"+Date.now()+"-"+r);
     try {
       const secAuth = getAuth(secApp);
-      const cred = await createUserWithEmailAndPassword(secAuth, authEmail, pass);
-      await setDoc(doc(db,"users",cred.user.uid), { name, psid, email: authEmail, role:"student", examType, batch, password: pass, createdAt: serverTimestamp() });
+      let uid;
+      try { uid = (await createUserWithEmailAndPassword(secAuth, authEmail, pass)).user.uid; }
+      catch(eC){
+        if ((eC.code||"").includes("email-already-in-use")) { uid = (await signInWithEmailAndPassword(secAuth, authEmail, pass)).user.uid; }
+        else throw eC;
+      }
+      await setDoc(doc(db,"users",uid), { name, psid, email: authEmail, role:"student", examType, batch, password: pass, createdAt: serverTimestamp() });
       await signOut(secAuth);
       ok++; say(`Row ${r+1}: OK — ${name} (${batch||"no batch"})`);
-    } catch(e){
-      // Already exists → backfill the stored password (and name/batch) so admin can view it.
-      if ((e.code||"").includes("email-already-in-use")) {
-        try {
-          const ex = await getDocs(query(collection(db,"users"), where("email","==",authEmail)));
-          if (!ex.empty) { await updateDoc(ex.docs[0].ref, { password: pass, name, batch }); ok++; say(`Row ${r+1}: UPDATED password — ${name}`); }
-          else { fail++; say(`Row ${r+1}: exists in Auth but no profile — ${psid}`); }
-        } catch(e2){ fail++; say(`Row ${r+1}: ERROR updating — ${psid}: ${e2.message}`); }
-      } else { fail++; say(`Row ${r+1}: ERROR — ${psid}: ${friendlyAuthError(e)}`); }
-    }
+    } catch(e){ fail++; say(`Row ${r+1}: ERROR — ${psid}: ${friendlyAuthError(e)}`); }
     finally { deleteApp(secApp).catch(()=>{}); }
   }
   say(`Done. Created ${ok}, failed/skipped ${fail}.`);
