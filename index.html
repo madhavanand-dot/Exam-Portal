@@ -203,7 +203,12 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <h2 style="color:var(--blue);margin-bottom:4px">Candidate / Staff Login</h2>
         <p class="sub">Enter the credentials provided by your institute</p>
         <div class="field"><label>Email / PS-ID</label><input type="text" id="loginId" autocomplete="username" placeholder="Students: 11-digit PS-ID · Staff: email / Employee ID"></div>
-        <div class="field"><label>Password</label><input type="password" id="loginPass" autocomplete="current-password"></div>
+        <div class="field"><label>Password</label>
+          <div style="position:relative">
+            <input type="password" id="loginPass" autocomplete="current-password" style="width:100%;padding-right:58px">
+            <button type="button" id="loginPassToggle" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;padding:2px 4px">Show</button>
+          </div>
+        </div>
         <button class="btn" id="loginBtn" style="width:100%">Sign In</button>
         <div id="loginMsg"></div>
       </div>
@@ -253,7 +258,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <button class="btn secondary" id="stFilterBtn" style="align-self:flex-end">Filter</button>
       </div>
       <h2 class="sec">Students (<span id="stCount">0</span>) <button class="btn secondary" id="stExportBtn" style="padding:3px 12px;font-size:12px">Export roster CSV</button></h2>
-      <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Exam Type</th><th>Batch</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Exam Type</th><th>Batch</th><th>Password</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
     </div>
 
     <div id="atab-faculty" class="atab hidden">
@@ -501,7 +506,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  onAuthStateChanged, signOut
+  onAuthStateChanged, signOut, updatePassword
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, getDocs,
@@ -656,6 +661,11 @@ $("loginBtn").onclick = async () => {
   } finally { $("loginBtn").disabled = false; }
 };
 $("loginPass").addEventListener("keydown", e => { if (e.key==="Enter") $("loginBtn").click(); });
+$("loginPassToggle").onclick = () => {
+  const i = $("loginPass"), show = i.type === "password";
+  i.type = show ? "text" : "password";
+  $("loginPassToggle").textContent = show ? "Hide" : "Show";
+};
 
 function friendlyAuthError(e){
   const c = e.code || "";
@@ -950,7 +960,7 @@ $("addStudentBtn").onclick = async () => {
     const secAuth = getAuth(secApp);
     const cred = await createUserWithEmailAndPassword(secAuth, authEmail, pass);
     await setDoc(doc(db, "users", cred.user.uid), {
-      name, psid, email: authEmail, role: "student", examType, batch, createdAt: serverTimestamp()
+      name, psid, email: authEmail, role: "student", examType, batch, password: pass, createdAt: serverTimestamp()
     });
     await signOut(secAuth);
     setMsg($("studentMsg"), `Student "${name}" created.`, true);
@@ -983,14 +993,55 @@ function renderStudents(){
   $("stCount").textContent = list.length;
   $("studentRows").innerHTML = list.map(s => `
     <tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td>
+    <td>${isSuper()
+        ? (s.password ? `<code class="pwcell" data-pw="${esc(s.password)}">••••••</code> <button class="btn secondary" style="padding:1px 7px;font-size:11px" data-pwshow="${s.uid}">Show</button>`
+                      : '<span style="color:var(--muted)">not stored</span>')
+        : '—'}</td>
     <td>${fmtDate(s.createdAt)}</td>
-    <td>${isSuper()?`<button class="btn danger" style="padding:3px 10px" data-delst="${s.uid}">Delete</button>`:""}</td></tr>`).join("")
-    || `<tr><td colspan="6">No students.</td></tr>`;
+    <td>${isSuper()?`<button class="btn secondary" style="padding:3px 9px" data-pwd="${s.uid}">Change PW</button> <button class="btn danger" style="padding:3px 10px" data-delst="${s.uid}">Delete</button>`:""}</td></tr>`).join("")
+    || `<tr><td colspan="7">No students.</td></tr>`;
+  $("studentRows").querySelectorAll("[data-pwshow]").forEach(b => b.onclick = () => {
+    const code = b.previousElementSibling;
+    const shown = code.textContent !== "••••••";
+    code.textContent = shown ? "••••••" : code.dataset.pw;
+    b.textContent = shown ? "Show" : "Hide";
+  });
+  $("studentRows").querySelectorAll("[data-pwd]").forEach(b => b.onclick = () =>
+    changeStudentPassword(studentCache.find(s=>s.uid===b.dataset.pwd)));
   $("studentRows").querySelectorAll("[data-delst]").forEach(b => b.onclick = async () => {
     if (!confirm("Delete this student's profile? (Their Auth login must be removed separately in the Firebase console.)")) return;
     await deleteDoc(doc(db,"users",b.dataset.delst));
     loadStudents();
   });
+}
+
+// Admin: change a student's password. Re-auths the student on a secondary app
+// (needs the current password — stored copy, else admin types it) then updatePassword.
+async function changeStudentPassword(s){
+  if (!s || !isSuper()) return;
+  const np = prompt(`New password for ${s.name} (min 6 chars):`, "");
+  if (np == null) return;
+  if (np.length < 6) { alert("Password must be at least 6 characters."); return; }
+  let oldPass = s.password;
+  if (!oldPass) {
+    oldPass = prompt(`No password on file for ${s.name}. Enter their CURRENT password to change it:`, "");
+    if (oldPass == null) return;
+  }
+  const email = s.email || idToEmail(s.psid);
+  const secApp = initializeApp(firebaseConfig, "pw-" + Date.now());
+  try {
+    const secAuth = getAuth(secApp);
+    const cred = await signInWithEmailAndPassword(secAuth, email, oldPass);
+    await updatePassword(cred.user, np);
+    await signOut(secAuth);
+    await updateDoc(doc(db,"users",s.uid), { password: np });
+    alert(`Password updated for ${s.name}.`);
+    loadStudents();
+  } catch(e){
+    const c = e.code || "";
+    const hint = (c.includes("wrong-password")||c.includes("invalid-credential")) ? " — the current password on file is wrong; delete & re-add the student, or correct it." : "";
+    alert("Could not change password: " + friendlyAuthError(e) + hint);
+  } finally { deleteApp(secApp).catch(()=>{}); }
 }
 if ($("stFilterBtn")) $("stFilterBtn").onclick = renderStudents;
 
@@ -1040,10 +1091,19 @@ $("csvImportBtn").onclick = async () => {
     try {
       const secAuth = getAuth(secApp);
       const cred = await createUserWithEmailAndPassword(secAuth, authEmail, pass);
-      await setDoc(doc(db,"users",cred.user.uid), { name, psid, email: authEmail, role:"student", examType, batch, createdAt: serverTimestamp() });
+      await setDoc(doc(db,"users",cred.user.uid), { name, psid, email: authEmail, role:"student", examType, batch, password: pass, createdAt: serverTimestamp() });
       await signOut(secAuth);
       ok++; say(`Row ${r+1}: OK — ${name} (${batch||"no batch"})`);
-    } catch(e){ fail++; say(`Row ${r+1}: ERROR — ${psid}: ${friendlyAuthError(e)}`); }
+    } catch(e){
+      // Already exists → backfill the stored password (and name/batch) so admin can view it.
+      if ((e.code||"").includes("email-already-in-use")) {
+        try {
+          const ex = await getDocs(query(collection(db,"users"), where("email","==",authEmail)));
+          if (!ex.empty) { await updateDoc(ex.docs[0].ref, { password: pass, name, batch }); ok++; say(`Row ${r+1}: UPDATED password — ${name}`); }
+          else { fail++; say(`Row ${r+1}: exists in Auth but no profile — ${psid}`); }
+        } catch(e2){ fail++; say(`Row ${r+1}: ERROR updating — ${psid}: ${e2.message}`); }
+      } else { fail++; say(`Row ${r+1}: ERROR — ${psid}: ${friendlyAuthError(e)}`); }
+    }
     finally { deleteApp(secApp).catch(()=>{}); }
   }
   say(`Done. Created ${ok}, failed/skipped ${fail}.`);
