@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NTA Online Exam Portal</title>
+<title>Aakash Avadi Online Test Platform</title>
 <script>
 window.MathJax = {
   tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$','$$'], ['\\[','\\]']] },
@@ -183,14 +183,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 <div id="view-login" class="view">
   <div id="landing">
     <div id="landingHero">
-      <div id="brandMark">
-        <svg viewBox="0 0 64 64" width="58" height="58" aria-hidden="true">
-          <circle cx="32" cy="32" r="30" fill="#fff" opacity="0.12"/>
-          <path d="M32 12 L50 46 H14 Z" fill="#fff"/>
-          <circle cx="32" cy="38" r="6" fill="var(--blue)"/>
-        </svg>
-      </div>
-      <h1 id="brandName">Aakash Online Test Platform</h1>
+      <h1 id="brandName">Aakash Avadi Online Test Platform</h1>
       <p id="brandTag">NTA-pattern Computer-Based Testing for NEET-UG &amp; JEE Mains</p>
       <div id="brandFeatures">
         <span>⏱ Real exam timer</span><span>🔒 Fullscreen proctoring</span>
@@ -285,10 +278,16 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div id="uploadLog" class="hidden"></div>
       </div>
       <h2 class="sec">Question Bank</h2>
+      <div class="flexrow" style="margin-bottom:10px;align-items:center">
+        <button class="btn secondary" id="qbOverviewBtn">📊 Show what's available</button>
+        <span style="font-size:12px;color:var(--muted)">See counts for every bank at once — no need to load each subject.</span>
+      </div>
+      <div id="qbOverview" class="hidden" style="margin-bottom:14px"></div>
       <div class="flexrow" style="margin-bottom:10px">
         <div class="field"><label>Exam Type</label><select id="qbType"><option value="medical">Medical</option><option value="engineering">Engineering</option></select></div>
         <div class="field"><label>Subject</label><select id="qbSubject"></select></div>
         <button class="btn secondary" id="qbLoadBtn">Load</button>
+        <button class="btn secondary" id="qbStripImgBtn">Remove all images</button>
         <button class="btn danger" id="qbClearBtn">Clear This Subject Bank</button>
       </div>
       <div id="qbMsg"></div>
@@ -510,7 +509,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, getDocs,
-  collection, query, where, orderBy, writeBatch, serverTimestamp, Timestamp, onSnapshot
+  collection, query, where, orderBy, writeBatch, serverTimestamp, Timestamp, onSnapshot, deleteField
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // PASTE FIREBASE CONFIG HERE
@@ -1169,6 +1168,7 @@ $("qUploadBtn").onclick = async () => {
     say(`Uploaded ${written}/${valid.length}...`);
   }
   say("Done. " + written + " questions written.");
+  allBankCache = null;
 };
 
 /* ----- question bank browse ----- */
@@ -1185,9 +1185,13 @@ async function fetchQuestions(examType, subject){
   return list;
 }
 let qbList = [];
+let allBankCache = null; // [{docId, examType, subject, section, ...}] – fetched once for overview
 $("qbLoadBtn").onclick = async () => {
   setMsg($("qbMsg"),"");
   qbList = await fetchQuestions($("qbType").value, $("qbSubject").value);
+  renderQbList();
+};
+function renderQbList(){
   // map question id -> exam titles that use it
   const examsOf = qid => examsCache.filter(e => (e.questionIds||[]).includes(qid))
     .map(e => esc(e.title)).join(", ");
@@ -1204,9 +1208,61 @@ $("qbLoadBtn").onclick = async () => {
   $("qbRows").querySelectorAll("[data-delq]").forEach(b => b.onclick = async () => {
     if (!confirm("Delete this question?")) return;
     await deleteDoc(doc(db,"questions",b.dataset.delq));
+    allBankCache = null;
     $("qbLoadBtn").click();
   });
-};
+}
+
+/* ----- bank overview: one fetch, counts for every bank ----- */
+async function loadBankOverview(force){
+  const box = $("qbOverview");
+  box.classList.remove("hidden");
+  if (!allBankCache || force) {
+    box.innerHTML = "Loading all banks&hellip;";
+    const qs = await getDocs(collection(db,"questions"));
+    allBankCache = qs.docs.map(d => ({ docId: d.id, ...d.data() }));
+  }
+  // group: examType -> subject -> {total, A, B, topics:Set, last}
+  const g = {};
+  allBankCache.forEach(q => {
+    const t = q.examType||"?", s = q.subject||"?";
+    (g[t] = g[t]||{})[s] = g[t][s] || {total:0,A:0,B:0,topics:new Set(),last:0};
+    const c = g[t][s];
+    c.total++; c[(q.section==="B")?"B":"A"]++;
+    if (q.topic) c.topics.add(q.topic);
+    const ms = q.createdAt?.toMillis ? q.createdAt.toMillis() : 0;
+    if (ms > c.last) c.last = ms;
+  });
+  const typeLabel = {medical:"Medical (NEET)", engineering:"Engineering (JEE)"};
+  let html = `<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Total questions across all banks: <b>${allBankCache.length}</b>. Click a subject to open it.</div>`;
+  const types = Object.keys(EXAM_CONFIG).filter(t=>g[t]);
+  if (!types.length) html += `<div style="padding:8px;color:var(--muted)">No questions uploaded yet.</div>`;
+  types.forEach(t => {
+    html += `<table class="tbl" style="margin-bottom:12px"><thead><tr>
+      <th colspan="6" style="text-align:left">${typeLabel[t]||t}</th></tr>
+      <tr><th>Subject</th><th>Total</th><th>Sec A</th><th>Sec B</th><th>Topics</th><th>Last upload</th></tr></thead><tbody>`;
+    EXAM_CONFIG[t].subjects.filter(s=>g[t][s]).forEach(s => {
+      const c = g[t][s];
+      html += `<tr style="cursor:pointer" data-ovt="${t}" data-ovs="${esc(s)}">
+        <td><b>${esc(s)}</b></td><td>${c.total}</td><td>${c.A}</td><td>${c.B}</td>
+        <td>${c.topics.size}</td><td style="font-size:12px">${c.last?fmtDate({toMillis:()=>c.last,toDate:()=>new Date(c.last)}):"—"}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  });
+  box.innerHTML = html;
+  box.querySelectorAll("[data-ovt]").forEach(r => r.onclick = () => {
+    $("qbType").value = r.dataset.ovt;
+    populateQbSubjects();
+    $("qbSubject").value = r.dataset.ovs;
+    qbList = allBankCache
+      .filter(q => (q.examType||"")===r.dataset.ovt && (q.subject||"")===r.dataset.ovs)
+      .sort((a,b)=>(a.section||"A").localeCompare(b.section||"A") || (a.id||"").localeCompare(b.id||""));
+    setMsg($("qbMsg"), `Showing ${qbList.length} questions in ${r.dataset.ovt} / ${r.dataset.ovs}.`, true);
+    renderQbList();
+    $("qbRows").scrollIntoView({behavior:"smooth", block:"nearest"});
+  });
+}
+$("qbOverviewBtn").onclick = () => loadBankOverview(true);
 function previewQuestion(q){
   const used = examsCache.filter(e => (e.questionIds||[]).includes(q.docId)).map(e=>esc(e.title));
   const order = "ABCD";
@@ -1236,8 +1292,28 @@ $("qbClearBtn").onclick = async () => {
     list.slice(i,i+450).forEach(q => batch.delete(doc(db,"questions",q.docId)));
     await batch.commit();
   }
+  allBankCache = null;
   setMsg($("qbMsg"), `Cleared ${list.length} questions from ${t}/${s}.`, true);
   $("qbRows").innerHTML = "";
+};
+$("qbStripImgBtn").onclick = async () => {
+  if (!confirm("Remove diagram/option images from ALL questions in every bank? Question text and options stay; only the embedded images are deleted. This cannot be undone.")) return;
+  setMsg($("qbMsg"), "Scanning all questions for images…", true);
+  const snap = await getDocs(collection(db,"questions"));
+  const withImg = snap.docs.filter(d => { const x=d.data(); return x.image || x.optionImages; });
+  if (!withImg.length) { setMsg($("qbMsg"), "No questions have images — nothing to remove.", true); return; }
+  let done = 0;
+  for (let i = 0; i < withImg.length; i += 450) {
+    const batch = writeBatch(db);
+    withImg.slice(i, i+450).forEach(d =>
+      batch.update(doc(db,"questions",d.id), { image: deleteField(), optionImages: deleteField() }));
+    await batch.commit();
+    done += Math.min(450, withImg.length - i);
+    setMsg($("qbMsg"), `Removed images from ${done}/${withImg.length} questions…`, true);
+  }
+  allBankCache = null;
+  setMsg($("qbMsg"), `Done. Removed images from ${withImg.length} question(s) across all banks.`, true);
+  if (qbList.length) $("qbLoadBtn").click();
 };
 
 /* ----- exam creation (custom builder) ----- */
