@@ -1682,16 +1682,23 @@ async function startExam(){
 
   let qlist;
   const cached = sessionStorage.getItem(cacheKey);
-  if (cached) {
-    qlist = JSON.parse(cached);
+  // Always fetch question docs in parallel. We cache ONLY a lightweight ordering
+  // (docId + option order) — NOT the images — so it never blows the sessionStorage
+  // quota (the old full-list cache threw QuotaExceededError and stalled the exam).
+  let cachedOrder = null;
+  if (cached) { try { cachedOrder = JSON.parse(cached); } catch(e){ cachedOrder = null; } }
+  const snaps = await Promise.all(activeExam.questionIds.map(qid => getDoc(doc(db,"questions",qid))));
+  const byId = {};
+  snaps.forEach(s => { if (s.exists()) byId[s.id] = { docId: s.id, ...s.data() }; });
+
+  if (cachedOrder && cachedOrder.length) {
+    // resume in the same order/option-shuffle as before
+    qlist = cachedOrder.map(o => { const q = byId[o.docId]; if (q) q._optOrder = o.optOrder || [0,1,2,3]; return q; }).filter(Boolean);
   } else {
-    // fetch all questions in parallel (much faster than one-by-one), shuffle within subject/section
-    const snaps = await Promise.all(activeExam.questionIds.map(qid => getDoc(doc(db,"questions",qid))));
-    const fetched = snaps.filter(s => s.exists()).map(s => ({ docId: s.id, ...s.data() }));
     qlist = [];
     for (const sub of cfg.subjects) {
       for (const sec of ["A","B"]) {
-        const grp = shuffle(fetched.filter(q => q.subject===sub && (q.section||"A")===sec));
+        const grp = shuffle(Object.values(byId).filter(q => q.subject===sub && (q.section||"A")===sec));
         qlist.push(...grp);
       }
     }
@@ -1699,7 +1706,7 @@ async function startExam(){
     qlist.forEach(q => {
       q._optOrder = (cfg.shuffleOptions && (q.section||"A")==="A") ? shuffle([0,1,2,3]) : [0,1,2,3];
     });
-    sessionStorage.setItem(cacheKey, JSON.stringify(qlist));
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(qlist.map(q => ({ docId:q.docId, optOrder:q._optOrder })))); } catch(e){}
   }
   if (!qlist.length) { alert("Exam has no questions."); return; }
 
