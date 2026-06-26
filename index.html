@@ -505,7 +505,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  onAuthStateChanged, signOut, updatePassword
+  onAuthStateChanged, signOut, updatePassword, deleteUser
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, getDocs,
@@ -1008,8 +1008,27 @@ function renderStudents(){
   $("studentRows").querySelectorAll("[data-pwd]").forEach(b => b.onclick = () =>
     changeStudentPassword(studentCache.find(s=>s.uid===b.dataset.pwd)));
   $("studentRows").querySelectorAll("[data-delst]").forEach(b => b.onclick = async () => {
-    if (!confirm("Delete this student's profile? (Their Auth login must be removed separately in the Firebase console.)")) return;
+    const s = studentCache.find(x => x.uid === b.dataset.delst);
+    if (!confirm(`Delete ${s?.name||"this student"} completely — profile AND login? This cannot be undone.`)) return;
+    let authMsg = "";
+    const pass = s?.password, email = s?.email || (s?.psid ? idToEmail(s.psid) : null);
+    if (pass && email) {
+      // Self-delete the Auth account on a secondary app (client SDK can delete the
+      // account it is signed in as). Uses the stored password.
+      const secApp = initializeApp(firebaseConfig, "del-" + Date.now());
+      try {
+        const secAuth = getAuth(secApp);
+        const cred = await signInWithEmailAndPassword(secAuth, email, pass);
+        await deleteUser(cred.user);
+        authMsg = " Login removed from Firebase Authentication too.";
+      } catch(e) {
+        authMsg = " NOTE: profile deleted, but the Auth login could not be auto-removed (" + friendlyAuthError(e) + ") — delete it in the Firebase console.";
+      } finally { deleteApp(secApp).catch(()=>{}); }
+    } else {
+      authMsg = " NOTE: no stored password, so the Auth login must be removed manually in the Firebase console.";
+    }
     await deleteDoc(doc(db,"users",b.dataset.delst));
+    alert("Student deleted." + authMsg);
     loadStudents();
   });
 }
@@ -1283,6 +1302,37 @@ function previewQuestion(q){
 }
 $("qpvClose").onclick = () => $("qpvBack").classList.add("hidden");
 $("qpvBack").addEventListener("click", e => { if (e.target===$("qpvBack")) $("qpvBack").classList.add("hidden"); });
+
+// Admin: preview the WHOLE test (all questions + correct answers), read-only, no attempt saved.
+async function previewExam(docId){
+  const ex = examsCache.find(e => e.docId === docId);
+  if (!ex) return;
+  $("qpvBody").innerHTML = `<div style="color:var(--muted)">Loading ${ex.questionIds?.length||0} questions…</div>`;
+  $("qpvBack").classList.remove("hidden");
+  const cfg = examCfg(ex);
+  const snaps = await Promise.all((ex.questionIds||[]).map(qid => getDoc(doc(db,"questions",qid))));
+  const fetched = snaps.filter(s => s.exists()).map(s => ({ docId:s.id, ...s.data() }));
+  fetched.sort((a,b) => {
+    const sa = cfg.subjects.indexOf(a.subject), sb = cfg.subjects.indexOf(b.subject);
+    if (sa !== sb) return sa - sb;
+    return String(a.id).localeCompare(String(b.id), undefined, { numeric:true });
+  });
+  const order = "ABCD";
+  const body = fetched.map((q,i) => {
+    const opts = (q.section||"A")==="A" ? (q.options||[]).map((o,k) => {
+      const correct = order[k]===q.correct_answer;
+      const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
+      return `<div class="opt ${correct?'sel':''}" style="cursor:default"><span><b>(${order[k]})</b> ${String(o).replace(/^\s*[A-D][).]\s*/,"")}${oimg}${correct?' &nbsp;✓':''}</span></div>`;
+    }).join("") : `<div style="margin-top:6px"><b>Answer:</b> ${esc(q.correct_answer)}</div>`;
+    return `<div style="border-top:1px solid #eee;padding:10px 0">
+      <div style="font-size:12px;color:var(--muted)"><b>Q${i+1}</b> &bull; ${esc(q.subject)} &bull; ${esc(q.id)} &bull; correct: <b>${esc(q.correct_answer)}</b></div>
+      <div style="font-size:15px;line-height:1.5;margin:6px 0">${q.text||""}${imgHtml(q.image)}</div>${opts}</div>`;
+  }).join("");
+  $("qpvBody").innerHTML =
+    `<div style="font-size:13px;margin-bottom:6px"><b>${esc(ex.title)}</b><br>
+     <span style="color:var(--muted)">${fetched.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${Math.round(cfg.durationSec/60)} min &bull; Max ${cfg.maxMarks}</span></div>` + body;
+  typeset($("qpvBody"));
+}
 $("qbClearBtn").onclick = async () => {
   const t = $("qbType").value, s = $("qbSubject").value;
   if (!confirm(`Delete ALL ${t} / ${s} questions? This cannot be undone.`)) return;
@@ -1455,11 +1505,12 @@ async function loadExams(){
     <td style="font-size:12px">${esc(audienceLabel(e))}${schedBadge(e)}</td>
     <td>${e.isActive?'<span class="badge pos">ACTIVE</span>':'<span class="badge zero">inactive</span>'}</td>
     <td style="font-size:12px">${esc(e.createdByName||"—")}</td>
-    <td>${ownsItem(e)?`
+    <td><button class="btn secondary" style="padding:3px 10px" data-prevex="${e.docId}">Preview</button>${ownsItem(e)?`
       <button class="btn ${e.isActive?'secondary':'green'}" style="padding:3px 10px" data-toggle="${e.docId}" data-act="${e.isActive?0:1}">${e.isActive?'Deactivate':'Activate'}</button>
       <button class="btn danger" style="padding:3px 10px" data-delex="${e.docId}">Delete</button>`
       :`<span style="color:var(--muted);font-size:11px">read-only</span>`}
     </td></tr>`).join("") || `<tr><td colspan="7">No exams yet.</td></tr>`;
+  $("examRows").querySelectorAll("[data-prevex]").forEach(b => b.onclick = () => previewExam(b.dataset.prevex));
   $("examRows").querySelectorAll("[data-toggle]").forEach(b => b.onclick = async () => {
     const activate = b.dataset.act === "1";
     await updateDoc(doc(db,"exams",b.dataset.toggle), { isActive: activate });
@@ -1634,12 +1685,9 @@ async function startExam(){
   if (cached) {
     qlist = JSON.parse(cached);
   } else {
-    // fetch all questions, shuffle within subject/section
-    const fetched = [];
-    for (const qid of activeExam.questionIds) {
-      const s = await getDoc(doc(db,"questions",qid));
-      if (s.exists()) fetched.push({ docId: s.id, ...s.data() });
-    }
+    // fetch all questions in parallel (much faster than one-by-one), shuffle within subject/section
+    const snaps = await Promise.all(activeExam.questionIds.map(qid => getDoc(doc(db,"questions",qid))));
+    const fetched = snaps.filter(s => s.exists()).map(s => ({ docId: s.id, ...s.data() }));
     qlist = [];
     for (const sub of cfg.subjects) {
       for (const sec of ["A","B"]) {
