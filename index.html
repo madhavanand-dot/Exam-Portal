@@ -204,6 +204,20 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         </div>
         <button class="btn" id="loginBtn" style="width:100%">Sign In</button>
         <div id="loginMsg"></div>
+        <p style="font-size:12.5px;color:var(--muted);margin-top:10px;text-align:center">New student? <a href="#" id="showSignup" style="color:var(--blue);font-weight:600">Create Account</a></p>
+      </div>
+      <div class="card hidden" id="signupCard">
+        <h2 style="color:var(--blue);margin-bottom:4px">Create Student Account</h2>
+        <p class="sub">Register with the PS-ID given by your institute</p>
+        <div class="field"><label>Full Name</label><input id="suName" autocomplete="name"></div>
+        <div class="field"><label>PS-ID</label><input id="suPsid" inputmode="numeric" placeholder="11-digit PS-ID"></div>
+        <div class="field"><label>Password</label><input type="password" id="suPass" autocomplete="new-password" placeholder="min 6 characters"></div>
+        <div class="field"><label>Stream</label><select id="suStream"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+        <div class="field"><label>Class</label><select id="suClass"><option>XI</option><option>XII</option><option>Repeater</option></select></div>
+        <div class="field"><label>Batch</label><input id="suBatch" placeholder="e.g. TR01 (as told by your institute)"></div>
+        <button class="btn" id="signupBtn" style="width:100%">Create Account</button>
+        <div id="signupMsg"></div>
+        <p style="font-size:12.5px;color:var(--muted);margin-top:10px;text-align:center">Already registered? <a href="#" id="showLogin" style="color:var(--blue);font-weight:600">Sign In</a></p>
       </div>
       <p id="landingFoot">Secure testing portal &bull; One active session per account</p>
     </div>
@@ -234,13 +248,14 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <div class="field"><label>Password</label><input id="stPass" type="text" placeholder="min 6 chars"></div>
           <div class="field"><label>Exam Type</label><select id="stType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
           <div class="field"><label>Batch</label><input id="stBatch" placeholder="e.g. TR01"></div>
+          <div class="field"><label>Class</label><select id="stClass"><option>XI</option><option>XII</option><option>Repeater</option></select></div>
           <button class="btn" id="addStudentBtn">Create</button>
         </div>
         <div id="studentMsg"></div>
       </div>
       <div class="card" id="bulkImportCard">
         <h2 class="sec" style="margin-top:0">Bulk Import (CSV)</h2>
-        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">CSV columns (with header): <code>name,psid,password,examType,batch</code>. psid = 11-digit PS-ID (the login ID). examType = medical or engineering. password min 6 chars. One student per row.
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">CSV columns (with header): <code>name,psid,password,examType,batch,class</code>. class = XI, XII or Repeater (optional). psid = 11-digit PS-ID (the login ID). examType = medical or engineering. password min 6 chars. One student per row.
           <a href="#" id="csvTemplate">Download template</a></p>
         <input type="file" id="csvFile" accept=".csv,text/csv">
         <button class="btn" id="csvImportBtn" style="margin-left:10px">Import</button>
@@ -251,7 +266,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <button class="btn secondary" id="stFilterBtn" style="align-self:flex-end">Filter</button>
       </div>
       <h2 class="sec">Students (<span id="stCount">0</span>) <button class="btn secondary" id="stExportBtn" style="padding:3px 12px;font-size:12px">Export roster CSV</button></h2>
-      <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Exam Type</th><th>Batch</th><th>Password</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Exam Type</th><th>Batch</th><th>Class</th><th>Password</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
     </div>
 
     <div id="atab-faculty" class="atab hidden">
@@ -471,6 +486,28 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
   </div>
 </div>
 
+<!-- activate exam: audience picker -->
+<div id="audBack" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="width:480px;max-width:96vw;max-height:88vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h3 style="color:var(--blue)">Choose Audience Before Activating</h3>
+      <button class="btn secondary" id="audClose" style="padding:3px 12px">Cancel</button>
+    </div>
+    <div class="field" style="margin-bottom:10px"><label>Who can take this exam?</label><select id="audMode">
+      <option value="all">All students of this exam type</option>
+      <option value="batch">Specific batch(es)</option>
+      <option value="students">Specific students</option>
+    </select></div>
+    <div class="field" id="audBatchWrap" style="display:none;margin-bottom:10px"><label>Batches (comma-separated, must match student batch)</label><input id="audBatches" placeholder="e.g. Batch A, Batch B"></div>
+    <div class="field" id="audStudentsWrap" style="display:none;max-width:100%;margin-bottom:10px"><label>Pick students</label>
+      <div id="audStudentPick" class="checklist" style="max-height:180px"></div></div>
+    <div id="audMsg"></div>
+    <div style="text-align:right;margin-top:10px">
+      <button class="btn green" id="audConfirm">Activate</button>
+    </div>
+  </div>
+</div>
+
 <!-- malpractice / tab-switch warning -->
 <div id="cheatModal" class="hidden">
   <div class="card">
@@ -660,6 +697,34 @@ $("loginBtn").onclick = async () => {
   } finally { $("loginBtn").disabled = false; }
 };
 $("loginPass").addEventListener("keydown", e => { if (e.key==="Enter") $("loginBtn").click(); });
+/* ---- student self-registration ---- */
+let pendingSignup = null;  // profile to write right after Auth account creation
+$("showSignup").onclick = e => { e.preventDefault(); $("loginBtn").closest(".card").classList.add("hidden"); $("signupCard").classList.remove("hidden"); };
+$("showLogin").onclick  = e => { e.preventDefault(); $("signupCard").classList.add("hidden"); $("loginBtn").closest(".card").classList.remove("hidden"); };
+$("signupBtn").onclick = async () => {
+  setMsg($("signupMsg"), "");
+  const name = $("suName").value.trim(),
+        psid = $("suPsid").value.replace(/[\s-]/g, ""),
+        pass = $("suPass").value,
+        examType = $("suStream").value,
+        klass = $("suClass").value,
+        batch = $("suBatch").value.trim();
+  if (!name) { setMsg($("signupMsg"), "Enter your full name."); return; }
+  if (!isPsid(psid)) { setMsg($("signupMsg"), "PS-ID must be exactly 11 digits."); return; }
+  if (pass.length < 6) { setMsg($("signupMsg"), "Password must be at least 6 characters."); return; }
+  $("signupBtn").disabled = true;
+  pendingSignup = { name, psid, email: idToEmail(psid), role: "student", examType, class: klass, batch, password: pass };
+  try {
+    // onAuthStateChanged writes the users/{uid} profile from pendingSignup, then routes in.
+    await createUserWithEmailAndPassword(auth, idToEmail(psid), pass);
+  } catch(e) {
+    pendingSignup = null;
+    const c = e.code || "";
+    setMsg($("signupMsg"), c.includes("email-already-in-use")
+      ? "An account with this PS-ID already exists. Use Sign In, or contact your institute."
+      : friendlyAuthError(e));
+  } finally { $("signupBtn").disabled = false; }
+};
 $("loginPassToggle").onclick = () => {
   const i = $("loginPass"), show = i.type === "password";
   i.type = show ? "text" : "password";
@@ -703,7 +768,13 @@ function releaseSession(){ if (sessionUnsub){ sessionUnsub(); sessionUnsub=null;
 onAuthStateChanged(auth, async (user) => {
   if (!user) { currentUser = null; releaseSession(); showView("view-login"); return; }
   try {
-    const snap = await getDoc(doc(db, "users", user.uid));
+    let snap = await getDoc(doc(db, "users", user.uid));
+    if (!snap.exists() && pendingSignup && pendingSignup.email === user.email) {
+      // fresh self-registration: create the profile now (rules allow self-create of a student doc)
+      await setDoc(doc(db, "users", user.uid), { ...pendingSignup, createdAt: serverTimestamp() });
+      pendingSignup = null;
+      snap = await getDoc(doc(db, "users", user.uid));
+    }
     if (!snap.exists()) { setMsg($("loginMsg"), "Account has no profile. Contact admin."); await signOut(auth); return; }
     currentUser = { uid: user.uid, ...snap.data() };
     await claimSession(user.uid);
@@ -948,7 +1019,7 @@ async function loadStaff(){
 $("addStudentBtn").onclick = async () => {
   const name = $("stName").value.trim(),
         pass = $("stPass").value, examType = $("stType").value, batch = $("stBatch").value.trim(),
-        psid = $("stPsid").value.trim();
+        klass = $("stClass").value, psid = $("stPsid").value.trim();
   if (!name || !isPsid(psid) || pass.length < 6) { setMsg($("studentMsg"), "Name, an 11-digit PS-ID and a password of 6+ chars are required."); return; }
   $("addStudentBtn").disabled = true;
   // PS-ID is the login identifier; Firebase Auth uses a synthetic email derived from it.
@@ -959,7 +1030,7 @@ $("addStudentBtn").onclick = async () => {
     const secAuth = getAuth(secApp);
     const cred = await createUserWithEmailAndPassword(secAuth, authEmail, pass);
     await setDoc(doc(db, "users", cred.user.uid), {
-      name, psid, email: authEmail, role: "student", examType, batch, password: pass, createdAt: serverTimestamp()
+      name, psid, email: authEmail, role: "student", examType, batch, class: klass, password: pass, createdAt: serverTimestamp()
     });
     await signOut(secAuth);
     setMsg($("studentMsg"), `Student "${name}" created.`, true);
@@ -991,14 +1062,14 @@ function renderStudents(){
   const list = f ? studentCache.filter(s=>(s.batch||"").toLowerCase()===f) : studentCache;
   $("stCount").textContent = list.length;
   $("studentRows").innerHTML = list.map(s => `
-    <tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td>
+    <tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td><td>${esc(s.class||"—")}</td>
     <td>${isSuper()
         ? (s.password ? `<code class="pwcell" data-pw="${esc(s.password)}">••••••</code> <button class="btn secondary" style="padding:1px 7px;font-size:11px" data-pwshow="${s.uid}">Show</button>`
                       : '<span style="color:var(--muted)">not stored</span>')
         : '—'}</td>
     <td>${fmtDate(s.createdAt)}</td>
     <td>${isSuper()?`<button class="btn secondary" style="padding:3px 9px" data-pwd="${s.uid}">Change PW</button> <button class="btn danger" style="padding:3px 10px" data-delst="${s.uid}">Delete</button>`:""}</td></tr>`).join("")
-    || `<tr><td colspan="7">No students.</td></tr>`;
+    || `<tr><td colspan="8">No students.</td></tr>`;
   $("studentRows").querySelectorAll("[data-pwshow]").forEach(b => b.onclick = () => {
     const code = b.previousElementSibling;
     const shown = code.textContent !== "••••••";
@@ -1076,13 +1147,13 @@ function parseCSV(text){
 }
 $("csvTemplate").onclick = e => {
   e.preventDefault();
-  downloadCsv("students_template.csv", [["name","psid","password","examType","batch"],
-    ["Asha Rao","10000000001","pass1234","medical","TR01"],
-    ["Vikram S","10000000002","pass1234","engineering","SW01"]]);
+  downloadCsv("students_template.csv", [["name","psid","password","examType","batch","class"],
+    ["Asha Rao","10000000001","pass1234","medical","TR01","XI"],
+    ["Vikram S","10000000002","pass1234","engineering","SW01","XII"]]);
 };
 $("stExportBtn").onclick = () => {
-  const rows = [["PS-ID","Name","ExamType","Batch","Created"]];
-  studentCache.forEach(s=>rows.push([s.psid||"",s.name||"",s.examType||"",s.batch||"",fmtDate(s.createdAt)]));
+  const rows = [["PS-ID","Name","ExamType","Batch","Class","Created"]];
+  studentCache.forEach(s=>rows.push([s.psid||"",s.name||"",s.examType||"",s.batch||"",s.class||"",fmtDate(s.createdAt)]));
   downloadCsv("student_roster.csv", rows);
 };
 $("csvImportBtn").onclick = async () => {
@@ -1094,7 +1165,7 @@ $("csvImportBtn").onclick = async () => {
   if (!rows.length) { say("Empty file."); return; }
   let start = 0;
   const head = rows[0].map(h=>h.trim().toLowerCase());
-  const idx = { name:head.indexOf("name"), psid:head.indexOf("psid"), email:head.indexOf("email"), password:head.indexOf("password"), examType:head.indexOf("examtype"), batch:head.indexOf("batch") };
+  const idx = { name:head.indexOf("name"), psid:head.indexOf("psid"), email:head.indexOf("email"), password:head.indexOf("password"), examType:head.indexOf("examtype"), batch:head.indexOf("batch"), klass:head.indexOf("class") };
   if (idx.name>=0 && idx.psid>=0) start = 1; else { Object.assign(idx,{name:0,psid:1,password:2,examType:3,batch:4}); say("No header detected; assuming name,psid,password,examType,batch order."); }
   $("csvImportBtn").disabled = true;
   let ok=0, fail=0;
@@ -1102,14 +1173,15 @@ $("csvImportBtn").onclick = async () => {
     const row = rows[r];
     const name=(row[idx.name]||"").trim(),
           pass=(row[idx.password]||"").trim(), examType=((row[idx.examType]||"medical").trim().toLowerCase()),
-          batch=(idx.batch>=0?(row[idx.batch]||"").trim():""), psid=(idx.psid>=0?(row[idx.psid]||"").trim():"");
+          batch=(idx.batch>=0?(row[idx.batch]||"").trim():""), psid=(idx.psid>=0?(row[idx.psid]||"").trim():""),
+          klass=(idx.klass>=0?(row[idx.klass]||"").trim():"");
     if (!name||!isPsid(psid)||pass.length<6||!["medical","engineering"].includes(examType)) { say(`Row ${r+1}: SKIP (need name,11-digit psid,6+char password,valid examType) — ${psid||name||"?"}`); fail++; continue; }
     const authEmail = idToEmail(psid);
     // 1) Existing profile → backfill password via Firestore ONLY (no Auth call → no rate limit).
     try {
       let ex = await getDocs(query(collection(db,"users"), where("psid","==",psid)));
       if (ex.empty) ex = await getDocs(query(collection(db,"users"), where("email","==",authEmail)));
-      if (!ex.empty) { await updateDoc(ex.docs[0].ref, { password: pass, name, batch }); ok++; say(`Row ${r+1}: UPDATED — ${name}`); continue; }
+      if (!ex.empty) { await updateDoc(ex.docs[0].ref, { password: pass, name, batch, ...(klass?{class:klass}:{}) }); ok++; say(`Row ${r+1}: UPDATED — ${name}`); continue; }
     } catch(e0){ fail++; say(`Row ${r+1}: ERROR reading — ${psid}: ${e0.message}`); continue; }
     // 2) No profile → create new Auth account (or recover an orphaned Auth account by signing in).
     const secApp = initializeApp(firebaseConfig, "imp-"+Date.now()+"-"+r);
@@ -1121,7 +1193,7 @@ $("csvImportBtn").onclick = async () => {
         if ((eC.code||"").includes("email-already-in-use")) { uid = (await signInWithEmailAndPassword(secAuth, authEmail, pass)).user.uid; }
         else throw eC;
       }
-      await setDoc(doc(db,"users",uid), { name, psid, email: authEmail, role:"student", examType, batch, password: pass, createdAt: serverTimestamp() });
+      await setDoc(doc(db,"users",uid), { name, psid, email: authEmail, role:"student", examType, batch, class: klass, password: pass, createdAt: serverTimestamp() });
       await signOut(secAuth);
       ok++; say(`Row ${r+1}: OK — ${name} (${batch||"no batch"})`);
     } catch(e){ fail++; say(`Row ${r+1}: ERROR — ${psid}: ${friendlyAuthError(e)}`); }
@@ -1513,7 +1585,8 @@ async function loadExams(){
   $("examRows").querySelectorAll("[data-prevex]").forEach(b => b.onclick = () => previewExam(b.dataset.prevex));
   $("examRows").querySelectorAll("[data-toggle]").forEach(b => b.onclick = async () => {
     const activate = b.dataset.act === "1";
-    await updateDoc(doc(db,"exams",b.dataset.toggle), { isActive: activate });
+    if (activate) { openAudienceModal(b.dataset.toggle); return; }
+    await updateDoc(doc(db,"exams",b.dataset.toggle), { isActive: false });
     loadExams();
   });
   $("examRows").querySelectorAll("[data-delex]").forEach(b => b.onclick = async () => {
@@ -1522,6 +1595,49 @@ async function loadExams(){
     loadExams();
   });
 }
+
+/* ----- activate: audience picker modal ----- */
+let audTargetDocId = null;
+$("audMode").onchange = () => {
+  const m = $("audMode").value;
+  $("audBatchWrap").style.display = m==="batch" ? "" : "none";
+  $("audStudentsWrap").style.display = m==="students" ? "" : "none";
+};
+$("audClose").onclick = () => { $("audBack").classList.add("hidden"); audTargetDocId = null; };
+function openAudienceModal(docId){
+  const ex = examsCache.find(e => e.docId === docId);
+  if (!ex) return;
+  audTargetDocId = docId;
+  setMsg($("audMsg"), "");
+  const a = ex.audience || { mode: "all" };
+  $("audMode").value = a.mode || "all";
+  $("audBatches").value = (a.batches||[]).join(", ");
+  $("audBatchWrap").style.display = a.mode==="batch" ? "" : "none";
+  $("audStudentsWrap").style.display = a.mode==="students" ? "" : "none";
+  const picked = new Set(a.studentUids||[]);
+  $("audStudentPick").innerHTML = studentCache
+    .filter(s => s.examType === ex.examType)
+    .map(s => `<label style="display:flex;gap:7px;align-items:center;font-weight:400;font-size:13px">
+      <input type="checkbox" value="${s.uid||s.id}" ${picked.has(s.uid||s.id)?'checked':''}> ${esc(s.name)} <span style="color:var(--muted)">(${esc(s.batch||'—')})</span></label>`).join("")
+    || `<span style="color:var(--muted);font-size:12px">No students of this exam type found.</span>`;
+  $("audBack").classList.remove("hidden");
+}
+$("audConfirm").onclick = async () => {
+  if (!audTargetDocId) return;
+  const mode = $("audMode").value;
+  const audience = { mode };
+  if (mode === "batch") {
+    audience.batches = $("audBatches").value.split(",").map(s=>s.trim()).filter(Boolean);
+    if (!audience.batches.length) { setMsg($("audMsg"),"Enter at least one batch name."); return; }
+  } else if (mode === "students") {
+    audience.studentUids = [...$("audStudentPick").querySelectorAll("input:checked")].map(c=>c.value);
+    if (!audience.studentUids.length) { setMsg($("audMsg"),"Pick at least one student."); return; }
+  }
+  await updateDoc(doc(db,"exams",audTargetDocId), { isActive: true, audience });
+  $("audBack").classList.add("hidden");
+  audTargetDocId = null;
+  loadExams();
+};
 
 /* ----- reports ----- */
 let reportCache = [];
