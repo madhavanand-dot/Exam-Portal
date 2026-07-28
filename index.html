@@ -222,6 +222,8 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="students" class="active">Students</button>
       <button data-atab="faculty" id="tabFaculty">Faculty</button>
       <button data-atab="questions">Questions</button>
+      <button data-atab="bulkimport">Bulk Import</button>
+      <button data-atab="keypatch">Answer Key</button>
       <button data-atab="exams">Exams</button>
       <button data-atab="reports">Reports</button>
       <button data-atab="leaderboard">Leaderboard</button>
@@ -298,6 +300,78 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       </div>
       <div id="qbMsg"></div>
       <table class="tbl"><thead><tr><th>ID</th><th>Sec</th><th>Question</th><th>Ans</th><th>Topic</th><th>Uploaded</th><th>Used in test(s)</th><th></th></tr></thead><tbody id="qbRows"></tbody></table>
+    </div>
+
+    <div id="atab-bulkimport" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">1. Pick your cropped question images</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Choose a whole folder (e.g. <code>Physics/Laws of Motion/q012.png</code>) — subject and topic are read from the folder names and can be edited below.
+          One question is created per image; the image <b>is</b> the question, so options come from the picture. Images are auto-compressed to fit Firestore's 1&nbsp;MB per-question limit.
+        </p>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Folder of images</label><input type="file" id="biFolder" webkitdirectory directory multiple></div>
+          <div class="field"><label>…or individual files</label><input type="file" id="biFiles" accept="image/*" multiple></div>
+        </div>
+        <div class="flexrow" style="margin-top:8px">
+          <div class="field"><label>Exam type</label><select id="biType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <div class="field"><label>Default subject</label><select id="biSubject"></select></div>
+          <div class="field"><label>Default topic</label><input id="biTopic" placeholder="(used when folder gives none)"></div>
+          <div class="field"><label>Section</label><select id="biSection"><option value="A">A — MCQ</option><option value="B">B — Numerical</option></select></div>
+          <div class="field"><label>Difficulty</label><select id="biDiff"><option>Easy</option><option selected>Medium</option><option>Hard</option></select></div>
+          <div class="field"><label>ID prefix</label><input id="biPrefix" placeholder="e.g. AIATS1_"></div>
+        </div>
+        <div id="biMsg"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2 class="sec" style="margin-top:0">2. Paste the answer key</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">
+          Any usual format works: <code>1-A 2-C 3-B</code>, <code>1. A</code>, <code>1,A</code> (one per line), or a plain run of letters <code>ABCDACBD…</code>.
+          Numbers are matched to the number found in each filename; if filenames have no numbers, the key is applied in listed order.
+        </p>
+        <textarea id="biKey" rows="4" style="width:100%;font-family:ui-monospace,monospace;font-size:13px" placeholder="1-A  2-C  3-B  4-D …"></textarea>
+        <div class="flexrow" style="margin-top:8px">
+          <button class="btn secondary" id="biApplyKeyBtn">Apply key to table</button>
+          <span id="biKeyMsg" style="font-size:12.5px;color:var(--muted);align-self:center"></span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2 class="sec" style="margin-top:0">3. Review &amp; import <span id="biCount" style="font-weight:400;color:var(--muted)"></span></h2>
+        <div class="flexrow" style="margin-bottom:8px">
+          <button class="btn" id="biImportBtn">Import to Question Bank</button>
+          <button class="btn secondary" id="biJsonBtn">Download JSON instead</button>
+          <button class="btn secondary" id="biClearBtn">Clear</button>
+        </div>
+        <div id="biLog" class="hidden"></div>
+        <div id="biWrap" style="overflow:auto;max-height:70vh"></div>
+      </div>
+    </div>
+
+    <div id="atab-keypatch" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Patch answer key on an existing bank</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Fixes <code>correct_answer</code> on questions already uploaded — useful when a test went up with placeholder answers.
+          Pick the exam (or a whole subject bank), paste the official key, preview what will change, then apply.
+        </p>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Scope</label><select id="kpScope"><option value="exam">A specific exam</option><option value="bank">A whole subject bank</option></select></div>
+          <div class="field" id="kpExamWrap"><label>Exam</label><select id="kpExam"></select></div>
+          <div class="field hidden" id="kpTypeWrap"><label>Exam type</label><select id="kpType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <div class="field hidden" id="kpSubjectWrap"><label>Subject</label><select id="kpSubject"></select></div>
+          <button class="btn secondary" id="kpLoadBtn">Load questions</button>
+        </div>
+        <div class="field" style="margin-top:10px"><label>Answer key</label>
+          <textarea id="kpKey" rows="4" style="width:100%;font-family:ui-monospace,monospace;font-size:13px" placeholder="1-A  2-C  3-B  4-D …"></textarea></div>
+        <div class="flexrow" style="margin-top:8px">
+          <button class="btn secondary" id="kpPreviewBtn">Preview changes</button>
+          <button class="btn" id="kpApplyBtn">Apply key</button>
+        </div>
+        <div id="kpMsg"></div>
+      </div>
+      <div id="kpWrap" style="margin-top:14px;overflow:auto;max-height:70vh"></div>
     </div>
 
     <div id="atab-exams" class="atab hidden">
@@ -824,6 +898,8 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="faculty") loadStaff();
     if (b.dataset.atab==="leaderboard") initLeaderboard();
     if (b.dataset.atab==="itemanalysis") initItemAnalysis();
+    if (b.dataset.atab==="bulkimport") biFillSubjects();
+    if (b.dataset.atab==="keypatch") initKeyPatch();
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
   };
@@ -1458,6 +1534,322 @@ $("qUploadBtn").onclick = async () => {
   }
   say("Done. " + written + " questions written.");
   allBankCache = null;
+};
+
+/* ============================================================
+   BULK IMAGE IMPORT  —  folder of cropped question images → question bank
+   ============================================================ */
+let biRows = [];
+
+// Parse an answer key in any of the usual shapes into { number -> answer }.
+// Handles "1-A 2-C", "1. A", "1,A", "1) A", newline or space separated,
+// and a bare run of letters (ABCDA…) which is treated as Q1..Qn in order.
+function parseAnswerKey(raw){
+  const map = {};
+  const txt = String(raw||"").trim();
+  if (!txt) return map;
+  const pairRe = /(\d{1,3})\s*[-.):,\]]?\s*([A-Da-d]|-?\d+(?:\.\d+)?)/g;
+  let m, pairs = 0;
+  while ((m = pairRe.exec(txt))) {
+    const n = parseInt(m[1],10);
+    let v = m[2];
+    if (/^[A-Da-d]$/.test(v)) v = v.toUpperCase();
+    map[n] = v; pairs++;
+  }
+  if (pairs >= 2) return map;
+  // fall back: a bare stream of option letters
+  const letters = txt.replace(/[^A-Da-d]/g,"").toUpperCase();
+  if (letters.length >= 2) letters.split("").forEach((c,i)=> map[i+1] = c);
+  return map;
+}
+// number embedded in a filename, e.g. "q012.png" / "Phy_45.jpg" → 12 / 45
+function numFromName(name){
+  const base = String(name||"").replace(/\.[a-z0-9]+$/i,"");
+  const all = base.match(/\d+/g);
+  return all ? parseInt(all[all.length-1],10) : null;
+}
+function safeDocId(s){
+  return String(s||"").replace(/\.[a-z0-9]+$/i,"").replace(/[^A-Za-z0-9_\-]+/g,"_").replace(/^_+|_+$/g,"").slice(0,120) || ("q"+Date.now());
+}
+// Read an image file and return a data URI small enough for a Firestore doc.
+// Firestore caps a document at ~1 MiB; base64 adds ~33%, so we target ~700 KB.
+function imageFileToDataUrl(file, budget=700000){
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error("could not read file"));
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("not a readable image"));
+      img.onload = () => {
+        let maxW = 1200;
+        for (let pass = 0; pass < 5; pass++) {
+          let w = img.naturalWidth, h = img.naturalHeight;
+          if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+          const c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          c.getContext("2d").drawImage(img, 0, 0, w, h);
+          let url = c.toDataURL("image/png");
+          if (url.length > budget) {
+            for (const q of [0.85, 0.7, 0.55, 0.4]) {
+              url = c.toDataURL("image/jpeg", q);
+              if (url.length <= budget) break;
+            }
+          }
+          if (url.length <= budget) return resolve(url);
+          maxW = Math.round(maxW * 0.75);   // still too big — shrink and retry
+        }
+        reject(new Error("image too large even after compression"));
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+// Work out subject/topic from a path like "Bank/Physics/Laws of Motion/q012.png"
+function pathMeta(relPath, fallbackSubject, fallbackTopic){
+  const parts = String(relPath||"").split("/").filter(Boolean);
+  parts.pop(); // drop filename
+  let subject = null, topic = null;
+  for (let i = 0; i < parts.length; i++) {
+    const hit = ALL_SUBJECTS.find(s => s.toLowerCase() === parts[i].trim().toLowerCase());
+    if (hit) { subject = hit; topic = parts.slice(i+1).join(" / ") || null; break; }
+  }
+  if (!subject && parts.length) topic = parts[parts.length-1];   // no subject folder: deepest folder is the topic
+  return { subject: subject || fallbackSubject, topic: topic || fallbackTopic || "" };
+}
+function biFillSubjects(){
+  $("biSubject").innerHTML = EXAM_CONFIG[$("biType").value].subjects.map(s=>`<option>${s}</option>`).join("");
+}
+$("biType").onchange = biFillSubjects;
+
+async function biIngest(files){
+  const list = Array.from(files).filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|webp|gif)$/i.test(f.name));
+  if (!list.length) { setMsg($("biMsg"), "No image files found in that selection."); return; }
+  list.sort((a,b) => (a.webkitRelativePath||a.name).localeCompare(b.webkitRelativePath||b.name, undefined, { numeric:true }));
+  setMsg($("biMsg"), `Reading and compressing ${list.length} images…`, true);
+  const prefix = $("biPrefix").value.trim();
+  const rows = [];
+  for (let i = 0; i < list.length; i++) {
+    const f = list[i];
+    const rel = f.webkitRelativePath || f.name;
+    const meta = pathMeta(rel, $("biSubject").value, $("biTopic").value.trim());
+    try {
+      const image = await imageFileToDataUrl(f);
+      rows.push({
+        image, file: f.name, rel,
+        id: prefix + safeDocId(f.name),
+        num: numFromName(f.name) ?? (i+1),
+        subject: meta.subject, topic: meta.topic,
+        section: $("biSection").value,
+        difficulty: $("biDiff").value,
+        correct_answer: "",
+        kb: Math.round(image.length/1024)
+      });
+    } catch(e) {
+      rows.push({ image:null, file:f.name, rel, id: prefix+safeDocId(f.name), num: numFromName(f.name) ?? (i+1),
+                  subject: meta.subject, topic: meta.topic, section: $("biSection").value,
+                  difficulty: $("biDiff").value, correct_answer:"", kb:0, error: e.message });
+    }
+    if (i % 10 === 0) setMsg($("biMsg"), `Processed ${i+1}/${list.length}…`, true);
+  }
+  biRows = rows;
+  const bad = rows.filter(r=>r.error).length;
+  setMsg($("biMsg"), `Loaded ${rows.length} images${bad?` (${bad} could not be processed)`:""}. Paste the answer key, check the table, then Import.`, true);
+  renderBiTable();
+}
+$("biFolder").onchange = e => biIngest(e.target.files);
+$("biFiles").onchange  = e => biIngest(e.target.files);
+
+function renderBiTable(){
+  $("biCount").textContent = biRows.length ? `— ${biRows.length} question(s), ${Math.round(biRows.reduce((s,r)=>s+r.kb,0)/1024)} MB total` : "";
+  if (!biRows.length) { $("biWrap").innerHTML = ""; return; }
+  const subjOpts = sel => ALL_SUBJECTS.map(s=>`<option ${s===sel?"selected":""}>${s}</option>`).join("");
+  $("biWrap").innerHTML = `<table class="tbl"><thead><tr>
+      <th>#</th><th>Preview</th><th>Question ID</th><th>Subject</th><th>Topic</th><th>Sec</th><th>Answer</th><th>Size</th><th></th>
+    </tr></thead><tbody>` +
+    biRows.map((r,i) => `<tr data-bi="${i}">
+      <td><b>${r.num}</b><br><span style="font-size:11px;color:var(--muted)">${esc(r.file)}</span></td>
+      <td>${r.image ? `<img src="${r.image}" style="max-width:190px;max-height:110px;border:1px solid var(--border);border-radius:4px;cursor:zoom-in" data-bizoom="${i}">`
+                    : `<span class="badge neg">${esc(r.error||"failed")}</span>`}</td>
+      <td><input value="${esc(r.id)}" data-bif="id" style="width:150px"></td>
+      <td><select data-bif="subject">${subjOpts(r.subject)}</select></td>
+      <td><input value="${esc(r.topic)}" data-bif="topic" style="width:150px"></td>
+      <td><select data-bif="section"><option value="A" ${r.section==="A"?"selected":""}>A</option><option value="B" ${r.section==="B"?"selected":""}>B</option></select></td>
+      <td><input value="${esc(r.correct_answer)}" data-bif="correct_answer" style="width:60px;text-align:center;font-weight:700"></td>
+      <td style="font-size:11.5px;color:var(--muted)">${r.kb} KB</td>
+      <td><button class="btn danger" style="padding:2px 8px" data-birm="${i}">✕</button></td>
+    </tr>`).join("") + `</tbody></table>`;
+
+  $("biWrap").querySelectorAll("[data-bi]").forEach(tr => {
+    const i = +tr.dataset.bi;
+    tr.querySelectorAll("[data-bif]").forEach(inp => {
+      inp.onchange = () => {
+        let v = inp.value.trim();
+        if (inp.dataset.bif === "correct_answer" && /^[a-d]$/.test(v)) v = v.toUpperCase();
+        if (inp.dataset.bif === "id") v = safeDocId(v);
+        biRows[i][inp.dataset.bif] = v;
+        if (inp.dataset.bif === "id") inp.value = v;
+      };
+    });
+  });
+  $("biWrap").querySelectorAll("[data-birm]").forEach(b => b.onclick = () => { biRows.splice(+b.dataset.birm,1); renderBiTable(); });
+  $("biWrap").querySelectorAll("[data-bizoom]").forEach(im => im.onclick = () => {
+    $("lightboxImg").src = im.src; $("lightbox").classList.remove("hidden");
+  });
+}
+$("biApplyKeyBtn").onclick = () => {
+  if (!biRows.length) { $("biKeyMsg").textContent = "Load some images first."; return; }
+  const key = parseAnswerKey($("biKey").value);
+  const n = Object.keys(key).length;
+  if (!n) { $("biKeyMsg").textContent = "Could not read any answers from that text."; return; }
+  const nums = biRows.map(r=>r.num);
+  const byNumber = new Set(nums).size === nums.length && nums.every(x => key[x] !== undefined);
+  let hit = 0;
+  biRows.forEach((r,i) => {
+    const v = byNumber ? key[r.num] : key[i+1];
+    if (v !== undefined) { r.correct_answer = v; hit++; }
+  });
+  $("biKeyMsg").textContent = `Read ${n} answers; filled ${hit} of ${biRows.length} rows ${byNumber?"by filename number":"in listed order"}.`;
+  renderBiTable();
+};
+function biValidate(){
+  const errs = [];
+  const seen = new Set();
+  biRows.forEach((r,i) => {
+    const w = `Row ${i+1} (${r.file})`;
+    if (!r.image)  errs.push(`${w}: image failed to process`);
+    if (!r.id)     errs.push(`${w}: needs an ID`);
+    if (seen.has(r.id)) errs.push(`${w}: duplicate ID "${r.id}"`);
+    seen.add(r.id);
+    if (!EXAM_CONFIG[$("biType").value].subjects.includes(r.subject))
+      errs.push(`${w}: subject "${r.subject}" is not valid for ${$("biType").value}`);
+    if (r.section === "A") { if (!["A","B","C","D"].includes(r.correct_answer)) errs.push(`${w}: answer must be A/B/C/D`); }
+    else if (r.correct_answer === "" || isNaN(parseFloat(r.correct_answer))) errs.push(`${w}: numerical answer required`);
+  });
+  return errs;
+}
+function biToQuestions(){
+  const examType = $("biType").value;
+  return biRows.map(r => ({
+    id: r.id, examType, subject: r.subject, section: r.section,
+    text: "", options: r.section === "A" ? ["","","",""] : [],
+    correct_answer: r.correct_answer, topic: r.topic, difficulty: r.difficulty,
+    image: r.image
+  }));
+}
+$("biImportBtn").onclick = async () => {
+  const log = $("biLog"); log.classList.remove("hidden"); log.textContent = "";
+  const say = t => { log.textContent += t + "\n"; log.scrollTop = log.scrollHeight; };
+  if (!biRows.length) { say("Nothing to import."); return; }
+  const errs = biValidate();
+  if (errs.length) { errs.slice(0,40).forEach(e=>say("ERROR  "+e)); if (errs.length>40) say(`…and ${errs.length-40} more.`); say("Fix these in the table, then import."); return; }
+  if (!confirm(`Import ${biRows.length} questions into the ${$("biType").value} bank?\n\nAny existing question with the same ID will be overwritten.`)) return;
+  $("biImportBtn").disabled = true;
+  try {
+    const qs = biToQuestions();
+    // Images make docs big, so commit in small batches to stay under Firestore's 10 MB request cap.
+    let written = 0;
+    for (let i = 0; i < qs.length; i += 8) {
+      const batch = writeBatch(db);
+      for (const q of qs.slice(i, i+8))
+        batch.set(doc(db,"questions",q.id), { ...q, createdBy: currentUser.uid, createdByName: currentUser.name, createdAt: serverTimestamp() });
+      await batch.commit();
+      written += Math.min(8, qs.length - i);
+      say(`Uploaded ${written}/${qs.length}…`);
+    }
+    say(`Done. ${written} questions written to the bank.`);
+    allBankCache = null;
+  } catch(e) { say("FAILED: " + e.message); }
+  finally { $("biImportBtn").disabled = false; }
+};
+$("biJsonBtn").onclick = () => {
+  if (!biRows.length) return;
+  const blob = new Blob([JSON.stringify(biToQuestions(), null, 1)], { type:"application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `questions_${$("biType").value}_${biRows.length}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+};
+$("biClearBtn").onclick = () => { biRows = []; $("biFolder").value = $("biFiles").value = ""; $("biLog").classList.add("hidden"); setMsg($("biMsg"),""); renderBiTable(); };
+
+/* ============================================================
+   ANSWER KEY PATCH  —  fix correct_answer on already-uploaded questions
+   ============================================================ */
+let kpQuestions = [];
+function initKeyPatch(){
+  const exams = isSuper() ? examsCache : examsCache.filter(e=>e.createdBy===currentUser.uid);
+  $("kpExam").innerHTML = exams.map(e=>`<option value="${e.docId}">${esc(e.title)} (${esc(e.examType)})</option>`).join("") || `<option value="">No exams</option>`;
+  kpFillSubjects();
+}
+function kpFillSubjects(){
+  $("kpSubject").innerHTML = EXAM_CONFIG[$("kpType").value].subjects.map(s=>`<option>${s}</option>`).join("");
+}
+$("kpType").onchange = kpFillSubjects;
+$("kpScope").onchange = () => {
+  const byExam = $("kpScope").value === "exam";
+  $("kpExamWrap").classList.toggle("hidden", !byExam);
+  $("kpTypeWrap").classList.toggle("hidden", byExam);
+  $("kpSubjectWrap").classList.toggle("hidden", byExam);
+};
+$("kpLoadBtn").onclick = async () => {
+  setMsg($("kpMsg"), "Loading…", true);
+  try {
+    if ($("kpScope").value === "exam") {
+      const exam = examsCache.find(e=>e.docId===$("kpExam").value);
+      if (!exam) { setMsg($("kpMsg"),"Pick an exam."); return; }
+      const snaps = await Promise.all((exam.questionIds||[]).map(id=>getDoc(doc(db,"questions",id))));
+      kpQuestions = snaps.filter(s=>s.exists()).map((s,i)=>({ docId:s.id, order:i+1, ...s.data() }));
+    } else {
+      const qs = await getDocs(query(collection(db,"questions"),
+        where("examType","==",$("kpType").value), where("subject","==",$("kpSubject").value)));
+      kpQuestions = qs.docs.map(d=>({ docId:d.id, ...d.data() }))
+        .sort((a,b)=>String(a.id||a.docId).localeCompare(String(b.id||b.docId), undefined, {numeric:true}))
+        .map((q,i)=>({ ...q, order:i+1 }));
+    }
+    setMsg($("kpMsg"), `Loaded ${kpQuestions.length} questions. Paste the key and preview.`, true);
+    $("kpWrap").innerHTML = "";
+  } catch(e){ setMsg($("kpMsg"), "Could not load: " + e.message); }
+};
+function kpMatch(){
+  const key = parseAnswerKey($("kpKey").value);
+  const nums = kpQuestions.map(q => numFromName(q.id || q.docId));
+  const usable = nums.every(n => n != null && key[n] !== undefined) && new Set(nums).size === nums.length;
+  return kpQuestions.map((q,i) => {
+    const num = usable ? nums[i] : q.order;
+    return { q, num, from: q.correct_answer ?? "", to: key[num], mode: usable ? "id" : "order" };
+  }).filter(r => r.to !== undefined);
+}
+$("kpPreviewBtn").onclick = () => {
+  if (!kpQuestions.length) { setMsg($("kpMsg"),"Load questions first."); return; }
+  const rows = kpMatch();
+  if (!rows.length) { setMsg($("kpMsg"),"No answers in the key matched these questions."); return; }
+  const changed = rows.filter(r => String(r.from) !== String(r.to));
+  setMsg($("kpMsg"), `${rows.length} matched (${rows[0].mode==="id"?"by number in question ID":"in listed order"}) • ${changed.length} would change • ${rows.length-changed.length} already correct.`, true);
+  $("kpWrap").innerHTML = `<table class="tbl"><thead><tr><th>#</th><th>Question ID</th><th>Subject</th><th>Topic</th><th>Current</th><th>New</th><th></th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td>${r.num}</td><td>${esc(r.q.id||r.q.docId)}</td><td>${esc(r.q.subject||"")}</td><td>${esc(r.q.topic||"—")}</td>
+      <td>${esc(String(r.from))||"<span style='color:var(--muted)'>none</span>"}</td><td><b>${esc(String(r.to))}</b></td>
+      <td>${String(r.from)===String(r.to) ? '<span class="badge zero">same</span>' : '<span class="badge pos">change</span>'}</td></tr>`).join("") +
+    `</tbody></table>`;
+};
+$("kpApplyBtn").onclick = async () => {
+  if (!kpQuestions.length) { setMsg($("kpMsg"),"Load questions first."); return; }
+  const rows = kpMatch().filter(r => String(r.from) !== String(r.to));
+  if (!rows.length) { setMsg($("kpMsg"),"Nothing to change."); return; }
+  if (!confirm(`Update correct_answer on ${rows.length} question(s)? This cannot be undone.`)) return;
+  $("kpApplyBtn").disabled = true;
+  try {
+    for (let i = 0; i < rows.length; i += 400) {
+      const batch = writeBatch(db);
+      rows.slice(i, i+400).forEach(r => batch.update(doc(db,"questions",r.q.docId), { correct_answer: String(r.to) }));
+      await batch.commit();
+      setMsg($("kpMsg"), `Updated ${Math.min(i+400, rows.length)}/${rows.length}…`, true);
+    }
+    setMsg($("kpMsg"), `Done — ${rows.length} answers updated.`, true);
+    allBankCache = null;
+    kpQuestions.forEach(q => { const r = rows.find(x=>x.q.docId===q.docId); if (r) q.correct_answer = String(r.to); });
+    $("kpPreviewBtn").onclick();
+  } catch(e){ setMsg($("kpMsg"), "Failed: " + e.message); }
+  finally { $("kpApplyBtn").disabled = false; }
 };
 
 /* ----- question bank browse ----- */
