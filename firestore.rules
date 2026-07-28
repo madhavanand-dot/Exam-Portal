@@ -16,9 +16,14 @@ service cloud.firestore {
     match /users/{uid} {
       // staff need to read the student list (for exam assignment); a user can read self
       allow read: if isSelf(uid) || isStaff();
-      // ONLY super-admins create/promote/demote/remove accounts.
-      // The very first admin must be created from the Firebase console (see README).
-      allow create, update, delete: if isSuperAdmin();
+      // Super-admins manage all accounts. A newly signed-up user may create their
+      // OWN profile, but only as a plain student tied to their own auth email —
+      // self-signup can never mint an admin/faculty account.
+      allow create: if isSuperAdmin() ||
+        (isSelf(uid)
+          && request.resource.data.role == "student"
+          && request.resource.data.email == request.auth.token.email);
+      allow update, delete: if isSuperAdmin();
     }
 
     // ---------- questions ----------
@@ -49,6 +54,28 @@ service cloud.firestore {
       allow update: if isStaff() ||
         (signedIn() && resource.data.studentUid == request.auth.uid
                     && request.resource.data.studentUid == request.auth.uid);
+      allow delete: if isStaff();
+    }
+
+    // ---------- topicIndex (lightweight chapter index for student practice) ----------
+    // One small doc per examType+subject listing {id, topic, difficulty, section} so a
+    // student can browse chapters without downloading the whole image-heavy question bank.
+    match /topicIndex/{indexId} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+
+    // ---------- practiceAttempts (student self-study, ungraded) ----------
+    // Deliberately separate from /attempts so practice never touches Reports,
+    // Leaderboard, Item Analysis, rank or percentile.
+    match /practiceAttempts/{practiceId} {
+      // a student sees only their own; staff can review all
+      allow read: if isStaff() ||
+        (signedIn() && resource.data.studentUid == request.auth.uid);
+      allow create: if signedIn() &&
+        request.resource.data.studentUid == request.auth.uid;
+      allow update: if signedIn() && resource.data.studentUid == request.auth.uid
+                    && request.resource.data.studentUid == request.auth.uid;
       allow delete: if isStaff();
     }
 

@@ -224,6 +224,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="questions">Questions</button>
       <button data-atab="bulkimport">Bulk Import</button>
       <button data-atab="keypatch">Answer Key</button>
+      <button data-atab="topics">Topics</button>
       <button data-atab="exams">Exams</button>
       <button data-atab="reports">Reports</button>
       <button data-atab="leaderboard">Leaderboard</button>
@@ -374,6 +375,34 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <div id="kpWrap" style="margin-top:14px;overflow:auto;max-height:70vh"></div>
     </div>
 
+    <div id="atab-topics" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Chapter / Topic Manager</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Every distinct <code>topic</code> in the question bank, with how many questions carry it. Rename a chapter, or tick several
+          and merge them into one name — this is what students see in the chapter list when they build a practice set, so consistent
+          NCERT naming matters. Changes rewrite the <code>topic</code> field on the affected questions.
+        </p>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Exam type</label><select id="tmType"><option value="">(all)</option><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <div class="field"><label>Subject</label><select id="tmSubject"><option value="">(all)</option></select></div>
+          <button class="btn secondary" id="tmLoadBtn">Load topics</button>
+          <button class="btn secondary" id="tmRefreshBtn" title="Re-fetch from Firestore instead of using the cached copy">Refresh from server</button>
+        </div>
+        <div id="tmMsg"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Merge / rename selected into</label><input id="tmNewName" placeholder="e.g. Laws of Motion"></div>
+          <button class="btn" id="tmApplyBtn">Apply to selected</button>
+          <span id="tmSelCount" style="font-size:12.5px;color:var(--muted);align-self:center"></span>
+          <button class="btn secondary" id="tmIndexBtn" title="Students read this small index instead of the whole bank">Rebuild practice index</button>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Tick one topic and type a new name to rename it. Tick several to merge them all under a single name.</p>
+      </div>
+      <div id="tmWrap" style="margin-top:14px;overflow:auto;max-height:65vh"></div>
+    </div>
+
     <div id="atab-exams" class="atab hidden">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Create Exam</h2>
@@ -497,6 +526,35 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <h2 class="sec" style="margin-top:0">Available Exams</h2>
       <div id="activeExamInfo">Checking for available exams&hellip;</div>
     </div>
+    <div class="card" id="practiceCard" style="margin-top:16px">
+      <h2 class="sec" style="margin-top:0">📚 Practice by Chapter</h2>
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+        Got a school test coming up? Pick the chapters it covers and build your own practice set from the question bank.
+        You get the answer explained after each question, and it won't affect your Aakash test scores or rank.
+      </p>
+      <div class="flexrow" style="align-items:flex-end">
+        <div class="field"><label>Subject</label><select id="prSubject"></select></div>
+        <div class="field"><label>Questions</label><select id="prCount">
+          <option>10</option><option selected>25</option><option>50</option><option>75</option></select></div>
+        <div class="field"><label>Difficulty</label><select id="prDiff">
+          <option value="">Any</option><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
+        <div class="field" style="align-self:center"><label style="display:flex;gap:6px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="prFresh" checked> <span>Skip questions I've already practised</span></label></div>
+      </div>
+      <div style="margin-top:10px"><label style="font-size:12.5px;font-weight:600;color:var(--muted)">Chapters <span id="prChapHint" style="font-weight:400"></span></label>
+        <div id="prChapters" style="max-height:230px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:8px;margin-top:5px">Loading chapters…</div>
+      </div>
+      <div class="flexrow" style="margin-top:10px">
+        <button class="btn" id="prStartBtn">Start Practice</button>
+        <button class="btn secondary" id="prSelAllBtn">Select all</button>
+        <button class="btn secondary" id="prSelNoneBtn">Clear</button>
+      </div>
+      <div id="prSetupMsg"></div>
+    </div>
+
+    <h2 class="sec">My Practice History</h2>
+    <table class="tbl"><thead><tr><th>Date</th><th>Subject</th><th>Chapters</th><th>Questions</th><th>Correct</th><th>Accuracy</th><th>Time</th></tr></thead><tbody id="prHistRows"><tr><td colspan="7">…</td></tr></tbody></table>
+
     <h2 class="sec">Past Attempts</h2>
     <table class="tbl"><thead><tr><th>Date</th><th>Exam</th><th>Type</th><th>Score</th><th>Rank</th><th>Percentile</th><th></th></tr></thead><tbody id="attemptRows"></tbody></table>
     <h2 class="sec">My Progress</h2>
@@ -546,6 +604,40 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
     </div>
   </div>
   <button id="palToggle" title="Question palette">&#9776;</button>
+</div>
+
+<!-- ================= PRACTICE (student self-study, no proctoring) ================= -->
+<div id="view-practice" class="view hidden">
+  <div class="topbar"><h1 id="prTitle">Practice</h1><span class="who" id="prWho"></span><button class="btn secondary" id="prExitBtn">Exit practice</button></div>
+  <div class="wrap">
+    <div id="prRunner">
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <div id="prProgress" style="font-weight:700;color:var(--blue)"></div>
+        <div id="prTally" style="font-size:13px;color:var(--muted)"></div>
+        <div id="prTimer" style="font-size:13px;color:var(--muted);margin-left:auto"></div>
+      </div>
+      <div style="height:6px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:14px">
+        <div id="prBar" style="height:100%;width:0;background:var(--blue);transition:width .2s"></div>
+      </div>
+      <div class="card">
+        <div id="prMeta" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
+        <div id="prText" style="font-size:15.5px;line-height:1.6;margin-bottom:12px"></div>
+        <div id="prOptions"></div>
+        <div id="prNumWrap" class="hidden" style="margin-top:8px">
+          <label style="font-size:12.5px;color:var(--muted)">Your answer (numerical)</label>
+          <input id="prNumInput" style="max-width:220px" inputmode="decimal" placeholder="e.g. 42 or 3.14">
+        </div>
+        <div id="prFeedback" style="margin-top:12px"></div>
+        <div class="flexrow" style="margin-top:14px">
+          <button class="btn" id="prCheckBtn">Check answer</button>
+          <button class="btn secondary" id="prSkipBtn">Skip</button>
+          <button class="btn" id="prNextBtn" style="display:none">Next question →</button>
+          <button class="btn secondary" id="prFinishBtn" style="margin-left:auto">Finish &amp; see summary</button>
+        </div>
+      </div>
+    </div>
+    <div id="prSummary" class="hidden"></div>
+  </div>
 </div>
 
 <!-- lightbox for image zoom -->
@@ -900,6 +992,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="itemanalysis") initItemAnalysis();
     if (b.dataset.atab==="bulkimport") biFillSubjects();
     if (b.dataset.atab==="keypatch") initKeyPatch();
+    if (b.dataset.atab==="topics") initTopics();
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
   };
@@ -1852,6 +1945,119 @@ $("kpApplyBtn").onclick = async () => {
   finally { $("kpApplyBtn").disabled = false; }
 };
 
+/* ============================================================
+   TOPIC MANAGER  —  keep chapter names consistent across the bank
+   ============================================================ */
+let tmGroups = [];
+function tmFillSubjects(){
+  const t = $("tmType").value;
+  const subs = t ? EXAM_CONFIG[t].subjects : ALL_SUBJECTS;
+  $("tmSubject").innerHTML = `<option value="">(all)</option>` + subs.map(s=>`<option>${s}</option>`).join("");
+}
+$("tmType").onchange = tmFillSubjects;
+function initTopics(){ tmFillSubjects(); }
+async function loadTopics(force){
+  setMsg($("tmMsg"), allBankCache && !force ? "Grouping topics…" : "Loading the question bank…", true);
+  try {
+    if (!allBankCache || force) {
+      const qs = await getDocs(collection(db,"questions"));
+      allBankCache = qs.docs.map(d => ({ docId:d.id, ...d.data() }));
+    }
+    const ty = $("tmType").value, su = $("tmSubject").value;
+    const scope = allBankCache.filter(q => (!ty || q.examType===ty) && (!su || q.subject===su));
+    const map = {};
+    scope.forEach(q => {
+      const key = `${q.examType||"?"}||${q.subject||"?"}||${(q.topic||"").trim()}`;
+      const g = map[key] || (map[key] = { examType:q.examType||"?", subject:q.subject||"?", topic:(q.topic||"").trim(), n:0, ids:[] });
+      g.n++; g.ids.push(q.docId);
+    });
+    tmGroups = Object.values(map).sort((a,b) =>
+      a.examType.localeCompare(b.examType) || a.subject.localeCompare(b.subject) ||
+      (a.topic===""? -1 : b.topic===""? 1 : a.topic.localeCompare(b.topic)));
+    const untagged = tmGroups.filter(g=>!g.topic).reduce((s,g)=>s+g.n,0);
+    setMsg($("tmMsg"), `${tmGroups.filter(g=>g.topic).length} distinct topics across ${scope.length} questions` +
+      (untagged ? ` • ${untagged} question(s) have NO topic — they won't appear in any chapter list.` : ""), true);
+    renderTopics();
+  } catch(e){ setMsg($("tmMsg"), "Could not load: " + e.message); }
+}
+function renderTopics(){
+  if (!tmGroups.length) { $("tmWrap").innerHTML = ""; return; }
+  $("tmWrap").innerHTML = `<table class="tbl"><thead><tr>
+      <th style="width:34px"></th><th>Exam type</th><th>Subject</th><th>Topic / chapter</th><th>Questions</th></tr></thead><tbody>` +
+    tmGroups.map((g,i)=>`<tr>
+      <td><input type="checkbox" data-tmsel="${i}"></td>
+      <td>${esc(g.examType)}</td><td>${esc(g.subject)}</td>
+      <td>${g.topic ? esc(g.topic) : '<span class="badge neg">no topic</span>'}</td>
+      <td><b>${g.n}</b></td></tr>`).join("") + `</tbody></table>`;
+  $("tmWrap").querySelectorAll("[data-tmsel]").forEach(c => c.onchange = tmUpdateSel);
+  tmUpdateSel();
+}
+function tmSelected(){ return Array.from($("tmWrap").querySelectorAll("[data-tmsel]:checked")).map(c=>tmGroups[+c.dataset.tmsel]); }
+function tmUpdateSel(){
+  const sel = tmSelected();
+  $("tmSelCount").textContent = sel.length ? `${sel.length} topic(s) selected — ${sel.reduce((s,g)=>s+g.n,0)} questions affected` : "";
+  if (sel.length === 1 && sel[0].topic && !$("tmNewName").value.trim()) $("tmNewName").value = sel[0].topic;
+}
+$("tmLoadBtn").onclick    = () => loadTopics(false);
+$("tmRefreshBtn").onclick = () => loadTopics(true);
+$("tmApplyBtn").onclick = async () => {
+  const sel = tmSelected();
+  const name = $("tmNewName").value.trim();
+  if (!sel.length) { setMsg($("tmMsg"), "Tick at least one topic first."); return; }
+  if (!name)       { setMsg($("tmMsg"), "Type the name to use."); return; }
+  const ids = [...new Set(sel.flatMap(g=>g.ids))];
+  const subs = [...new Set(sel.map(g=>g.subject))];
+  if (subs.length > 1 && !confirm(`Those topics span more than one subject (${subs.join(", ")}). Merge them all into "${name}" anyway?`)) return;
+  if (!confirm(`Set topic = "${name}" on ${ids.length} question(s)?\n\n${sel.map(g=>`• ${g.subject} — ${g.topic||"(no topic)"} (${g.n})`).join("\n")}`)) return;
+  $("tmApplyBtn").disabled = true;
+  try {
+    for (let i = 0; i < ids.length; i += 400) {
+      const batch = writeBatch(db);
+      ids.slice(i, i+400).forEach(id => batch.update(doc(db,"questions",id), { topic: name }));
+      await batch.commit();
+      setMsg($("tmMsg"), `Updated ${Math.min(i+400, ids.length)}/${ids.length}…`, true);
+    }
+    // keep the local cache in step so a re-render is accurate without re-fetching
+    const idSet = new Set(ids);
+    (allBankCache||[]).forEach(q => { if (idSet.has(q.docId)) q.topic = name; });
+    $("tmNewName").value = "";
+    setMsg($("tmMsg"), `Done — ${ids.length} question(s) now tagged "${name}".`, true);
+    loadTopics(false);
+  } catch(e){ setMsg($("tmMsg"), "Failed: " + e.message); }
+  finally { $("tmApplyBtn").disabled = false; }
+};
+
+/* Practice index: one small doc per examType+subject listing {id, topic, difficulty, section}.
+   Students read this to build a chapter list, instead of downloading the whole (image-heavy) bank. */
+$("tmIndexBtn").onclick = async () => {
+  if (!confirm("Rebuild the practice index from the current question bank?\n\nStudents use this to see which chapters are available. Re-run it after importing new questions or renaming topics.")) return;
+  $("tmIndexBtn").disabled = true;
+  try {
+    setMsg($("tmMsg"), "Reading the question bank…", true);
+    const qs = await getDocs(collection(db,"questions"));
+    allBankCache = qs.docs.map(d => ({ docId:d.id, ...d.data() }));
+    const buckets = {};
+    allBankCache.forEach(q => {
+      if (!q.examType || !q.subject) return;
+      const key = `${q.examType}__${q.subject}`;
+      (buckets[key] = buckets[key] || []).push({
+        i: q.docId, t: (q.topic||"").trim(), d: q.difficulty || "Medium", s: q.section || "A"
+      });
+    });
+    const keys = Object.keys(buckets);
+    for (const k of keys) {
+      const [examType, subject] = k.split("__");
+      await setDoc(doc(db,"topicIndex",k), {
+        examType, subject, count: buckets[k].length, q: buckets[k],
+        updatedAt: serverTimestamp(), updatedBy: currentUser.name
+      });
+      setMsg($("tmMsg"), `Indexed ${subject} (${examType}) — ${buckets[k].length} questions…`, true);
+    }
+    setMsg($("tmMsg"), `Practice index rebuilt for ${keys.length} bank(s), ${allBankCache.length} questions total.`, true);
+  } catch(e){ setMsg($("tmMsg"), "Index rebuild failed: " + e.message + (String(e.message).includes("permission") ? " — publish the updated firestore.rules first." : "")); }
+  finally { $("tmIndexBtn").disabled = false; }
+};
+
 /* ----- question bank browse ----- */
 $("qbType").onchange = populateQbSubjects;
 function populateQbSubjects(){
@@ -2296,6 +2502,7 @@ async function enterStudent(){
   $("studentWho").textContent = `${currentUser.name} (${currentUser.examType}${currentUser.batch?", "+currentUser.batch:""})`;
   showView("view-student");
   loadActiveExam(); loadMyAttempts();
+  initPractice(); loadPracticeHistory();
   progressHtml(currentUser.uid, currentUser.name).then(h => { const el=$("myProgress"); if(el) el.innerHTML=h; }).catch(()=>{});
 }
 
@@ -2796,6 +3003,334 @@ async function submitExam(auto, flag={}){
   showResult({ ...attemptData, submitTime: new Date(), _detail: detail });
   EX = null;
 }
+/* ============================================================
+   PRACTICE MODE  —  student-built chapter practice, no proctoring,
+   instant feedback, kept out of the graded attempts collection.
+   ============================================================ */
+let prEntries = [];        // [{i,t,d,s}] from the topicIndex doc for the chosen subject
+let prSeen = new Set();    // question ids this student has already practised
+let PR = null;             // live session
+
+function initPractice(){
+  const subs = EXAM_CONFIG[currentUser.examType]?.subjects || [];
+  $("prSubject").innerHTML = subs.map(s=>`<option>${s}</option>`).join("");
+  loadPracticeSeen().then(() => loadPracticeChapters());
+}
+async function loadPracticeSeen(){
+  prSeen = new Set();
+  try {
+    const qs = await getDocs(query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
+    qs.docs.forEach(d => (d.data().questionIds||[]).forEach(id => prSeen.add(id)));
+  } catch(e){ /* rules not published yet, or none exist — treat as nothing seen */ }
+}
+async function loadPracticeChapters(){
+  const box = $("prChapters");
+  box.innerHTML = "Loading chapters…";
+  const subject = $("prSubject").value;
+  try {
+    const s = await getDoc(doc(db,"topicIndex", `${currentUser.examType}__${subject}`));
+    if (!s.exists()) {
+      prEntries = [];
+      box.innerHTML = `<div style="color:var(--muted);padding:6px">No practice questions indexed for ${esc(subject)} yet. Ask your faculty to rebuild the practice index.</div>`;
+      $("prChapHint").textContent = ""; return;
+    }
+    prEntries = (s.data().q || []).filter(e => e.t);   // untagged questions can't be offered by chapter
+    renderPracticeChapters();
+  } catch(e){
+    box.innerHTML = `<div style="color:var(--muted);padding:6px">Could not load chapters: ${esc(e.message)}</div>`;
+  }
+}
+function prPool(){
+  const diff = $("prDiff").value;
+  let pool = prEntries;
+  if (diff) pool = pool.filter(e => (e.d||"Medium") === diff);
+  return pool;
+}
+function renderPracticeChapters(){
+  const pool = prPool();
+  const fresh = $("prFresh").checked;
+  const byTopic = {};
+  pool.forEach(e => {
+    const t = byTopic[e.t] || (byTopic[e.t] = { total:0, unseen:0 });
+    t.total++; if (!prSeen.has(e.i)) t.unseen++;
+  });
+  const topics = Object.keys(byTopic).sort((a,b)=>a.localeCompare(b));
+  const prev = new Set(Array.from($("prChapters").querySelectorAll("input:checked")).map(c=>c.value));
+  $("prChapHint").textContent = topics.length ? `— ${topics.length} available` : "";
+  $("prChapters").innerHTML = topics.length
+    ? topics.map(t => {
+        const c = byTopic[t], n = fresh ? c.unseen : c.total;
+        const out = fresh && !c.unseen;
+        return `<label style="display:flex;gap:8px;align-items:center;padding:3px 2px;${out?"opacity:.45":""}">
+          <input type="checkbox" value="${esc(t)}" ${prev.has(t)?"checked":""} ${out?"disabled":""}>
+          <span>${esc(t)} <small style="color:var(--muted)">(${n}${fresh&&c.total!==c.unseen?` new of ${c.total}`:""})</small></span></label>`;
+      }).join("")
+    : `<div style="color:var(--muted);padding:6px">Nothing matches that difficulty. Try "Any".</div>`;
+  $("prChapters").querySelectorAll("input").forEach(c => c.onchange = prUpdateSetupMsg);
+  prUpdateSetupMsg();
+}
+function prSelectedTopics(){ return Array.from($("prChapters").querySelectorAll("input:checked")).map(c=>c.value); }
+function prCandidates(){
+  const topics = new Set(prSelectedTopics());
+  let pool = prPool().filter(e => topics.has(e.t));
+  if ($("prFresh").checked) {
+    const unseen = pool.filter(e => !prSeen.has(e.i));
+    if (unseen.length) pool = unseen;    // fall back to repeats only when the bank is exhausted
+  }
+  return pool;
+}
+function prUpdateSetupMsg(){
+  const n = prCandidates().length, want = +$("prCount").value;
+  if (!prSelectedTopics().length) { setMsg($("prSetupMsg"), ""); return; }
+  setMsg($("prSetupMsg"), n >= want
+    ? `${n} questions available — your set will have ${want}.`
+    : `Only ${n} question(s) available for that selection; your set will have ${n}.`, true);
+}
+$("prSubject").onchange = () => loadPracticeChapters();
+$("prDiff").onchange    = () => renderPracticeChapters();
+$("prFresh").onchange   = () => renderPracticeChapters();
+$("prCount").onchange   = prUpdateSetupMsg;
+$("prSelAllBtn").onclick  = () => { $("prChapters").querySelectorAll("input:not([disabled])").forEach(c=>c.checked=true); prUpdateSetupMsg(); };
+$("prSelNoneBtn").onclick = () => { $("prChapters").querySelectorAll("input").forEach(c=>c.checked=false); prUpdateSetupMsg(); };
+
+function shuffled(a){ const x = a.slice(); for (let i=x.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [x[i],x[j]]=[x[j],x[i]]; } return x; }
+
+$("prStartBtn").onclick = async () => {
+  if (!prSelectedTopics().length) { setMsg($("prSetupMsg"), "Pick at least one chapter."); return; }
+  const want = +$("prCount").value;
+  const picked = shuffled(prCandidates()).slice(0, want);
+  if (!picked.length) { setMsg($("prSetupMsg"), "No questions match that selection."); return; }
+  $("prStartBtn").disabled = true;
+  setMsg($("prSetupMsg"), `Loading ${picked.length} questions…`, true);
+  try {
+    const snaps = await Promise.all(picked.map(e => getDoc(doc(db,"questions",e.i))));
+    const questions = snaps.filter(s=>s.exists()).map(s=>({ docId:s.id, ...s.data() }));
+    if (!questions.length) { setMsg($("prSetupMsg"), "Those questions could not be loaded."); return; }
+    PR = {
+      questions, idx: 0,
+      state: questions.map(()=>({ answer:null, timeSec:0, checked:false, correct:null })),
+      subject: $("prSubject").value,
+      topics: prSelectedTopics(),
+      startedAt: Date.now(), shownAt: Date.now(), finished: false
+    };
+    setMsg($("prSetupMsg"), "");
+    $("prWho").textContent = `${currentUser.name} • ${PR.subject}`;
+    $("prSummary").classList.add("hidden");
+    $("prRunner").classList.remove("hidden");
+    showView("view-practice");
+    prRender();
+    if (PR.tick) clearInterval(PR.tick);
+    PR.tick = setInterval(() => {
+      if (!PR || PR.finished) return;
+      const total = Math.round((Date.now()-PR.startedAt)/1000);
+      $("prTimer").textContent = `Total ${fmtSec(total)} • this question ${fmtSec((Date.now()-PR.shownAt)/1000 + PR.state[PR.idx].timeSec)}`;
+    }, 1000);
+  } catch(e){ setMsg($("prSetupMsg"), "Could not start: " + e.message); }
+  finally { $("prStartBtn").disabled = false; }
+};
+
+function prCommitTime(){
+  if (!PR) return;
+  PR.state[PR.idx].timeSec += (Date.now() - PR.shownAt)/1000;
+  PR.shownAt = Date.now();
+}
+function prIsCorrect(q, ans){
+  if (ans == null || ans === "") return false;
+  return (q.section||"A") === "A"
+    ? ans === q.correct_answer
+    : Math.abs(parseFloat(ans) - parseFloat(q.correct_answer)) < 1e-6;
+}
+function prRender(){
+  const q = PR.questions[PR.idx], st = PR.state[PR.idx];
+  const done = PR.state.filter(s=>s.checked).length;
+  const right = PR.state.filter(s=>s.correct===true).length;
+  $("prProgress").textContent = `Question ${PR.idx+1} of ${PR.questions.length}`;
+  $("prTally").textContent = done ? `${right} correct of ${done} answered` : "";
+  $("prBar").style.width = `${Math.round(100*(PR.idx)/PR.questions.length)}%`;
+  $("prMeta").textContent = `${q.subject} • ${q.topic||"—"} • ${q.difficulty||"Medium"} • Section ${q.section||"A"}`;
+  $("prText").innerHTML = (q.text||"") + imgHtml(q.image);
+
+  const order = "ABCD";
+  if ((q.section||"A") === "A") {
+    $("prNumWrap").classList.add("hidden");
+    $("prOptions").innerHTML = (q.options||["","","",""]).map((o,k)=>{
+      const letter = order[k];
+      const txt = String(o||"").replace(/^\s*[A-D][).]\s*/,"");
+      const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
+      return `<label class="opt ${st.answer===letter?"sel":""}" data-propt="${letter}">
+        <input type="radio" name="prOpt" value="${letter}" ${st.answer===letter?"checked":""} ${st.checked?"disabled":""}>
+        <span><b>(${letter})</b> ${txt}${oimg}</span></label>`;
+    }).join("");
+    $("prOptions").querySelectorAll("[data-propt]").forEach(el => el.onclick = () => {
+      if (PR.state[PR.idx].checked) return;
+      PR.state[PR.idx].answer = el.dataset.propt;
+      $("prOptions").querySelectorAll(".opt").forEach(o=>o.classList.remove("sel"));
+      el.classList.add("sel");
+      el.querySelector("input").checked = true;
+    });
+  } else {
+    $("prOptions").innerHTML = "";
+    $("prNumWrap").classList.remove("hidden");
+    $("prNumInput").value = st.answer ?? "";
+    $("prNumInput").disabled = !!st.checked;
+  }
+  $("prFeedback").innerHTML = "";
+  $("prCheckBtn").style.display = st.checked ? "none" : "";
+  $("prSkipBtn").style.display  = st.checked ? "none" : "";
+  $("prNextBtn").style.display  = st.checked ? "" : "none";
+  $("prNextBtn").textContent = PR.idx === PR.questions.length-1 ? "See summary →" : "Next question →";
+  if (st.checked) prShowFeedback();
+  typeset($("prText")); typeset($("prOptions"));
+}
+function prShowFeedback(){
+  const q = PR.questions[PR.idx], st = PR.state[PR.idx];
+  const order = "ABCD";
+  const correctTxt = (q.section||"A")==="A"
+    ? `(${esc(q.correct_answer)}) ${esc(String((q.options||[])[order.indexOf(q.correct_answer)]||"").replace(/^\s*[A-D][).]\s*/,""))}`
+    : esc(String(q.correct_answer));
+  // highlight the right option, and their wrong pick
+  $("prOptions").querySelectorAll("[data-propt]").forEach(el => {
+    const L = el.dataset.propt;
+    el.querySelector("input").disabled = true;
+    if (L === q.correct_answer) el.style.cssText += ";border-color:#1e7a44;background:#e2f5e9";
+    else if (L === st.answer)   el.style.cssText += ";border-color:#b03a2e;background:#fdecea";
+  });
+  const skipped = st.answer == null || st.answer === "";
+  $("prFeedback").innerHTML = `
+    <div style="border-left:4px solid ${st.correct?"#1e7a44":skipped?"#8a8f98":"#b03a2e"};background:${st.correct?"#e2f5e9":skipped?"#eef1f4":"#fdecea"};padding:10px 12px;border-radius:6px">
+      <b>${st.correct ? "✓ Correct" : skipped ? "Skipped" : "✗ Not quite"}</b>
+      ${st.correct ? "" : ` — the answer is <b>${correctTxt}</b>`}
+      <div style="font-size:12.5px;color:var(--muted);margin-top:4px">Time on this question: ${fmtSec(st.timeSec)}${
+        st.timeSec > 120 ? " — that's over 2 minutes; worth revisiting the concept." : ""}</div>
+    </div>`;
+  typeset($("prFeedback"));
+}
+$("prCheckBtn").onclick = () => {
+  const q = PR.questions[PR.idx], st = PR.state[PR.idx];
+  if ((q.section||"A") === "B") st.answer = $("prNumInput").value.trim() || null;
+  prCommitTime();
+  st.checked = true;
+  st.correct = prIsCorrect(q, st.answer);
+  prRender();
+};
+$("prSkipBtn").onclick = () => {
+  const st = PR.state[PR.idx];
+  prCommitTime();
+  st.answer = null; st.checked = true; st.correct = false; st.skipped = true;
+  prRender();
+};
+$("prNextBtn").onclick = () => {
+  if (PR.idx === PR.questions.length-1) { prFinish(); return; }
+  prCommitTime();
+  PR.idx++;
+  PR.shownAt = Date.now();
+  prRender();
+  window.scrollTo(0,0);
+};
+$("prFinishBtn").onclick = () => { if (confirm("Finish this practice set and see your summary?")) prFinish(); };
+$("prExitBtn").onclick = () => {
+  if (PR && !PR.finished && !confirm("Leave this practice set? Your progress won't be saved.")) return;
+  if (PR?.tick) clearInterval(PR.tick);
+  PR = null;
+  showView("view-student");
+  loadPracticeSeen().then(()=>{ renderPracticeChapters(); loadPracticeHistory(); });
+};
+
+async function prFinish(){
+  if (!PR || PR.finished) return;
+  prCommitTime();
+  PR.finished = true;
+  if (PR.tick) clearInterval(PR.tick);
+  const answered = PR.state.filter(s=>s.checked && s.answer != null && s.answer !== "");
+  const correct  = PR.state.filter(s=>s.correct===true).length;
+  const wrong    = answered.length - correct;
+  const skipped  = PR.questions.length - answered.length;
+  const totalTimeSec = Math.round((Date.now()-PR.startedAt)/1000);
+
+  const responses = {};
+  PR.questions.forEach((q,i) => {
+    const st = PR.state[i];
+    responses[q.docId] = { answer: st.answer ?? null, correct: st.correct===true, timeSec: Math.round(st.timeSec), topic: q.topic||"" };
+  });
+  const rec = {
+    studentUid: currentUser.uid, studentName: currentUser.name,
+    examType: currentUser.examType, batch: currentUser.batch || "",
+    subject: PR.subject, topics: PR.topics,
+    questionIds: PR.questions.map(q=>q.docId),
+    responses, total: PR.questions.length, correct, wrong, skipped,
+    totalTimeSec, startedAt: Timestamp.fromMillis(PR.startedAt), submittedAt: serverTimestamp()
+  };
+  let saveNote = "";
+  try { await addDoc(collection(db,"practiceAttempts"), rec); }
+  catch(e){ saveNote = `<div class="msg err" style="margin-top:10px">Your summary is below, but it couldn't be saved to your history (${esc(e.message)}).</div>`; }
+
+  // per-chapter breakdown
+  const byTopic = {};
+  PR.questions.forEach((q,i) => {
+    const st = PR.state[i], t = q.topic || "—";
+    const b = byTopic[t] || (byTopic[t] = { n:0, c:0, w:0, s:0, time:0 });
+    b.n++; b.time += st.timeSec;
+    if (st.correct) b.c++; else if (st.answer==null||st.answer==="") b.s++; else b.w++;
+  });
+  const topicRows = Object.entries(byTopic)
+    .map(([t,b]) => ({ t, ...b, acc: b.n ? Math.round(100*b.c/b.n) : 0 }))
+    .sort((a,b)=>a.acc-b.acc)
+    .map(r => `<tr><td>${esc(r.t)}</td><td>${r.n}</td><td>${r.c}</td><td>${r.w}</td><td>${r.s}</td>
+      <td style="${iaHeat(r.acc)}"><b>${r.acc}%</b></td><td>${fmtSec(r.time/r.n)}</td></tr>`).join("");
+
+  const wrongRows = PR.questions.map((q,i)=>({q, st:PR.state[i]}))
+    .filter(x => x.st.correct === false)
+    .map((x,i) => `<tr><td>${i+1}</td><td>${esc(x.q.topic||"—")}</td>
+      <td><details class="qexp"><summary>${esc((x.q.text||"(image question)").replace(/<[^>]*>/g,"").slice(0,70))}…</summary>
+        <div>${x.q.text||""}${imgHtml(x.q.image)}</div></details></td>
+      <td>${esc(String(x.st.answer ?? "—"))}</td><td><b>${esc(String(x.q.correct_answer))}</b></td><td>${fmtSec(x.st.timeSec)}</td></tr>`).join("")
+    || `<tr><td colspan="6">Nothing wrong — well done.</td></tr>`;
+
+  const acc = answered.length ? Math.round(100*correct/answered.length) : 0;
+  const avg = PR.questions.length ? totalTimeSec/PR.questions.length : 0;
+  $("prRunner").classList.add("hidden");
+  $("prSummary").classList.remove("hidden");
+  $("prSummary").innerHTML = saveNote + `
+    <div class="statRow">
+      <div class="stat"><div class="v">${correct}/${PR.questions.length}</div><div class="l">Correct</div></div>
+      <div class="stat"><div class="v">${acc}%</div><div class="l">Accuracy</div></div>
+      <div class="stat"><div class="v">${skipped}</div><div class="l">Skipped</div></div>
+      <div class="stat"><div class="v">${fmtSec(totalTimeSec)}</div><div class="l">Total Time</div></div>
+      <div class="stat"><div class="v">${avg.toFixed(0)}s</div><div class="l">Avg / Question</div></div>
+    </div>
+    <p style="font-size:12.5px;color:var(--muted)">Practice sets are for your own revision — they don't affect your Aakash test scores, rank or percentile.</p>
+    <h2 class="sec">Chapter-wise (weakest first)</h2>
+    <table class="tbl"><thead><tr><th>Chapter</th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy</th><th>Avg time</th></tr></thead><tbody>${topicRows}</tbody></table>
+    <h2 class="sec">Questions to review</h2>
+    <table class="tbl"><thead><tr><th>#</th><th>Chapter</th><th>Question</th><th>You</th><th>Correct</th><th>Time</th></tr></thead><tbody>${wrongRows}</tbody></table>
+    <div class="flexrow" style="margin-top:14px">
+      <button class="btn" id="prAgainBtn">Practice another set</button>
+      <button class="btn secondary" id="prDoneBtn">Back to dashboard</button>
+    </div>`;
+  typeset($("prSummary"));
+  $("prAgainBtn").onclick = () => { PR = null; showView("view-student"); loadPracticeSeen().then(()=>{ renderPracticeChapters(); loadPracticeHistory(); }); };
+  $("prDoneBtn").onclick  = $("prAgainBtn").onclick;
+  window.scrollTo(0,0);
+}
+
+async function loadPracticeHistory(){
+  const tb = $("prHistRows");
+  try {
+    const qs = await getDocs(query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
+    const list = qs.docs.map(d=>d.data()).sort((a,b)=>(b.submittedAt?.seconds||0)-(a.submittedAt?.seconds||0)).slice(0,20);
+    tb.innerHTML = list.map(p => {
+      const answered = (p.correct||0) + (p.wrong||0);
+      const acc = answered ? Math.round(100*(p.correct||0)/answered) : 0;
+      return `<tr><td>${fmtDate(p.submittedAt)}</td><td>${esc(p.subject||"—")}</td>
+        <td style="max-width:260px">${esc((p.topics||[]).join(", "))||"—"}</td>
+        <td>${p.total||0}</td><td>${p.correct||0}</td>
+        <td style="${iaHeat(acc)}"><b>${acc}%</b></td><td>${fmtSec(p.totalTimeSec)}</td></tr>`;
+    }).join("") || `<tr><td colspan="7">No practice sets yet — build one above.</td></tr>`;
+  } catch(e){
+    tb.innerHTML = `<tr><td colspan="7" style="color:var(--muted)">Practice history unavailable (${esc(e.message)}).</td></tr>`;
+  }
+}
+
 /* ========== RESULT PAGE ========== */
 let lastResultDetail = null, lastResultAttempt = null;
 
