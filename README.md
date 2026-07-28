@@ -2,7 +2,9 @@
 
 A zero-build, single-page exam portal that replicates the NTA CBT (Computer-Based Test) experience for **NEET-UG (Medical)** and **JEE Mains (Engineering)** patterns. Pure HTML + CSS + vanilla JS, Firebase (Firestore + Auth) for the backend, MathJax for LaTeX, hosted free on GitHub Pages.
 
-Includes: custom-size exams (any subjects/counts/duration/scoring), image & cropped-image questions, fullscreen anti-cheat with malpractice auto-submit, per-question time tracking, randomized option order, on-screen calculator, topic-wise analytics, PDF scorecards, scoped **faculty** accounts, and **targeted exam assignment** (all / batch / specific students).
+Includes: custom-size exams (any subjects/counts/duration/scoring), image & cropped-image questions, fullscreen anti-cheat with malpractice auto-submit, per-question time tracking, randomized option order, topic-wise analytics, PDF scorecards, scoped **faculty** accounts, **targeted exam assignment** (all / batch / specific students), **cumulative item analysis** for staff, **bulk image import** straight from a folder of cropped questions, and **student self-study practice** by chapter.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for what changed and when — including the follow-up steps some changes need (publishing rules, rebuilding the practice index).
 
 ## Files
 
@@ -14,6 +16,7 @@ Includes: custom-size exams (any subjects/counts/duration/scoring), image & crop
 | `sample_medical.json` | 20 sample NEET questions (5 per subject). |
 | `sample_engineering.json` | 21 sample JEE questions (5 MCQ + 2 Numerical per subject). |
 | `README.md` | This file. |
+| `CHANGELOG.md` | Dated record of features and changes, with any post-deploy steps they require. |
 
 ## Roles
 
@@ -76,17 +79,36 @@ As super-admin, open the **Faculty** tab → *Add Faculty* (name, email, passwor
 ## 6. Use the portal
 
 **As admin / faculty:**
-- **Students** tab *(admin only for add/delete)* → add students with name, email, password, exam type, and optional **batch**.
+- **Students** tab *(admin only for add/delete)* → add students with name, **11-digit PS-ID**, password, exam type, class, and optional **batch**. Bulk CSV import available; admins can view/change stored passwords.
 - **Faculty** tab *(admin only)* → manage faculty/admins.
 - **Questions** tab → upload a question JSON (`sample_*.json`, your own, or one made with `question-builder.html`). Browse/delete by subject. Faculty can delete only their own questions; only admins can clear a whole subject bank.
+- **Bulk Import** tab → point at a **folder of cropped question images** and import them straight into the bank, no JSON needed. Subject and topic are read from the folder path (`Physics/Laws of Motion/q012.png`) with an editable review table; paste the answer key in any common format (`1-A 2-C`, `1. A` per line, or a bare `ABCDACBD…` run). Images are compressed in-browser to stay under Firestore's 1 MB per-document limit. Re-importing an existing `id` overwrites it.
+- **Answer Key** tab → patch `correct_answer` on questions **already uploaded**, scoped to one exam or a whole subject bank, with a preview of current → new before applying. Use this when a test went up with placeholder answers.
+- **Topics** tab → every distinct chapter name in the bank with question counts, and how many questions have **no topic**. Rename a chapter or merge several into one name. Also holds **Rebuild practice index** (see below).
 - **Exams** tab → set title, **duration**, **scoring** (type default / no-negative / custom), optional **shuffle option order**, choose **who can take it** (all of that type / specific batches / specific students), *Load Bank*, tick any questions (any subjects, any count — "First N" buttons help), *Create Exam*, then **Activate**. Multiple exams can be active at once for different audiences.
 - **Reports** tab → attempts table (admins see all; faculty see their own exams' attempts), filter by student/type/date, malpractice flag, click a row to open the full result, export CSV.
+- **Leaderboard** tab → ranks for one exam, optional batch filter, subject-wise columns, CSV export.
+- **Item Analysis** tab → **cumulative question-level analysis** across every submitted attempt for a test (optionally one batch). Shows % correct / wrong / blank per question, the **most-picked wrong option** (distractor analysis), average time, average revisits, and auto flags (`Hard`, `Trap → C`, `Often skipped`, `Time sink`, `Easy`), plus a chapter rollup and a drill-down naming which students got each question wrong, left it blank, or were slowest on. **Staff only — never shown to students.** Faculty see only their own exams.
+- **Attendance** tab → assigned-vs-attempted per exam; absentee CSV.
+- **Progress** tab → a student's score trend across attempts.
 
 **As student:**
 - Log in → **Available Exams** lists every active exam targeted to you (by type, batch, or direct assignment) → **Start Exam (Fullscreen)**.
-- Timer (red under 5 min), subject tabs, NTA-colour palette, Mark for Review, Save & Next, **on-screen calculator**, auto-save every 30 s, auto-submit at 0:00.
+- Timer (red under 5 min), subject tabs, NTA-colour palette, Mark for Review, Save & Next, auto-save every 30 s, auto-submit at 0:00.
 - **Proctoring:** exam runs in fullscreen; switching tabs / leaving fullscreen / leaving the window is recorded. After **3 warnings** the test auto-submits and is flagged **malpractice** (with a logged reason + timestamps).
-- On submit: instant score, percentile, rank, subject breakdown, **topic-wise weak-area analysis**, per-question table with time spent, error log (wrong + unanswered with images), CSV download, and **Print / Save as PDF** scorecard.
+- On submit: instant score, percentile, rank, subject breakdown, **topic-wise weak-area analysis**, per-question table with time spent, **Pace Analysis** (avg per attempted question, slow questions over 2 min) and their **5 slowest questions**, error log (wrong + unanswered with images), CSV download, and **Print / Save as PDF** scorecard.
+
+**Practice by Chapter (student self-study):**
+
+For school exams that don't line up with the Aakash schedule, a student can build their own set from the question bank:
+
+- Pick a **subject**, tick **several chapters**, choose **question count** and **difficulty**, and optionally **skip questions already practised**.
+- The session is **relaxed** — no fullscreen lock, no tab-switch warnings, no malpractice flagging.
+- **The answer is revealed after each question** (correct option in green, their wrong pick in red) along with time spent on it.
+- Summary gives accuracy, a chapter-wise weakest-first table, and a review list of everything wrong. A **My Practice History** table keeps the last 20 sets.
+- Practice is stored in a **separate `practiceAttempts` collection** and **never affects** Reports, Leaderboard, Item Analysis, Attendance, rank or percentile.
+
+> Chapters come from the **practice index**, not the live bank. After importing questions or renaming topics, go to **Topics → Rebuild practice index** or students won't see the new material.
 
 ### Question JSON schema
 
@@ -129,5 +151,6 @@ No build step, no CLI, no Firebase Hosting config needed. Firebase is used **onl
 - **Anti-cheat is client-side.** It deters casual cheating (tab-switching, copy/paste, leaving fullscreen) but cannot stop a determined student on a second device or with JavaScript disabled. True lockdown needs a dedicated exam browser or webcam proctoring.
 - Rank/percentile are computed client-side from all attempts of the same exam type. To keep scores private, tighten the `attempts` read rule in `firestore.rules` to owner-or-staff (a comment marks where).
 - An attempt document id is `{examId}_{uid}`, so a refresh mid-exam resumes the same attempt (responses auto-saved). Shuffled question/option order is cached in `sessionStorage` for the duration of the exam; answers are always stored against the original option letters so reviews stay correct.
-- Base64 images live inside each question document (Firestore's 1 MB/doc limit applies — fine for normal cropped questions). For very large image sets, switch to Firebase Storage URLs.
+- Base64 images live inside each question document (Firestore's 1 MB/doc limit applies — fine for normal cropped questions). Bulk Import compresses to ~700 KB per image to stay inside it. **For a whole coaching package** (thousands of image questions) this approach runs into the free tier's 1 GiB storage ceiling — at that scale move images to Firebase Storage and keep only URLs in Firestore.
+- **Collections used:** `users`, `questions`, `exams`, `attempts`, `sessions`, plus `topicIndex` (small per-subject chapter index students read for practice) and `practiceAttempts` (student self-study, deliberately separate from graded `attempts`). All are covered by `firestore.rules`; the catch-all rule denies anything else, so a new collection needs a rules change **published in the console** before it will work.
 - LaTeX renders via MathJax 3 from CDN; write inline math as `$...$`.
