@@ -7,6 +7,28 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-08-23 — Bulk Import: auto answer key from filename, "Option N" display
+
+### Changed — Bulk Import (admin)
+
+- Correct answer is now **guessed straight from each image's filename** as soon as it's loaded —
+  recognises trailing forms like `Q12_B.jpg`, `Q12-Ans-B.png`, `Q12(2).png`, `Q12_key3.jpg`.
+  Letter suffixes (A–D) are preferred over bare digits, since a lone trailing digit is ambiguous
+  with the question number already read from the filename.
+- Rows the guesser couldn't read are **highlighted red** in the review table so they're easy to spot;
+  pasting a key in step 2 still works as a fallback/override, same as before.
+- Loading message now reports how many keys were auto-read vs. still need one.
+
+### Changed — how image-only questions display to students
+
+Bulk-imported questions (options drawn inside the picture, none typed separately) now show
+**"Option 1 / Option 2 / Option 3 / Option 4"** instead of blank `(A)(B)(C)(D)` buttons, in the
+live exam, Practice by Chapter, and both admin preview screens. Grading is unaffected — answers are
+still stored/graded as A/B/C/D internally, mapped 1↔A, 2↔B, 3↔C, 4↔D; only the label students see changed.
+Ordinary questions with real option text still show `(A)`–`(D)` as before.
+
+---
+
 ## 2026-07-28
 
 ### Added — Practice by Chapter (student self-study)

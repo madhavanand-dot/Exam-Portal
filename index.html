@@ -308,7 +308,10 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <h2 class="sec" style="margin-top:0">1. Pick your cropped question images</h2>
         <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
           Choose a whole folder (e.g. <code>Physics/Laws of Motion/q012.png</code>) — subject and topic are read from the folder names and can be edited below.
-          One question is created per image; the image <b>is</b> the question, so options come from the picture. Images are auto-compressed to fit Firestore's 1&nbsp;MB per-question limit.
+          One question is created per image; the image <b>is</b> the question, so options come from the picture — students will just see generic
+          <b>Option 1 / Option 2 / Option 3 / Option 4</b> choices instead of lettered ones. Images are auto-compressed to fit Firestore's 1&nbsp;MB per-question limit.
+          The correct answer is read straight out of each <b>filename</b> (e.g. <code>Q12_B.jpg</code>, <code>Q12(2).png</code>, <code>Q12_key3.jpg</code> all work) — no
+          separate key needed for most sets; step 2 below is only a fallback for rows it couldn't read.
         </p>
         <div class="flexrow" style="align-items:flex-end">
           <div class="field"><label>Folder of images</label><input type="file" id="biFolder" webkitdirectory directory multiple></div>
@@ -1661,6 +1664,34 @@ function numFromName(name){
   const all = base.match(/\d+/g);
   return all ? parseInt(all[all.length-1],10) : null;
 }
+// Try to read the correct answer straight out of the filename text, for images whose
+// 4 options are drawn inside the picture itself (no separate option text/images).
+// Recognises things like "Q12_B.jpg", "Q12-Ans-B.png", "Q12(B).jpg", "Q12_key2.jpg",
+// "Q12_option3.png", "12 Answer D.jpg" … letter forms (A-D) are preferred since a bare
+// trailing digit is ambiguous with the question number itself.
+function normAnsToken(v){
+  if (/^[A-Da-d]$/.test(v)) return v.toUpperCase();
+  return { "1":"A", "2":"B", "3":"C", "4":"D" }[v] || null;
+}
+function guessAnswerFromFilename(name){
+  const base = String(name||"").replace(/\.[a-z0-9]+$/i,"");
+  let m = base.match(/(?:ans(?:wer)?|key|opt(?:ion)?|correct)[\s_\-]*([A-Da-d]|[1-4])(?![0-9A-Za-z])/i);
+  if (m) return normAnsToken(m[1]);
+  m = base.match(/[\(\[]\s*([A-Da-d]|[1-4])\s*[\)\]]\s*$/);
+  if (m) return normAnsToken(m[1]);
+  m = base.match(/[_\-\s]([A-Da-d])$/);
+  if (m) return normAnsToken(m[1]);
+  return null;
+}
+// True when a question's 4 options carry no text/image of their own (options live inside
+// the question image) — such questions display as generic "Option 1..4" rather than (A)-(D).
+function isImageOnlyOptions(q){
+  const hasText = Array.isArray(q.options) && q.options.some(o => String(o||"").trim());
+  return !hasText && !q.optionImages;
+}
+function optLabel(q, letter){
+  return isImageOnlyOptions(q) ? `Option ${"ABCD".indexOf(letter)+1}` : `(${letter})`;
+}
 function safeDocId(s){
   return String(s||"").replace(/\.[a-z0-9]+$/i,"").replace(/[^A-Za-z0-9_\-]+/g,"_").replace(/^_+|_+$/g,"").slice(0,120) || ("q"+Date.now());
 }
@@ -1726,6 +1757,7 @@ async function biIngest(files){
     const f = list[i];
     const rel = f.webkitRelativePath || f.name;
     const meta = pathMeta(rel, $("biSubject").value, $("biTopic").value.trim());
+    const guessed = $("biSection").value === "A" ? (guessAnswerFromFilename(f.name) || "") : "";
     try {
       const image = await imageFileToDataUrl(f);
       rows.push({
@@ -1735,19 +1767,22 @@ async function biIngest(files){
         subject: meta.subject, topic: meta.topic,
         section: $("biSection").value,
         difficulty: $("biDiff").value,
-        correct_answer: "",
+        correct_answer: guessed,
         kb: Math.round(image.length/1024)
       });
     } catch(e) {
       rows.push({ image:null, file:f.name, rel, id: prefix+safeDocId(f.name), num: numFromName(f.name) ?? (i+1),
                   subject: meta.subject, topic: meta.topic, section: $("biSection").value,
-                  difficulty: $("biDiff").value, correct_answer:"", kb:0, error: e.message });
+                  difficulty: $("biDiff").value, correct_answer:guessed, kb:0, error: e.message });
     }
     if (i % 10 === 0) setMsg($("biMsg"), `Processed ${i+1}/${list.length}…`, true);
   }
   biRows = rows;
   const bad = rows.filter(r=>r.error).length;
-  setMsg($("biMsg"), `Loaded ${rows.length} images${bad?` (${bad} could not be processed)`:""}. Paste the answer key, check the table, then Import.`, true);
+  const keyed = rows.filter(r=>r.correct_answer).length;
+  setMsg($("biMsg"), `Loaded ${rows.length} images${bad?` (${bad} could not be processed)`:""}. ` +
+    `${keyed} answer key(s) read straight from the filename (rows highlighted red below still need one — ` +
+    `type it in, or paste a key in step 2 as a fallback), then Import.`, true);
   renderBiTable();
 }
 $("biFolder").onchange = e => biIngest(e.target.files);
@@ -1760,7 +1795,7 @@ function renderBiTable(){
   $("biWrap").innerHTML = `<table class="tbl"><thead><tr>
       <th>#</th><th>Preview</th><th>Question ID</th><th>Subject</th><th>Topic</th><th>Sec</th><th>Answer</th><th>Size</th><th></th>
     </tr></thead><tbody>` +
-    biRows.map((r,i) => `<tr data-bi="${i}">
+    biRows.map((r,i) => `<tr data-bi="${i}" ${r.section==="A" && !r.correct_answer ? 'style="background:#fdecea"' : ""}>
       <td><b>${r.num}</b><br><span style="font-size:11px;color:var(--muted)">${esc(r.file)}</span></td>
       <td>${r.image ? `<img src="${r.image}" style="max-width:190px;max-height:110px;border:1px solid var(--border);border-radius:4px;cursor:zoom-in" data-bizoom="${i}">`
                     : `<span class="badge neg">${esc(r.error||"failed")}</span>`}</td>
@@ -1768,7 +1803,7 @@ function renderBiTable(){
       <td><select data-bif="subject">${subjOpts(r.subject)}</select></td>
       <td><input value="${esc(r.topic)}" data-bif="topic" style="width:150px"></td>
       <td><select data-bif="section"><option value="A" ${r.section==="A"?"selected":""}>A</option><option value="B" ${r.section==="B"?"selected":""}>B</option></select></td>
-      <td><input value="${esc(r.correct_answer)}" data-bif="correct_answer" style="width:60px;text-align:center;font-weight:700"></td>
+      <td><input value="${esc(r.correct_answer)}" data-bif="correct_answer" style="width:60px;text-align:center;font-weight:700" placeholder="${r.section==='A' && !r.correct_answer ? '?' : ''}"></td>
       <td style="font-size:11.5px;color:var(--muted)">${r.kb} KB</td>
       <td><button class="btn danger" style="padding:2px 8px" data-birm="${i}">✕</button></td>
     </tr>`).join("") + `</tbody></table>`;
@@ -2156,7 +2191,7 @@ function previewQuestion(q){
   const opts = (q.section||"A")==="A" ? (q.options||[]).map((o,k)=>{
     const correct = order[k]===q.correct_answer;
     const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
-    return `<div class="opt ${correct?'sel':''}" style="cursor:default"><span><b>(${order[k]})</b> ${String(o).replace(/^\s*[A-D][).]\s*/,"")}${oimg}${correct?' &nbsp;✓':''}</span></div>`;
+    return `<div class="opt ${correct?'sel':''}" style="cursor:default"><span><b>${optLabel(q,order[k])}</b> ${String(o).replace(/^\s*[A-D][).]\s*/,"")}${oimg}${correct?' &nbsp;✓':''}</span></div>`;
   }).join("") : `<div style="margin-top:8px"><b>Correct numerical answer:</b> ${esc(q.correct_answer)}</div>`;
   $("qpvBody").innerHTML = `
     <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">
@@ -2190,7 +2225,7 @@ async function previewExam(docId){
     const opts = (q.section||"A")==="A" ? (q.options||[]).map((o,k) => {
       const correct = order[k]===q.correct_answer;
       const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
-      return `<div class="opt ${correct?'sel':''}" style="cursor:default"><span><b>(${order[k]})</b> ${String(o).replace(/^\s*[A-D][).]\s*/,"")}${oimg}${correct?' &nbsp;✓':''}</span></div>`;
+      return `<div class="opt ${correct?'sel':''}" style="cursor:default"><span><b>${optLabel(q,order[k])}</b> ${String(o).replace(/^\s*[A-D][).]\s*/,"")}${oimg}${correct?' &nbsp;✓':''}</span></div>`;
     }).join("") : `<div style="margin-top:6px"><b>Answer:</b> ${esc(q.correct_answer)}</div>`;
     return `<div style="border-top:1px solid #eee;padding:10px 0">
       <div style="font-size:12px;color:var(--muted)"><b>Q${i+1}</b> &bull; ${esc(q.subject)} &bull; ${esc(q.id)} &bull; correct: <b>${esc(q.correct_answer)}</b></div>
@@ -2832,7 +2867,7 @@ function gotoQuestion(i, save=false){
       const optImg  = q.optionImages ? imgHtml(q.optionImages[origIdx]) : "";
       const checked = st.answer === origLetter ? "checked" : "";
       return `<label class="opt ${checked?'sel':''}"><input type="radio" name="optGroup" value="${origLetter}" ${checked}>
-        <span><b>(${dispLetter})</b> ${optText}${optImg}</span></label>`;
+        <span><b>${optLabel(q,dispLetter)}</b> ${optText}${optImg}</span></label>`;
     }).join("");
     $("qOptions").querySelectorAll("input").forEach(r => r.onchange = () => {
       $("qOptions").querySelectorAll(".opt").forEach(o=>o.classList.remove("sel"));
@@ -3159,7 +3194,7 @@ function prRender(){
       const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
       return `<label class="opt ${st.answer===letter?"sel":""}" data-propt="${letter}">
         <input type="radio" name="prOpt" value="${letter}" ${st.answer===letter?"checked":""} ${st.checked?"disabled":""}>
-        <span><b>(${letter})</b> ${txt}${oimg}</span></label>`;
+        <span><b>${optLabel(q,letter)}</b> ${txt}${oimg}</span></label>`;
     }).join("");
     $("prOptions").querySelectorAll("[data-propt]").forEach(el => el.onclick = () => {
       if (PR.state[PR.idx].checked) return;
@@ -3186,7 +3221,7 @@ function prShowFeedback(){
   const q = PR.questions[PR.idx], st = PR.state[PR.idx];
   const order = "ABCD";
   const correctTxt = (q.section||"A")==="A"
-    ? `(${esc(q.correct_answer)}) ${esc(String((q.options||[])[order.indexOf(q.correct_answer)]||"").replace(/^\s*[A-D][).]\s*/,""))}`
+    ? `${optLabel(q,q.correct_answer)} ${esc(String((q.options||[])[order.indexOf(q.correct_answer)]||"").replace(/^\s*[A-D][).]\s*/,""))}`
     : esc(String(q.correct_answer));
   // highlight the right option, and their wrong pick
   $("prOptions").querySelectorAll("[data-propt]").forEach(el => {
