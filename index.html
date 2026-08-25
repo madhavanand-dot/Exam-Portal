@@ -3399,7 +3399,15 @@ async function showResult(attempt){
       detail.push({ q, answer: r.answer ?? null, delta, verdict,
         timeSec: (attempt.questionTimeSec||{})[qid] ?? r.timeSec ?? 0 });
     }
-    // order: by subject in config order
+  }
+  // Canonical Q# ordering: always match the exam's defined questionIds order (same order
+  // Item Analysis uses), never the per-student shuffled presentation order — otherwise "Q12"
+  // in a student's report and "Q12" in staff Item Analysis can be two different questions.
+  const _examForOrder = examsCache.find(e => e.docId === attempt.examId);
+  if (_examForOrder?.questionIds?.length) {
+    const _orderIdx = new Map(_examForOrder.questionIds.map((id,i)=>[id,i]));
+    detail.sort((a,b) => (_orderIdx.has(a.q.docId)?_orderIdx.get(a.q.docId):999999) - (_orderIdx.has(b.q.docId)?_orderIdx.get(b.q.docId):999999));
+  } else {
     detail.sort((a,b) => cfg.subjects.indexOf(a.q.subject)-cfg.subjects.indexOf(b.q.subject));
   }
   lastResultDetail = detail; lastResultAttempt = attempt;
