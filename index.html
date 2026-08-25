@@ -1169,7 +1169,7 @@ async function runItemAnalysis(){
       const topWrong = Object.entries(wrongPick).sort((a,b)=>b[1]-a[1])[0] || null;
       rows.push({
         q, idx: qi+1, n, correct, wrong, blank,
-        pctCorrect: iaPct(correct,n), pctWrong: iaPct(wrong,n), pctBlank: iaPct(blank,n),
+        pctCorrect: iaPct(correct,correct+wrong), pctWrong: iaPct(wrong,n), pctBlank: iaPct(blank,n),
         avgTime: timeN ? timeSum/timeN : 0,
         avgVisits: visitN ? visitSum/visitN : 0,
         topWrong, wrongStudents, blankStudents,
@@ -1232,7 +1232,7 @@ function renderItemAnalysis(){
     const t = tmap[key] || (tmap[key] = { key, q:0, correct:0, wrong:0, blank:0, n:0, time:0 });
     t.q++; t.correct+=r.correct; t.wrong+=r.wrong; t.blank+=r.blank; t.n+=r.n; t.time+=r.avgTime;
   });
-  const topics = Object.values(tmap).map(t=>({ ...t, pct: iaPct(t.correct, t.n) })).sort((a,b)=>a.pct-b.pct);
+  const topics = Object.values(tmap).map(t=>({ ...t, pct: iaPct(t.correct, t.correct+t.wrong) })).sort((a,b)=>a.pct-b.pct);
   $("iaTopics").innerHTML = `<h2 class="sec">Weakest chapters / topics</h2>
     <table class="tbl"><thead><tr><th>Subject — Topic</th><th>Qs</th><th>% Correct</th><th>% Wrong</th><th>% Blank</th><th>Avg time / Q</th></tr></thead><tbody>` +
     topics.map(t=>`<tr><td>${esc(t.key)}</td><td>${t.q}</td>
@@ -1266,7 +1266,7 @@ function renderItemAnalysis(){
             <b>Slowest:</b> ${r.slowest.map(s=>`${esc(s.name)} (${fmtSec(s.t)})`).join(", ")||"—"}
           </div></div></details></td>
       <td><b>${esc(r.q.correct_answer)}</b></td>
-      <td style="${iaHeat(r.pctCorrect)}"><b>${r.pctCorrect}%</b><br><span style="font-size:11px;color:var(--muted)">${r.correct}/${r.n}</span></td>
+      <td style="${iaHeat(r.pctCorrect)}"><b>${r.pctCorrect}%</b><br><span style="font-size:11px;color:var(--muted)">${r.correct}/${r.correct+r.wrong} attempted</span></td>
       <td>${r.wrong} <span style="font-size:11px;color:var(--muted)">(${r.pctWrong}%)</span></td>
       <td>${r.blank} <span style="font-size:11px;color:var(--muted)">(${r.pctBlank}%)</span></td>
       <td>${r.topWrong ? `<b>${esc(r.topWrong[0])}</b> ×${r.topWrong[1]}` : "—"}</td>
@@ -3447,12 +3447,14 @@ async function showResult(attempt){
     t.tot++; t.time += d.timeSec;
     if (d.verdict==="correct") t.correct++; else if (d.verdict==="wrong") t.wrong++; else t.unans++;
   });
+  // Accuracy = correct / (correct+wrong) — i.e. of ATTEMPTED questions in this topic, not of all
+  // questions (unanswered ones shouldn't drag "accuracy" down; they already show in their own column).
   const topicRows = Object.entries(topicMap)
-    .sort((a,b)=> (a[1].correct/a[1].tot) - (b[1].correct/b[1].tot))
-    .map(([k,t]) => { const acc = Math.round(100*t.correct/t.tot);
-      return `<tr><td>${esc(k)}</td><td>${t.tot}</td><td>${t.correct}</td><td>${t.wrong}</td><td>${t.unans}</td>
+    .map(([k,t]) => ({ k, t, attempted: t.correct+t.wrong, acc: (t.correct+t.wrong) ? Math.round(100*t.correct/(t.correct+t.wrong)) : 0 }))
+    .sort((a,b)=> a.acc - b.acc)
+    .map(({k,t,acc}) => `<tr><td>${esc(k)}</td><td>${t.tot}</td><td>${t.correct}</td><td>${t.wrong}</td><td>${t.unans}</td>
         <td><span class="analybar" style="width:${Math.max(2,acc)}px;background:${acc>=60?'var(--green)':acc>=35?'var(--orange)':'var(--red)'}"></span> ${acc}%</td>
-        <td>${fmtSec(t.time)}</td></tr>`; }).join("");
+        <td>${fmtSec(t.time)}</td></tr>`).join("");
 
   // ---- pace analysis (time management) ----
   const paceMap = {};
