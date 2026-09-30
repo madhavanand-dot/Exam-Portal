@@ -94,6 +94,8 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 #qHead{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:14px;flex-wrap:wrap;gap:6px}
 #qHead .qno{font-weight:700;font-size:16px;color:var(--blue)}
 #qHead .qmeta{font-size:12px;color:var(--muted)}
+#qIdeal{font-size:12px;font-weight:600;padding:2px 9px;border-radius:10px;background:#e2f5e9;color:#1e7a44;font-variant-numeric:tabular-nums}
+#qIdeal.over{background:#fff1dc;color:#a4610b}
 #qText{font-size:15.5px;line-height:1.65;margin-bottom:18px;user-select:none}
 .opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:6px;padding:11px 13px;margin-bottom:9px;cursor:pointer;user-select:none}
 .opt:hover{background:var(--blue-light)}
@@ -226,6 +228,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="keypatch">Answer Key</button>
       <button data-atab="topics">Topics</button>
       <button data-atab="exams">Exams</button>
+      <button data-atab="diagnostic">Diagnostic Builder</button>
       <button data-atab="reports">Reports</button>
       <button data-atab="leaderboard">Leaderboard</button>
       <button data-atab="itemanalysis">Item Analysis</button>
@@ -451,6 +454,92 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Qs</th><th>Audience</th><th>Status</th><th>Created By</th><th></th></tr></thead><tbody id="examRows"></tbody></table>
     </div>
 
+    <div id="atab-diagnostic" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Topic-wise Diagnostic Test <span id="dgMode" style="font-weight:400;font-size:13px;color:var(--muted)"></span></h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Build a test for one topic (or a few) straight from question <b>images</b> — pick files, drag them in, or paste a screenshot with <b>Ctrl+V</b> —
+          and/or pull matching questions from the bank. Set each question's <b>answer</b> and <b>ideal time</b>, reorder, remove, then save.
+          Open any existing test here to <b>change its key</b> or <b>add/remove questions</b>; submitted attempts can be re-graded afterwards.
+        </p>
+        <div class="flexrow">
+          <div class="field" style="min-width:260px"><label>Open existing test</label><select id="dgExisting"></select></div>
+          <button class="btn secondary" id="dgOpenBtn">Open for editing</button>
+          <button class="btn secondary" id="dgNewBtn">Start a new test</button>
+        </div>
+        <div class="flexrow" style="margin-top:6px">
+          <div class="field" style="min-width:240px"><label>Title</label><input id="dgTitle" placeholder="e.g. Diagnostic — Laws of Motion"></div>
+          <div class="field"><label>Exam type</label><select id="dgType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <div class="field"><label>Subject (for new questions)</label><select id="dgSubject"></select></div>
+          <div class="field" style="min-width:220px"><label>Topic (for new questions)</label><input id="dgTopic" list="dgTopicList" placeholder="e.g. Laws of Motion"><datalist id="dgTopicList"></datalist></div>
+        </div>
+        <div class="flexrow">
+          <div class="field"><label>Scoring</label><select id="dgScoring">
+            <option value="preset">Type default (+4/−1)</option>
+            <option value="neg0">No negative marking (+4/0)</option>
+            <option value="custom">Custom…</option>
+          </select></div>
+          <div class="field" id="dgCustomMarks" style="display:none"><label>+correct / −wrong</label>
+            <div style="display:flex;gap:6px"><input id="dgMkA" type="number" value="4" style="width:70px"><input id="dgMkW" type="number" value="1" style="width:70px"></div></div>
+          <div class="field"><label>Duration (min)</label>
+            <div style="display:flex;gap:6px"><input id="dgDuration" type="number" min="1" value="30" style="width:90px">
+            <button class="btn secondary" id="dgAutoDurBtn" style="padding:4px 10px;font-size:12px" title="Sum of all ideal times + 10%, rounded up">= total ideal time</button></div></div>
+          <div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;margin-bottom:4px;color:#345">Options</div>
+            <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgKeepOrder" checked> Keep my question order (don't shuffle)</label>
+            <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgShowIdeal" checked> Show ideal time to students during the test</label>
+            <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgShuffleOpt"> Shuffle option order</label></div>
+        </div>
+        <div class="flexrow">
+          <div class="field"><label>Default ideal time (sec) — Easy / Medium / Hard</label>
+            <div style="display:flex;gap:6px"><input id="dgIdE" type="number" min="5" style="width:70px"><input id="dgIdM" type="number" min="5" style="width:70px"><input id="dgIdH" type="number" min="5" style="width:70px">
+            <button class="btn secondary" id="dgResetIdealBtn" style="padding:4px 10px;font-size:12px">Apply to all rows</button></div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2 class="sec" style="margin-top:0">Add questions</h2>
+        <div class="flexrow" style="align-items:flex-start">
+          <div style="flex:1;min-width:280px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:6px">From images (each image = one question)</div>
+            <div id="dgDrop" tabindex="0" style="border:2px dashed var(--border);border-radius:8px;padding:18px;text-align:center;color:var(--muted);font-size:13px;background:#fafbfc">
+              Drag &amp; drop question images here, or <b>paste</b> a screenshot (Ctrl+V)<br>
+              <input type="file" id="dgFiles" accept="image/*" multiple style="margin-top:8px">
+            </div>
+            <div class="flexrow" style="margin-top:8px">
+              <div class="field"><label>Section</label><select id="dgSection"><option value="A">A — MCQ</option><option value="B">B — Numerical</option></select></div>
+              <div class="field"><label>Difficulty</label><select id="dgDiff"><option>Easy</option><option selected>Medium</option><option>Hard</option></select></div>
+            </div>
+            <p style="font-size:11.5px;color:var(--muted)">Answers are read from filenames where possible (<code>Q12_B.png</code>, <code>Q12(3).jpg</code>). Images are compressed to fit Firestore's 1&nbsp;MB limit.</p>
+          </div>
+          <div style="flex:1;min-width:280px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:6px">From the question bank</div>
+            <div class="flexrow">
+              <div class="field"><label>Filter topic contains</label><input id="dgBankFilter" placeholder="(uses Topic above if blank)"></div>
+              <button class="btn secondary" id="dgBankLoadBtn">Find questions</button>
+            </div>
+            <div id="dgBankPick" class="checklist hidden" style="max-height:260px;margin-top:6px"></div>
+            <button class="btn secondary hidden" id="dgBankAddBtn" style="margin-top:6px">Add selected</button>
+          </div>
+        </div>
+        <div id="dgAddMsg"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2 class="sec" style="margin-top:0">Questions in this test <span id="dgSummary" style="font-weight:400;font-size:13px;color:var(--muted)"></span></h2>
+        <div class="flexrow" style="margin-bottom:8px;align-items:flex-start">
+          <textarea id="dgKey" rows="2" style="flex:1;min-width:260px;font-family:ui-monospace,monospace;font-size:13px" placeholder="Paste a key to fill answers in row order: 1-A 2-C 3-B … or ABCD… or 1 3 2 4"></textarea>
+          <button class="btn secondary" id="dgApplyKeyBtn">Apply key</button>
+        </div>
+        <div id="dgWrap" style="overflow:auto;max-height:75vh"></div>
+        <div id="dgMsg"></div>
+        <div class="flexrow" style="margin-top:10px">
+          <button class="btn green" id="dgSaveBtn">Save test</button>
+          <button class="btn secondary" id="dgRegradeBtn" title="Recompute scores of submitted attempts with the current key and question list">Re-grade submitted attempts</button>
+        </div>
+        <div id="dgLog" class="hidden" style="max-height:200px;overflow-y:auto;font-size:12.5px;font-family:ui-monospace,monospace;background:#f7f9fb;border:1px solid var(--border);border-radius:4px;padding:8px;margin-top:8px;white-space:pre-wrap"></div>
+      </div>
+    </div>
+
     <div id="atab-reports" class="atab hidden">
       <div class="flexrow" style="margin-bottom:12px">
         <div class="field"><label>Student</label><select id="rpStudent"><option value="">All</option></select></div>
@@ -576,7 +665,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
   <div id="examMain">
     <div id="qArea">
       <div id="qScroll" oncontextmenu="return false">
-        <div id="qHead"><span class="qno" id="qNo"></span><span class="qmeta" id="qMeta"></span></div>
+        <div id="qHead"><span class="qno" id="qNo"></span><span class="qmeta" id="qMeta"></span><span id="qIdeal" class="hidden"></span></div>
         <div id="qText"></div>
         <div id="qOptions"></div>
         <div id="numInputWrap" class="hidden">
@@ -765,9 +854,41 @@ function examCfg(exam){
     durationSec: exam?.durationMin ? exam.durationMin*60 : base.durationSec,
     maxMarks: (exam?.maxMarks ?? null) !== null ? exam.maxMarks : base.maxMarks,
     marks: exam?.marks || base.marks,
-    shuffleOptions: exam?.shuffleOptions ?? false
+    shuffleOptions: exam?.shuffleOptions ?? false,
+    keepOrder: exam?.keepOrder ?? false,
+    showIdealTime: exam?.showIdealTime ?? false,
+    idealTimes: exam?.idealTimes || {}
   };
 }
+// Ideal (target) time to solve one question, in seconds. Resolution order:
+// the exam's own per-question setting → the question's stored idealTimeSec → a default by difficulty.
+const IDEAL_DEFAULTS = {
+  medical:     { Easy: 45, Medium: 60,  Hard: 90  },
+  engineering: { Easy: 90, Medium: 120, Hard: 180 }
+};
+function defaultIdealSec(q, examType){
+  const d = IDEAL_DEFAULTS[examType] || IDEAL_DEFAULTS.medical;
+  const s = d[q?.difficulty] || d.Medium;
+  return (q?.section === "B") ? Math.round(s * 1.5) : s;   // numericals take longer
+}
+function idealSecFor(q, idealTimes, examType){
+  const v = idealTimes?.[q.docId] ?? q.idealTimeSec;
+  return v > 0 ? Math.round(v) : defaultIdealSec(q, examType || q.examType);
+}
+// Speed × accuracy bucket for one answered/unanswered question — the core of the diagnostic read-out.
+function speedBucket(verdict, timeSec, idealSec){
+  if (verdict === "unanswered") return "skipped";
+  const slow = idealSec > 0 && timeSec > idealSec;
+  if (verdict === "correct") return slow ? "correctSlow" : "mastered";
+  return slow ? "wrongSlow" : "wrongFast";
+}
+const BUCKET_LABEL = {
+  mastered:    ["Mastered", "pos",  "correct within ideal time"],
+  correctSlow: ["Correct but slow", "zero", "knows it — needs speed practice"],
+  wrongFast:   ["Wrong & fast", "neg", "rushed / misconception — slow down, read carefully"],
+  wrongSlow:   ["Wrong & slow", "neg", "concept gap — re-learn the topic"],
+  skipped:     ["Skipped", "zero", "not attempted"]
+};
 // Config snapshot stored on an attempt, so results render correctly even if the exam changes/deletes.
 function attemptCfg(att){
   const base = EXAM_CONFIG[att?.examType] || EXAM_CONFIG.medical;
@@ -995,6 +1116,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="itemanalysis") initItemAnalysis();
     if (b.dataset.atab==="bulkimport") biFillSubjects();
     if (b.dataset.atab==="keypatch") initKeyPatch();
+    if (b.dataset.atab==="diagnostic") initDiagnostic();
     if (b.dataset.atab==="topics") initTopics();
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
@@ -1174,6 +1296,7 @@ async function runItemAnalysis(){
         avgVisits: visitN ? visitSum/visitN : 0,
         topWrong, wrongStudents, blankStudents,
         slowest: timeList.sort((a,b)=>b.t-a.t).slice(0,5),
+        idealSec: idealSecFor(q, exam?.idealTimes, exam?.examType || q.examType),
         marks: cfg.marks[sec]
       });
     });
@@ -1184,6 +1307,7 @@ async function runItemAnalysis(){
       if (r.topWrong && r.wrong && r.topWrong[1]/r.wrong >= 0.5 && r.pctWrong >= 40) f.push([`Trap → ${esc(r.topWrong[0])}`,"neg"]);
       if (r.pctBlank >= 30) f.push(["Often skipped","zero"]);
       if (meanTime && r.avgTime >= 1.75*meanTime && r.avgTime >= 60) f.push(["Time sink","zero"]);
+      if (r.avgTime > 1.5*r.idealSec) f.push(["Over ideal time","zero"]);
       if (r.pctCorrect >= 85) f.push(["Easy","pos"]);
       r.flags = f;
     });
@@ -1253,7 +1377,7 @@ function renderItemAnalysis(){
   $("iaWrap").innerHTML = `<h2 class="sec">Question-wise analysis</h2>
     <table class="tbl"><thead><tr>
       <th>Q</th><th>Subject</th><th>Topic</th><th>Question</th><th>Key</th>
-      <th>% Correct</th><th>Wrong</th><th>Blank</th><th>Most-picked wrong</th><th>Avg time</th><th>Avg visits</th><th>Flags</th>
+      <th>% Correct</th><th>Wrong</th><th>Blank</th><th>Most-picked wrong</th><th>Avg time</th><th>Ideal</th><th>Avg visits</th><th>Flags</th>
     </tr></thead><tbody>` +
     list.map(r => `<tr>
       <td><b>${r.idx}</b></td><td>${esc(r.q.subject)}</td><td>${esc(r.q.topic||"—")}</td>
@@ -1270,7 +1394,8 @@ function renderItemAnalysis(){
       <td>${r.wrong} <span style="font-size:11px;color:var(--muted)">(${r.pctWrong}%)</span></td>
       <td>${r.blank} <span style="font-size:11px;color:var(--muted)">(${r.pctBlank}%)</span></td>
       <td>${r.topWrong ? `<b>${esc(r.topWrong[0])}</b> ×${r.topWrong[1]}` : "—"}</td>
-      <td>${fmtSec(r.avgTime)}</td>
+      <td style="${r.avgTime>r.idealSec?'color:#a4610b;font-weight:600':''}">${fmtSec(r.avgTime)}</td>
+      <td>${fmtSec(r.idealSec)}</td>
       <td>${r.avgVisits ? r.avgVisits.toFixed(1) : "—"}</td>
       <td>${r.flags.map(f=>`<span class="badge ${f[1]}">${f[0]}</span>`).join(" ")}</td>
     </tr>`).join("") + `</tbody></table>`;
@@ -1280,11 +1405,11 @@ $("iaSort").onchange = () => { if (iaRows.length) renderItemAnalysis(); };
 $("iaCsvBtn").onclick = () => {
   if (!iaRows.length) { setMsg($("iaMsg"),"Run the analysis first."); return; }
   const rows = [["Q#","QuestionID","Subject","Topic","Difficulty","CorrectKey","Candidates","Correct","Wrong","Blank",
-                 "%Correct","%Wrong","%Blank","MostPickedWrong","MostPickedWrongCount","AvgTimeSec","AvgVisits","Flags",
+                 "%Correct","%Wrong","%Blank","MostPickedWrong","MostPickedWrongCount","AvgTimeSec","IdealSec","AvgVisits","Flags",
                  "StudentsWrong","StudentsBlank"]];
   iaRows.forEach(r => rows.push([r.idx, r.q.id||r.q.docId, r.q.subject, r.q.topic||"", r.q.difficulty||"",
     r.q.correct_answer, r.n, r.correct, r.wrong, r.blank, r.pctCorrect, r.pctWrong, r.pctBlank,
-    r.topWrong?r.topWrong[0]:"", r.topWrong?r.topWrong[1]:0, Math.round(r.avgTime), r.avgVisits.toFixed(1),
+    r.topWrong?r.topWrong[0]:"", r.topWrong?r.topWrong[1]:0, Math.round(r.avgTime), r.idealSec, r.avgVisits.toFixed(1),
     r.flags.map(f=>f[0].replace(/<[^>]*>/g,"")).join(" | "),
     r.wrongStudents.join("; "), r.blankStudents.join("; ")]));
   downloadCsv("item_analysis.csv", rows);
@@ -1981,6 +2106,436 @@ $("kpApplyBtn").onclick = async () => {
 };
 
 /* ============================================================
+   DIAGNOSTIC BUILDER  —  topic-wise tests from images and/or the bank;
+   per-question key, ideal time, add/remove/reorder; edit any existing test
+   ============================================================ */
+let DG = { examDocId: null, rows: [], origIds: [] };
+let dgBankList = [];
+let dgSeq = 0;
+function dgFillSubjects(){
+  const t = $("dgType").value, cur = $("dgSubject").value;
+  $("dgSubject").innerHTML = EXAM_CONFIG[t].subjects.map(s=>`<option>${s}</option>`).join("");
+  if (EXAM_CONFIG[t].subjects.includes(cur)) $("dgSubject").value = cur;
+  dgLoadTopicList();
+}
+async function dgLoadTopicList(){
+  // topic suggestions come from the small practice index, not the image-heavy bank
+  try {
+    const s = await getDoc(doc(db,"topicIndex", `${$("dgType").value}__${$("dgSubject").value}`));
+    const topics = s.exists() ? [...new Set((s.data().q||[]).map(e=>e.t).filter(Boolean))].sort() : [];
+    $("dgTopicList").innerHTML = topics.map(t=>`<option value="${esc(t)}">`).join("");
+  } catch(e){ $("dgTopicList").innerHTML = ""; }
+}
+function dgIdealDefaults(){
+  const d = IDEAL_DEFAULTS[$("dgType").value] || IDEAL_DEFAULTS.medical;
+  const v = (id, fb) => Math.max(5, parseInt($(id).value) || fb);
+  return { Easy: v("dgIdE", d.Easy), Medium: v("dgIdM", d.Medium), Hard: v("dgIdH", d.Hard) };
+}
+function dgSetIdealInputs(){
+  const d = IDEAL_DEFAULTS[$("dgType").value] || IDEAL_DEFAULTS.medical;
+  $("dgIdE").value = d.Easy; $("dgIdM").value = d.Medium; $("dgIdH").value = d.Hard;
+}
+function dgDefaultIdeal(r){
+  const d = dgIdealDefaults();
+  const s = d[r.difficulty] || d.Medium;
+  return r.section === "B" ? Math.round(s*1.5) : s;
+}
+function dgMarks(){
+  const mode = $("dgScoring").value;
+  if (mode === "neg0") return { A:{correct:4,wrong:0}, B:{correct:4,wrong:0} };
+  if (mode === "custom") {
+    const c = parseFloat($("dgMkA").value)||4, w = Math.abs(parseFloat($("dgMkW").value)||0);
+    return { A:{correct:c,wrong:-w}, B:{correct:c,wrong:0} };
+  }
+  return EXAM_CONFIG[$("dgType").value].marks;
+}
+function initDiagnostic(){
+  const exams = isSuper() ? examsCache : examsCache.filter(e=>e.createdBy===currentUser.uid);
+  const cur = $("dgExisting").value;
+  $("dgExisting").innerHTML = `<option value="">— pick a test —</option>` +
+    exams.map(e=>`<option value="${e.docId}">${e.diagnostic?"🩺 ":""}${esc(e.title)} (${esc(e.examType)}, ${e.questionIds?.length||0} Qs)</option>`).join("");
+  if (cur) $("dgExisting").value = cur;
+  if (!$("dgSubject").options.length) dgFillSubjects();
+  if (!$("dgIdE").value) dgSetIdealInputs();
+  dgRender();
+}
+function dgNew(){
+  DG = { examDocId: null, rows: [], origIds: [] };
+  $("dgTitle").value = ""; $("dgExisting").value = "";
+  $("dgScoring").value = "preset"; $("dgCustomMarks").style.display = "none";
+  $("dgKeepOrder").checked = true; $("dgShowIdeal").checked = true; $("dgShuffleOpt").checked = false;
+  $("dgDuration").value = 30;
+  $("dgLog").classList.add("hidden");
+  setMsg($("dgMsg"), ""); setMsg($("dgAddMsg"), "");
+  dgRender();
+}
+async function dgOpenExam(docId){
+  const ex = examsCache.find(e => e.docId === docId);
+  if (!ex) { setMsg($("dgMsg"), "Pick a test to open."); return; }
+  setMsg($("dgMsg"), `Loading ${ex.questionIds?.length||0} questions…`, true);
+  $("dgType").value = ex.examType; dgFillSubjects();
+  $("dgTitle").value = ex.title || "";
+  $("dgDuration").value = ex.durationMin || 30;
+  $("dgKeepOrder").checked = !!ex.keepOrder;
+  $("dgShowIdeal").checked = !!ex.showIdealTime;
+  $("dgShuffleOpt").checked = !!ex.shuffleOptions;
+  const base = EXAM_CONFIG[ex.examType].marks, m = ex.marks || base;
+  if (m.A.correct === base.A.correct && m.A.wrong === base.A.wrong && m.B.wrong === base.B.wrong) $("dgScoring").value = "preset";
+  else if (m.A.correct === 4 && m.A.wrong === 0) $("dgScoring").value = "neg0";
+  else { $("dgScoring").value = "custom"; $("dgMkA").value = m.A.correct; $("dgMkW").value = Math.abs(m.A.wrong); }
+  $("dgCustomMarks").style.display = $("dgScoring").value === "custom" ? "" : "none";
+  const snaps = await Promise.all((ex.questionIds||[]).map(id => getDoc(doc(db,"questions",id))));
+  const missing = snaps.filter(s => !s.exists()).length;
+  DG = { examDocId: docId, origIds: (ex.questionIds||[]).slice(), rows: [] };
+  snaps.filter(s => s.exists()).forEach(s => DG.rows.push(dgRowFromQuestion({ docId: s.id, ...s.data() }, ex.idealTimes)));
+  const firstTopic = DG.rows.find(r => r.topic)?.topic;
+  if (firstTopic) $("dgTopic").value = firstTopic;
+  if (DG.rows[0] && EXAM_CONFIG[ex.examType].subjects.includes(DG.rows[0].subject)) { $("dgSubject").value = DG.rows[0].subject; dgLoadTopicList(); }
+  setMsg($("dgMsg"), `Editing "${ex.title}" — ${DG.rows.length} questions loaded${missing?` (${missing} no longer exist in the bank and will be dropped on save)`:""}.`, true);
+  dgRender();
+}
+function dgRowFromQuestion(q, idealTimes){
+  const r = {
+    key: ++dgSeq, docId: q.docId, isNew: false, q,
+    image: q.image || null, text: q.text || "",
+    subject: q.subject, section: q.section || "A",
+    topic: q.topic || "", difficulty: q.difficulty || "Medium",
+    correct_answer: String(q.correct_answer ?? ""), createdBy: q.createdBy
+  };
+  r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty;
+  r.idealSec = idealTimes?.[q.docId] ?? q.idealTimeSec ?? dgDefaultIdeal(r);
+  return r;
+}
+async function dgAddFiles(files){
+  const list = Array.from(files||[]).filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|webp|gif)$/i.test(f.name||""));
+  if (!list.length) { setMsg($("dgAddMsg"), "No image files in that selection."); return; }
+  list.sort((a,b) => (a.name||"").localeCompare(b.name||"", undefined, { numeric:true }));
+  const topic = $("dgTopic").value.trim();
+  let ok = 0, bad = 0, keyed = 0;
+  for (let i = 0; i < list.length; i++) {
+    const f = list[i];
+    setMsg($("dgAddMsg"), `Compressing image ${i+1}/${list.length}…`, true);
+    try {
+      const image = await imageFileToDataUrl(f);
+      const section = $("dgSection").value;
+      const guess = section === "A" ? (guessAnswerFromFilename(f.name) || "") : "";
+      if (guess) keyed++;
+      const r = { key: ++dgSeq, docId: null, isNew: true, image, text: "", file: f.name || "pasted image",
+        subject: $("dgSubject").value, section, topic, difficulty: $("dgDiff").value,
+        correct_answer: guess, kb: Math.round(image.length/1024) };
+      r.idealSec = dgDefaultIdeal(r);
+      DG.rows.push(r); ok++;
+    } catch(e){ bad++; }
+  }
+  setMsg($("dgAddMsg"), `Added ${ok} image question(s)${bad?`, ${bad} could not be read`:""}. ${keyed} answer(s) read from filenames — fill the rest in the table (red rows).` +
+    (topic ? "" : " No Topic was set above — give each row a topic so the topic-wise report works."), !!topic);
+  dgRender();
+}
+function dgRender(){
+  const rows = DG.rows;
+  $("dgMode").textContent = DG.examDocId ? "— editing an existing test" : "— new test";
+  const marks = dgMarks();
+  const totalIdeal = rows.reduce((s,r)=>s+(+r.idealSec||0),0);
+  const maxMarks = rows.reduce((s,r)=>s+(r.section==="B"?marks.B:marks.A).correct,0);
+  const keyChanges = rows.filter(r => !r.isNew && r.correct_answer !== r.origAnswer).length;
+  const topics = [...new Set(rows.map(r=>r.topic).filter(Boolean))];
+  $("dgSummary").textContent = rows.length
+    ? `— ${rows.length} questions • total ideal time ${fmtSec(totalIdeal)} • max marks ${maxMarks} • topics: ${topics.join(", ")||"none"}${keyChanges?` • ${keyChanges} key change(s) not saved yet`:""}`
+    : "";
+  if (!rows.length) { $("dgWrap").innerHTML = `<div style="padding:10px;color:var(--muted)">No questions yet — add images or pick from the bank above.</div>`; return; }
+  const ansCell = r => r.section === "A"
+    ? `<select data-dgf="correct_answer" style="font-weight:700"><option value="">?</option>${"ABCD".split("").map((L,k)=>
+        `<option value="${L}" ${r.correct_answer===L?"selected":""}>${L} / ${k+1}</option>`).join("")}</select>`
+    : `<input data-dgf="correct_answer" value="${esc(r.correct_answer)}" style="width:70px;text-align:center;font-weight:700" placeholder="number">`;
+  $("dgWrap").innerHTML = `<table class="tbl"><thead><tr>
+      <th>#</th><th>Question</th><th>Subject</th><th>Topic</th><th>Difficulty</th><th>Sec</th><th>Answer</th><th>Ideal time (sec)</th><th>Order</th><th></th>
+    </tr></thead><tbody>` + rows.map((r,i) => {
+      const missing = r.section==="A" ? !"ABCD".includes(r.correct_answer||"x") : (r.correct_answer==="" || isNaN(parseFloat(r.correct_answer)));
+      const changed = !r.isNew && r.correct_answer !== r.origAnswer;
+      const bg = missing ? "background:#fdecea" : changed ? "background:#fff6e0" : "";
+      const others = r.isNew ? 0 : examsCache.filter(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId)).length;
+      const preview = r.image
+        ? `<img src="${r.image}" data-dgzoom="${i}" style="max-width:200px;max-height:110px;border:1px solid var(--border);border-radius:4px;cursor:zoom-in">`
+        : `<span style="font-size:12.5px">${esc(String(r.text||"").replace(/<[^>]*>/g,"").slice(0,110))}</span>`;
+      return `<tr data-dg="${i}" style="${bg}">
+        <td><b>${i+1}</b></td>
+        <td>${preview}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||"")} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
+        <td style="font-size:12.5px">${esc(r.subject)}</td>
+        <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px"></td>
+        <td><select data-dgf="difficulty">${["Easy","Medium","Hard"].map(d=>`<option ${r.difficulty===d?"selected":""}>${d}</option>`).join("")}</select></td>
+        <td>${esc(r.section)}</td>
+        <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}</td>
+        <td><input data-dgf="idealSec" type="number" min="5" value="${r.idealSec}" style="width:70px"> <span style="font-size:11px;color:var(--muted)">${fmtSec(r.idealSec)}</span></td>
+        <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="-1" ${i===0?"disabled":""}>↑</button>
+            <button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="1" ${i===rows.length-1?"disabled":""}>↓</button></td>
+        <td><button class="btn danger" style="padding:2px 8px" data-dgrm="${i}" title="Remove from this test (the question stays in the bank)">✕</button></td>
+      </tr>`;
+    }).join("") + `</tbody></table>`;
+  $("dgWrap").querySelectorAll("[data-dg]").forEach(tr => {
+    const r = DG.rows[+tr.dataset.dg];
+    tr.querySelectorAll("[data-dgf]").forEach(inp => inp.onchange = () => {
+      const f = inp.dataset.dgf;
+      let v = inp.value.trim();
+      if (f === "idealSec") v = Math.max(5, parseInt(v) || dgDefaultIdeal(r));
+      r[f] = v;
+      setTimeout(dgRender, 0);   // deferred: a change fired by blur-during-rerender must not re-enter innerHTML
+    });
+  });
+  $("dgWrap").querySelectorAll("[data-dgmv]").forEach(b => b.onclick = () => {
+    const i = +b.dataset.dgmv, j = i + (+b.dataset.dir);
+    [DG.rows[i], DG.rows[j]] = [DG.rows[j], DG.rows[i]];
+    dgRender();
+  });
+  $("dgWrap").querySelectorAll("[data-dgrm]").forEach(b => b.onclick = () => { DG.rows.splice(+b.dataset.dgrm, 1); dgRender(); });
+  $("dgWrap").querySelectorAll("[data-dgzoom]").forEach(im => im.onclick = () => {
+    $("lightboxImg").src = im.src; $("lightbox").classList.remove("hidden");
+  });
+}
+function dgValidate(){
+  const errs = [];
+  if (!$("dgTitle").value.trim()) errs.push("Enter a title.");
+  if (!DG.rows.length) errs.push("Add at least one question.");
+  const subs = EXAM_CONFIG[$("dgType").value].subjects;
+  DG.rows.forEach((r,i) => {
+    const w = `Q${i+1}`;
+    if (!subs.includes(r.subject)) errs.push(`${w}: subject "${r.subject}" is not valid for ${$("dgType").value}.`);
+    if (r.section === "A") { if (!"ABCD".includes(r.correct_answer||"x")) errs.push(`${w}: pick the answer (A–D).`); }
+    else if (r.correct_answer === "" || isNaN(parseFloat(r.correct_answer))) errs.push(`${w}: numerical answer required.`);
+  });
+  return errs;
+}
+async function dgSave(){
+  const log = $("dgLog"); log.classList.remove("hidden"); log.textContent = "";
+  const say = t => { log.textContent += t + "\n"; log.scrollTop = log.scrollHeight; };
+  const errs = dgValidate();
+  if (errs.length) { setMsg($("dgMsg"), errs.slice(0,6).join("  ") + (errs.length>6?` …and ${errs.length-6} more.`:"")); log.classList.add("hidden"); return; }
+  const newRows = DG.rows.filter(r => r.isNew);
+  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff));
+  const keyEdits = edits.filter(r => r.correct_answer !== r.origAnswer);
+  const shared = keyEdits.filter(r => examsCache.some(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId))).length;
+  const removed = DG.origIds.filter(id => !DG.rows.some(r => r.docId === id)).length;
+  const msg = [`Save "${$("dgTitle").value.trim()}" with ${DG.rows.length} questions?`];
+  if (newRows.length) msg.push(`• ${newRows.length} new image question(s) will be uploaded to the bank`);
+  if (keyEdits.length) msg.push(`• ${keyEdits.length} answer key change(s)` + (shared ? ` — ${shared} of these questions are also used in other tests, which will get the new key too` : ""));
+  if (removed) msg.push(`• ${removed} question(s) removed from this test (they stay in the bank)`);
+  if (!confirm(msg.join("\n"))) { log.classList.add("hidden"); return; }
+  $("dgSaveBtn").disabled = true;
+  try {
+    const examType = $("dgType").value;
+    // 1) upload new image questions (small batches: images make docs big)
+    const stamp = Date.now().toString(36).toUpperCase();
+    const slug = safeDocId($("dgTitle").value).slice(0,30).toUpperCase();
+    newRows.forEach((r,i) => { r.docId = `DG_${slug}_${stamp}_${String(i+1).padStart(3,"0")}`; });
+    for (let i = 0; i < newRows.length; i += 8) {
+      const batch = writeBatch(db);
+      newRows.slice(i, i+8).forEach(r => batch.set(doc(db,"questions",r.docId), {
+        id: r.docId, examType, subject: r.subject, section: r.section,
+        text: "", options: r.section === "A" ? ["","","",""] : [],
+        correct_answer: String(r.correct_answer), topic: r.topic, difficulty: r.difficulty,
+        image: r.image, idealTimeSec: +r.idealSec,
+        createdBy: currentUser.uid, createdByName: currentUser.name, createdAt: serverTimestamp()
+      }));
+      await batch.commit();
+      say(`Uploaded ${Math.min(i+8, newRows.length)}/${newRows.length} new question(s)…`);
+    }
+    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; });
+    // 2) key / topic / difficulty edits on existing questions (one by one so a permission error names the question)
+    let failed = 0, keysSaved = 0;
+    for (const r of edits) {
+      const upd = {};
+      if (r.correct_answer !== r.origAnswer) upd.correct_answer = String(r.correct_answer);
+      if (r.topic !== r.origTopic) upd.topic = r.topic;
+      if (r.difficulty !== r.origDiff) upd.difficulty = r.difficulty;
+      try {
+        await updateDoc(doc(db,"questions",r.docId), upd);
+        if (upd.correct_answer !== undefined) keysSaved++;
+        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty;
+        say(`Updated ${r.q?.id||r.docId}: ${Object.entries(upd).map(([k,v])=>`${k} → ${v}`).join(", ")}`);
+      } catch(e) {
+        failed++;
+        say(`FAILED ${r.q?.id||r.docId}: ${e.code==="permission-denied" ? "you don't own this question — ask an admin to change it" : e.message}`);
+      }
+    }
+    // 3) the exam document itself
+    const marks = dgMarks();
+    const subjects = [...new Set(DG.rows.map(r=>r.subject))].sort((a,b)=>ALL_SUBJECTS.indexOf(a)-ALL_SUBJECTS.indexOf(b));
+    const payload = {
+      title: $("dgTitle").value.trim(), examType,
+      questionIds: DG.rows.map(r=>r.docId), subjects,
+      durationMin: Math.max(1, parseInt($("dgDuration").value) || 30),
+      marks, maxMarks: DG.rows.reduce((s,r)=>s+(r.section==="B"?marks.B:marks.A).correct,0),
+      idealTimes: Object.fromEntries(DG.rows.map(r=>[r.docId, +r.idealSec])),
+      showIdealTime: $("dgShowIdeal").checked,
+      keepOrder: $("dgKeepOrder").checked,
+      shuffleOptions: $("dgShuffleOpt").checked,
+      topics: [...new Set(DG.rows.map(r=>r.topic).filter(Boolean))],
+      updatedAt: serverTimestamp()
+    };
+    const wasExisting = !!DG.examDocId;
+    const setChanged = wasExisting && (new Set(DG.origIds).size !== new Set(payload.questionIds).size || DG.origIds.some(id => !payload.questionIds.includes(id)));
+    if (wasExisting) {
+      await updateDoc(doc(db,"exams",DG.examDocId), payload);
+      say("Test updated.");
+    } else {
+      const ref = await addDoc(collection(db,"exams"), { ...payload, diagnostic: true, audience: { mode:"all" },
+        startAt: null, endAt: null, isActive: false, createdAt: serverTimestamp(),
+        createdBy: currentUser.uid, createdByName: currentUser.name });
+      DG.examDocId = ref.id;
+      say("Test created (inactive). Activate it from the Exams tab and choose who can take it.");
+    }
+    DG.origIds = payload.questionIds.slice();
+    allBankCache = null;
+    await loadExams();
+    initDiagnostic();
+    $("dgExisting").value = DG.examDocId;
+    const failNote = failed ? ` — but ${failed} question edit(s) failed (still highlighted), see log` : "";
+    setMsg($("dgMsg"), `Saved${failNote}.`, !failed);
+    // 4) existing attempts are graded against the old key/list until re-graded
+    if (wasExisting && (keysSaved || setChanged)) {
+      const n = (await getDocs(query(collection(db,"attempts"), where("examId","==",DG.examDocId)))).docs.filter(d=>d.data().submitTime!=null).length;
+      if (n && confirm(`${n} student(s) have already submitted this test. Re-grade their attempts with the new key / question list now?`)) {
+        await dgRegrade();
+        if (failed) $("dgMsg").innerHTML += `<div class="msg err">${failed} question edit(s) failed — see log.</div>`;
+      }
+    }
+  } catch(e) { say("FAILED: " + e.message); setMsg($("dgMsg"), "Save failed: " + e.message); }
+  finally { $("dgSaveBtn").disabled = false; }
+}
+// Recompute score / subject scores / wrong+unanswered lists for every submitted attempt of a test.
+// Only questions that are still in the test AND were on the student's paper count — removed questions
+// drop out, and questions added after the student sat the test (never shown to them) are not held against them.
+async function regradeExam(exam){
+  const snap = await getDocs(query(collection(db,"attempts"), where("examId","==",exam.docId)));
+  const atts = snap.docs.filter(d => d.data().submitTime != null);
+  if (!atts.length) return { total: 0, changed: 0 };
+  const qsnaps = await Promise.all((exam.questionIds||[]).map(id => getDoc(doc(db,"questions",id))));
+  const qById = {};
+  qsnaps.forEach(s => { if (s.exists()) qById[s.id] = { docId: s.id, ...s.data() }; });
+  const cfg = examCfg(exam);
+  let changed = 0;
+  for (let i = 0; i < atts.length; i += 400) {
+    const batch = writeBatch(db);
+    atts.slice(i, i+400).forEach(d => {
+      const a = d.data();
+      const marks = a.examMarks || cfg.marks;
+      const ids = Object.keys(a.questionTimeSec || a.responses || {}).filter(id => qById[id]);
+      let score = 0, maxMarks = 0;
+      const subjectScores = {}, subjectTimeSec = {}, questionTimeSec = {}, wrongQuestions = [], unansweredQuestions = [];
+      ids.forEach(id => {
+        const q = qById[id], sec = q.section || "A", m = marks[sec] || cfg.marks[sec];
+        const r = (a.responses||{})[id] || {};
+        const t = (a.questionTimeSec||{})[id] ?? r.timeSec ?? 0;
+        questionTimeSec[id] = t;
+        subjectTimeSec[q.subject] = (subjectTimeSec[q.subject]||0) + t;
+        subjectScores[q.subject] = subjectScores[q.subject] || 0;
+        maxMarks += m.correct;
+        if (r.answer == null) { unansweredQuestions.push(id); return; }
+        const ok = sec === "A" ? r.answer === q.correct_answer
+                 : Math.abs(parseFloat(r.answer) - parseFloat(q.correct_answer)) < 1e-6;
+        const delta = ok ? m.correct : m.wrong;
+        if (!ok) wrongQuestions.push(id);
+        score += delta; subjectScores[q.subject] += delta;
+      });
+      const upd = { score, subjectScores, subjectTimeSec, questionTimeSec, wrongQuestions, unansweredQuestions,
+        examMaxMarks: maxMarks, examSubjects: cfg.subjects.filter(s => s in subjectScores), regradedAt: serverTimestamp() };
+      if (score !== a.score) { changed++; upd.scoreBeforeRegrade = a.scoreBeforeRegrade ?? a.score; }
+      batch.update(d.ref, upd);
+    });
+    await batch.commit();
+  }
+  return { total: atts.length, changed };
+}
+async function dgRegrade(){
+  const exam = examsCache.find(e => e.docId === DG.examDocId);
+  if (!exam) { setMsg($("dgMsg"), "Save or open a test first."); return; }
+  const log = $("dgLog"); log.classList.remove("hidden");
+  log.textContent += "Re-grading submitted attempts…\n";
+  $("dgRegradeBtn").disabled = true;
+  try {
+    const { total, changed } = await regradeExam(exam);
+    log.textContent += total ? `Re-graded ${total} attempt(s); ${changed} score(s) changed.\n` : "No submitted attempts to re-grade.\n";
+    setMsg($("dgMsg"), total ? `Re-graded ${total} attempt(s) — ${changed} score(s) changed.` : "No submitted attempts yet.", true);
+  } catch(e) { log.textContent += "FAILED: " + e.message + "\n"; setMsg($("dgMsg"), "Re-grade failed: " + e.message); }
+  finally { $("dgRegradeBtn").disabled = false; }
+}
+$("dgType").onchange = () => { dgFillSubjects(); dgSetIdealInputs(); dgRender(); };
+$("dgSubject").onchange = dgLoadTopicList;
+$("dgScoring").onchange = () => { $("dgCustomMarks").style.display = $("dgScoring").value === "custom" ? "" : "none"; dgRender(); };
+$("dgMkA").onchange = $("dgMkW").onchange = dgRender;
+$("dgNewBtn").onclick = dgNew;
+$("dgOpenBtn").onclick = () => dgOpenExam($("dgExisting").value);
+$("dgFiles").onchange = e => { dgAddFiles(e.target.files); e.target.value = ""; };
+$("dgDrop").addEventListener("dragover", e => { e.preventDefault(); $("dgDrop").style.borderColor = "var(--blue)"; });
+$("dgDrop").addEventListener("dragleave", () => { $("dgDrop").style.borderColor = ""; });
+$("dgDrop").addEventListener("drop", e => { e.preventDefault(); $("dgDrop").style.borderColor = ""; dgAddFiles(e.dataTransfer.files); });
+// paste a screenshot anywhere on the Diagnostic tab (text pastes into inputs are left alone)
+window.addEventListener("paste", e => {
+  if ($("atab-diagnostic").classList.contains("hidden") || $("view-admin").classList.contains("hidden")) return;
+  const imgs = Array.from(e.clipboardData?.files || []).filter(f => /^image\//.test(f.type));
+  if (!imgs.length) return;
+  e.preventDefault();
+  const n = DG.rows.length;
+  dgAddFiles(imgs.map((f,i) => new File([f], `pasted_${n+i+1}.png`, { type: f.type })));
+});
+$("dgAutoDurBtn").onclick = () => {
+  const total = DG.rows.reduce((s,r)=>s+(+r.idealSec||0),0);
+  $("dgDuration").value = Math.max(1, Math.ceil(total*1.1/60));
+};
+$("dgResetIdealBtn").onclick = () => {
+  if (DG.rows.length && !confirm("Reset every question's ideal time to the Easy/Medium/Hard defaults?")) return;
+  DG.rows.forEach(r => { r.idealSec = dgDefaultIdeal(r); });
+  dgRender();
+};
+$("dgApplyKeyBtn").onclick = () => {
+  if (!DG.rows.length) { setMsg($("dgMsg"), "Add questions first."); return; }
+  const raw = $("dgKey").value;
+  let key = parseAnswerKey(raw);
+  // a bare run like "1 3 2 4" (option numbers) — map positionally
+  if (Object.keys(key).length < 2 || Object.keys(key).every(k => !"ABCD".includes(key[k]) && DG.rows.every(r=>r.section==="A"))) {
+    const toks = raw.trim().split(/[\s,;]+/).filter(t => /^[1-4A-Da-d]$/.test(t));
+    if (toks.length >= 2 && toks.length >= Object.keys(key).length) { key = {}; toks.forEach((t,i)=>key[i+1]=t); }
+  }
+  let hit = 0;
+  DG.rows.forEach((r,i) => {
+    let v = key[i+1];
+    if (v === undefined) return;
+    v = String(v);
+    if (r.section === "A") { v = normAnsToken(v); if (!v) return; }
+    r.correct_answer = v; hit++;
+  });
+  setMsg($("dgMsg"), hit ? `Filled ${hit} of ${DG.rows.length} answers in row order — review the highlighted changes, then Save.` : "Could not read any answers from that key.", !!hit);
+  dgRender();
+};
+$("dgBankLoadBtn").onclick = async () => {
+  const filter = ($("dgBankFilter").value.trim() || $("dgTopic").value.trim()).toLowerCase();
+  $("dgBankPick").classList.remove("hidden");
+  $("dgBankPick").innerHTML = "Loading bank…";
+  try {
+    const list = await fetchQuestions($("dgType").value, $("dgSubject").value);
+    const have = new Set(DG.rows.map(r=>r.docId));
+    dgBankList = list.filter(q => !have.has(q.docId) && (!filter || (q.topic||"").toLowerCase().includes(filter)));
+    $("dgBankPick").innerHTML = dgBankList.length ? dgBankList.map((q,i) => `<label><input type="checkbox" value="${i}">
+      <span><b>${esc(q.id)}</b> <span style="color:var(--muted)">[${esc(q.topic||"no topic")} · ${esc(q.difficulty||"")}]</span>${q.image?" 🖼":""} — ${esc(String(q.text||"(image question)").replace(/<[^>]*>/g,"").slice(0,90))}</span></label>`).join("")
+      : `<div style="padding:6px;color:var(--muted)">No${filter?` "${esc(filter)}"`:""} questions in ${esc($("dgSubject").value)} that aren't already in this test.</div>`;
+    $("dgBankAddBtn").classList.toggle("hidden", !dgBankList.length);
+  } catch(e){ $("dgBankPick").innerHTML = `<div style="color:var(--muted)">Could not load: ${esc(e.message)}</div>`; }
+};
+$("dgBankAddBtn").onclick = () => {
+  const picked = [...$("dgBankPick").querySelectorAll("input:checked")].map(c => dgBankList[+c.value]);
+  if (!picked.length) return;
+  const ex = examsCache.find(e => e.docId === DG.examDocId);
+  picked.forEach(q => DG.rows.push(dgRowFromQuestion(q, ex?.idealTimes)));
+  setMsg($("dgAddMsg"), `Added ${picked.length} question(s) from the bank.`, true);
+  $("dgBankLoadBtn").click();
+  dgRender();
+};
+$("dgSaveBtn").onclick = dgSave;
+$("dgRegradeBtn").onclick = () => {
+  if (!DG.examDocId) { setMsg($("dgMsg"), "Open or save a test first."); return; }
+  if (confirm("Re-grade every submitted attempt of this test with the key and question list as currently SAVED?")) dgRegrade();
+};
+
+/* ============================================================
    TOPIC MANAGER  —  keep chapter names consistent across the bank
    ============================================================ */
 let tmGroups = [];
@@ -2409,11 +2964,17 @@ async function loadExams(){
     <td>${e.isActive?'<span class="badge pos">ACTIVE</span>':'<span class="badge zero">inactive</span>'}</td>
     <td style="font-size:12px">${esc(e.createdByName||"—")}</td>
     <td><button class="btn secondary" style="padding:3px 10px" data-prevex="${e.docId}">Preview</button>${ownsItem(e)?`
+      <button class="btn secondary" style="padding:3px 10px" data-editex="${e.docId}" title="Change key, add/remove questions, ideal times">Edit</button>
       <button class="btn ${e.isActive?'secondary':'green'}" style="padding:3px 10px" data-toggle="${e.docId}" data-act="${e.isActive?0:1}">${e.isActive?'Deactivate':'Activate'}</button>
       <button class="btn danger" style="padding:3px 10px" data-delex="${e.docId}">Delete</button>`
       :`<span style="color:var(--muted);font-size:11px">read-only</span>`}
     </td></tr>`).join("") || `<tr><td colspan="7">No exams yet.</td></tr>`;
   $("examRows").querySelectorAll("[data-prevex]").forEach(b => b.onclick = () => previewExam(b.dataset.prevex));
+  $("examRows").querySelectorAll("[data-editex]").forEach(b => b.onclick = () => {
+    document.querySelector('[data-atab="diagnostic"]').click();
+    $("dgExisting").value = b.dataset.editex;
+    dgOpenExam(b.dataset.editex);
+  });
   $("examRows").querySelectorAll("[data-toggle]").forEach(b => b.onclick = async () => {
     const activate = b.dataset.act === "1";
     if (activate) { openAudienceModal(b.dataset.toggle); return; }
@@ -2644,10 +3205,12 @@ async function startExam(){
     qlist = cachedOrder.map(o => { const q = byId[o.docId]; if (q) q._optOrder = o.optOrder || [0,1,2,3]; return q; }).filter(Boolean);
   } else {
     qlist = [];
+    const pos = new Map(activeExam.questionIds.map((id,i)=>[id,i]));
     for (const sub of cfg.subjects) {
       for (const sec of ["A","B"]) {
-        const grp = shuffle(Object.values(byId).filter(q => q.subject===sub && (q.section||"A")===sec));
-        qlist.push(...grp);
+        const grp = Object.values(byId).filter(q => q.subject===sub && (q.section||"A")===sec);
+        // keepOrder (e.g. a diagnostic that ramps easy → hard) serves questions in the order the test defines
+        qlist.push(...(cfg.keepOrder ? grp.sort((a,b)=>pos.get(a.docId)-pos.get(b.docId)) : shuffle(grp)));
       }
     }
     // option-order per question (identity unless shuffleOptions); answers always stored in ORIGINAL letters
@@ -2684,6 +3247,7 @@ async function startExam(){
     });
   }
 
+  qlist.forEach(q => { q._idealSec = idealSecFor(q, cfg.idealTimes, activeExam.examType); });
   EX = {
     cfg, attemptRef, cacheKey,
     examType: activeExam.examType, title: activeExam.title,
@@ -2716,6 +3280,7 @@ async function startExam(){
     if (i >= 0) gotoQuestion(i);
   });
 
+  $("qIdeal").classList.toggle("hidden", !cfg.showIdealTime);
   buildPalette();
   initLightbox();
   showView("view-exam");
@@ -2805,8 +3370,16 @@ function tick(){
   const t = $("timer");
   t.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
   t.classList.toggle("low", left < 300);
+  if (EX.cfg.showIdealTime) {
+    const q = EX.questions[EX.idx];
+    const spent = EX.state[EX.idx].timeSec + (EX.shownAt != null ? (Date.now()-EX.shownAt)/1000 : 0);
+    const el = $("qIdeal");
+    el.textContent = `⏱ ${fmtClock(spent)} / ideal ${fmtClock(q._idealSec)}`;
+    el.classList.toggle("over", spent > q._idealSec);
+  }
   if (left <= 0) submitExam(true);
 }
+function fmtClock(s){ s = Math.round(s||0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
 
 /* ---- time tracking ---- */
 function stopClock(){
@@ -2986,6 +3559,7 @@ async function submitExam(auto, flag={}){
   const subjectScores = {}, subjectTimeSec = {}, questionTimeSec = {};
   const wrongQuestions = [], unansweredQuestions = [];
   const detail = []; // for result rendering
+  const idealTimes = {}; // snapshot of the ideal time each question was held to
 
   EX.questions.forEach((q,i) => {
     const st = EX.state[i];
@@ -3009,6 +3583,7 @@ async function submitExam(auto, flag={}){
     score += delta;
     subjectScores[q.subject] += delta;
     detail.push({ q, answer: st.answer, delta, verdict, timeSec: Math.round(st.timeSec) });
+    idealTimes[q.docId] = q._idealSec;
   });
 
   const totalTimeSec = Math.round((Date.now() - EX.startTime)/1000);
@@ -3022,6 +3597,7 @@ async function submitExam(auto, flag={}){
     score, subjectScores, wrongQuestions, unansweredQuestions,
     // config snapshot so the result renders correctly regardless of exam edits
     examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks,
+    idealTimes,
     // proctoring
     malpractice: !!flag.malpractice,
     malpracticeReason: flag.malpractice ? (flag.reason || "") : "",
@@ -3410,6 +3986,12 @@ async function showResult(attempt){
   } else {
     detail.sort((a,b) => cfg.subjects.indexOf(a.q.subject)-cfg.subjects.indexOf(b.q.subject));
   }
+  // ideal time per question: the attempt's own snapshot, else the exam's current settings, else defaults
+  const _idealSrc = attempt.idealTimes || _examForOrder?.idealTimes || {};
+  detail.forEach(d => {
+    d.idealSec = idealSecFor(d.q, _idealSrc, attempt.examType);
+    d.bucket = speedBucket(d.verdict, d.timeSec, d.idealSec);
+  });
   lastResultDetail = detail; lastResultAttempt = attempt;
 
   // percentile + rank among all attempts of same examType
@@ -3430,7 +4012,9 @@ async function showResult(attempt){
     <tr><td>${i+1}</td><td>${esc(d.q.subject)}</td><td>${esc(d.q.topic)}</td>
     <td>${d.answer ?? "<i>—</i>"}</td><td>${esc(d.q.correct_answer)}</td>
     <td><span class="badge ${d.delta>0?'pos':d.delta<0?'neg':'zero'}">${d.delta>0?'+':''}${d.delta}</span></td>
-    <td>${fmtSec(d.timeSec)}</td></tr>`).join("");
+    <td style="${d.answer!=null && d.timeSec>d.idealSec?'color:#a4610b;font-weight:600':''}">${fmtSec(d.timeSec)}</td>
+    <td>${fmtSec(d.idealSec)}</td>
+    <td><span class="badge ${BUCKET_LABEL[d.bucket][1]}">${BUCKET_LABEL[d.bucket][0]}</span></td></tr>`).join("");
 
   const errRows = kind => detail.filter(d=>d.verdict===kind).map((d,i) => `
     <tr><td>${i+1}</td><td>${esc(d.q.subject)}</td><td>${esc(d.q.topic)}</td><td>${esc(d.q.difficulty)}</td>
@@ -3443,8 +4027,9 @@ async function showResult(attempt){
   const topicMap = {};
   detail.forEach(d => {
     const key = (d.q.subject||"") + " — " + (d.q.topic||"General");
-    const t = topicMap[key] || (topicMap[key] = {tot:0,correct:0,wrong:0,unans:0,time:0});
-    t.tot++; t.time += d.timeSec;
+    const t = topicMap[key] || (topicMap[key] = {tot:0,correct:0,wrong:0,unans:0,time:0,ideal:0,
+      mastered:0,correctSlow:0,wrongFast:0,wrongSlow:0,skipped:0});
+    t.tot++; t.time += d.timeSec; t.ideal += d.idealSec; t[d.bucket]++;
     if (d.verdict==="correct") t.correct++; else if (d.verdict==="wrong") t.wrong++; else t.unans++;
   });
   // Accuracy = correct / (correct+wrong) — i.e. of ATTEMPTED questions in this topic, not of all
@@ -3454,7 +4039,26 @@ async function showResult(attempt){
     .sort((a,b)=> a.acc - b.acc)
     .map(({k,t,acc}) => `<tr><td>${esc(k)}</td><td>${t.tot}</td><td>${t.correct}</td><td>${t.wrong}</td><td>${t.unans}</td>
         <td><span class="analybar" style="width:${Math.max(2,acc)}px;background:${acc>=60?'var(--green)':acc>=35?'var(--orange)':'var(--red)'}"></span> ${acc}%</td>
-        <td>${fmtSec(t.time)}</td></tr>`).join("");
+        <td>${fmtSec(t.time)}</td><td>${fmtSec(t.ideal)}</td></tr>`).join("");
+
+  // ---- diagnosis: speed × accuracy per topic, with a one-line action ----
+  const topicAdvice = t => {
+    const att = t.correct + t.wrong, acc = att ? t.correct/att : 0;
+    if (t.skipped >= Math.ceil(t.tot/2)) return "Mostly skipped — revise the basics, then attempt every question";
+    if (acc >= 0.8 && t.correctSlow <= t.mastered) return "Strong — keep revising";
+    if (acc >= 0.6) return t.correctSlow > t.mastered ? "Understood but slow — timed practice for speed" : "Fairly good — fix the few errors";
+    if (t.wrongFast > t.wrongSlow) return "Rushing / misconception — slow down, read every option";
+    return "Concept gap — re-learn this topic before practising";
+  };
+  const diagCounts = { mastered:0, correctSlow:0, wrongFast:0, wrongSlow:0, skipped:0 };
+  detail.forEach(d => diagCounts[d.bucket]++);
+  const diagRows = Object.entries(topicMap)
+    .map(([k,t]) => ({ k, t, score: t.mastered*2 + t.correctSlow - t.wrongFast - t.wrongSlow*2 - t.skipped }))
+    .sort((a,b) => a.score - b.score)
+    .map(({k,t}) => `<tr><td>${esc(k)}</td><td>${t.tot}</td><td>${t.mastered}</td><td>${t.correctSlow}</td>
+      <td>${t.wrongFast}</td><td>${t.wrongSlow}</td><td>${t.skipped}</td><td style="font-size:12.5px">${esc(topicAdvice(t))}</td></tr>`).join("");
+  const diagChips = Object.entries(diagCounts).map(([b,n]) =>
+    `<div class="stat" title="${esc(BUCKET_LABEL[b][2])}"><div class="v">${n}</div><div class="l">${BUCKET_LABEL[b][0]}</div></div>`).join("");
 
   // ---- pace analysis (time management) ----
   const paceMap = {};
@@ -3496,9 +4100,13 @@ async function showResult(attempt){
     <h4 style="margin:12px 0 6px;color:var(--blue)">Questions you spent the most time on</h4>
     <table class="tbl"><thead><tr><th>#</th><th>Subject</th><th>Topic</th><th>Time</th><th>Result</th></tr></thead><tbody>${slowest}</tbody></table>
     <h2 class="sec">Topic-wise Analysis (weakest first)</h2>
-    <table class="tbl"><thead><tr><th>Subject — Topic</th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy</th><th>Time</th></tr></thead><tbody>${topicRows}</tbody></table>
+    <table class="tbl"><thead><tr><th>Subject — Topic</th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy</th><th>Time</th><th>Ideal time</th></tr></thead><tbody>${topicRows}</tbody></table>
+    <h2 class="sec">Diagnosis — speed &times; accuracy</h2>
+    <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">Each question is compared with its <b>ideal time</b>. <b>Correct but slow</b> = knows it, needs speed; <b>Wrong &amp; fast</b> = rushed or a misconception; <b>Wrong &amp; slow</b> = concept gap.</p>
+    <div class="statRow">${diagChips}</div>
+    <table class="tbl"><thead><tr><th>Subject — Topic</th><th>Qs</th><th>Mastered</th><th>Correct but slow</th><th>Wrong &amp; fast</th><th>Wrong &amp; slow</th><th>Skipped</th><th>What to do next</th></tr></thead><tbody>${diagRows}</tbody></table>
     <h2 class="sec">Question-by-question</h2>
-    <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th><th>Time Spent</th></tr></thead><tbody>${qRows}</tbody></table>
+    <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th><th>Time Spent</th><th>Ideal</th><th>Diagnosis</th></tr></thead><tbody>${qRows}</tbody></table>
     <h2 class="sec">Error Log</h2>
     <div class="subTabs">
       <button class="active" data-etab="wrong">Wrong Answers (${detail.filter(d=>d.verdict==="wrong").length})</button>
@@ -3517,9 +4125,9 @@ async function showResult(attempt){
     $("etab-unanswered").classList.toggle("hidden", b.dataset.etab!=="unanswered");
   });
   $("csvReportBtn").onclick = () => {
-    const rows = [["Q#","QuestionID","Subject","Section","Topic","Difficulty","YourAnswer","CorrectAnswer","Marks","TimeSec","Verdict"]];
+    const rows = [["Q#","QuestionID","Subject","Section","Topic","Difficulty","YourAnswer","CorrectAnswer","Marks","TimeSec","IdealSec","Verdict","Diagnosis"]];
     lastResultDetail.forEach((d,i)=>rows.push(
-      [i+1,d.q.id,d.q.subject,d.q.section||"A",d.q.topic,d.q.difficulty,d.answer??"",d.q.correct_answer,d.delta,d.timeSec,d.verdict]));
+      [i+1,d.q.id,d.q.subject,d.q.section||"A",d.q.topic,d.q.difficulty,d.answer??"",d.q.correct_answer,d.delta,d.timeSec,d.idealSec,d.verdict,BUCKET_LABEL[d.bucket][0]]));
     rows.push([]);
     rows.push(["TOTAL SCORE",lastResultAttempt.score,"MAX",cfg.maxMarks,"TIME",fmtSec(lastResultAttempt.totalTimeSec)]);
     if (lastResultAttempt.malpractice) rows.push(["MALPRACTICE", lastResultAttempt.malpracticeReason||"yes"]);

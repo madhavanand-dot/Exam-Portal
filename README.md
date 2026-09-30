@@ -86,6 +86,7 @@ As super-admin, open the **Faculty** tab → *Add Faculty* (name, email, passwor
 - **Answer Key** tab → patch `correct_answer` on questions **already uploaded**, scoped to one exam or a whole subject bank, with a preview of current → new before applying. Use this when a test went up with placeholder answers.
 - **Topics** tab → every distinct chapter name in the bank with question counts, and how many questions have **no topic**. Rename a chapter or merge several into one name. Also holds **Rebuild practice index** (see below).
 - **Exams** tab → set title, **duration**, **scoring** (type default / no-negative / custom), optional **shuffle option order**, choose **who can take it** (all of that type / specific batches / specific students), *Load Bank*, tick any questions (any subjects, any count — "First N" buttons help), *Create Exam*, then **Activate**. Multiple exams can be active at once for different audiences.
+- **Diagnostic Builder** tab → build a **topic-wise diagnostic test** straight from question **images** (pick files, drag & drop, or paste a screenshot with Ctrl+V) and/or matching bank questions filtered by topic. Per question: set the **answer** (dropdown, or paste a key in row order — `1-A 2-C`, `ABCD…`, or option numbers `1 3 2 4`), **topic**, **difficulty** and **ideal time**; reorder with ↑/↓ and remove with ✕. Options: keep question order (no shuffling, e.g. easy → hard), show ideal time to students, duration = total ideal time. **Edit** on any exam in the Exams tab opens it here to **change the key or add/remove questions**; if students already submitted, it offers to **re-grade** their attempts (old score kept as `scoreBeforeRegrade`). The key lives on the question, so the builder warns when a question is also used in other tests. Faculty can only change the key on questions they uploaded.
 - **Reports** tab → attempts table (admins see all; faculty see their own exams' attempts), filter by student/type/date, malpractice flag, click a row to open the full result, export CSV.
 - **Leaderboard** tab → ranks for one exam, optional batch filter, subject-wise columns, CSV export.
 - **Item Analysis** tab → **cumulative question-level analysis** across every submitted attempt for a test (optionally one batch). Shows % correct / wrong / blank per question, the **most-picked wrong option** (distractor analysis), average time, average revisits, and auto flags (`Hard`, `Trap → C`, `Often skipped`, `Time sink`, `Easy`), plus a chapter rollup and a drill-down naming which students got each question wrong, left it blank, or were slowest on. **Staff only — never shown to students.** Faculty see only their own exams.
@@ -96,7 +97,7 @@ As super-admin, open the **Faculty** tab → *Add Faculty* (name, email, passwor
 - Log in → **Available Exams** lists every active exam targeted to you (by type, batch, or direct assignment) → **Start Exam (Fullscreen)**.
 - Timer (red under 5 min), subject tabs, NTA-colour palette, Mark for Review, Save & Next, auto-save every 30 s, auto-submit at 0:00.
 - **Proctoring:** exam runs in fullscreen; switching tabs / leaving fullscreen / leaving the window is recorded. After **3 warnings** the test auto-submits and is flagged **malpractice** (with a logged reason + timestamps).
-- On submit: instant score, percentile, rank, subject breakdown, **topic-wise weak-area analysis**, per-question table with time spent, **Pace Analysis** (avg per attempted question, slow questions over 2 min) and their **5 slowest questions**, error log (wrong + unanswered with images), CSV download, and **Print / Save as PDF** scorecard.
+- On submit: instant score, percentile, rank, subject breakdown, **topic-wise weak-area analysis**, a **speed × accuracy diagnosis** per topic (Mastered / Correct but slow / Wrong & fast / Wrong & slow / Skipped, measured against each question's ideal time, with a "what to do next" line), per-question table with time spent, **Pace Analysis** (avg per attempted question, slow questions over 2 min) and their **5 slowest questions**, error log (wrong + unanswered with images), CSV download, and **Print / Save as PDF** scorecard.
 
 **Practice by Chapter (student self-study):**
 
@@ -124,6 +125,7 @@ For school exams that don't line up with the Aakash schedule, a student can buil
   "correct_answer": "B",
   "topic": "Kinematics",
   "difficulty": "Medium",
+  "idealTimeSec": 60,                              // optional: target time to solve; default by difficulty
   "examType": "medical"
 }
 ```
@@ -131,6 +133,7 @@ For school exams that don't line up with the Aakash schedule, a student can buil
 - `section`: `"A"` = MCQ (4 `options` text **and/or** 4 `optionImages`, `correct_answer` is `A`/`B`/`C`/`D`), `"B"` = Numerical (omit options, `correct_answer` is a number string).
 - A question needs **`text` or `image`** (or both). Images are base64 data URIs and are zoomable in-exam and in the review.
 - `examType`: `"medical"` or `"engineering"`. The subject must be valid for that type.
+- `idealTimeSec` (optional): the time a well-prepared student should need. If absent it defaults by difficulty — NEET 45/60/90 s, JEE 90/120/180 s for Easy/Medium/Hard (numericals ×1.5). A test can override it per question (Diagnostic Builder), and each attempt stores the ideal times it was held to.
 - Easiest way to build image/cropped-question papers: open **`question-builder.html`**, load a screenshot, drag to crop each question/option, fill the answer, and **Download JSON** — then upload it in the Questions tab.
 - Upload validates every item and reports rejected rows with reasons; each question records who created it.
 

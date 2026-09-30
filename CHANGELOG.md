@@ -7,6 +7,47 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-09-30 — Diagnostic Builder, editable tests, ideal time per question
+
+### Added — Diagnostic Builder tab (admin + faculty)
+
+Build topic-wise diagnostic tests without writing JSON.
+
+- **Images in**: pick files, drag & drop, or **paste a screenshot (Ctrl+V)** — each image becomes one question
+  (compressed to fit Firestore's 1 MB limit), tagged with the chosen subject/topic/difficulty. Answers are read
+  from filenames where possible, same as Bulk Import.
+- **Bank in**: find existing questions by topic and add the ones you want.
+- Per question: answer, topic, difficulty, **ideal time**, reorder (↑/↓), remove (✕). Paste a key in row order
+  (`1-A 2-C`, `ABCD…`, or option numbers `1 3 2 4`).
+- Test options: **keep question order** (no shuffling), **show ideal time to students**, duration = total ideal time +10%.
+- New image questions are written to the bank on save with IDs `DG_<TITLE>_<stamp>_NNN`.
+
+### Added — edit any existing test
+
+- **Edit** button in the Exams tab opens the test in the builder: **change the key, add or remove questions**,
+  change ideal times / scoring / duration. Audience and active state are left alone.
+- The key is stored on the question, so a change also applies to other tests using that question — the builder
+  shows "also in N other test(s)" and repeats it in the save confirmation.
+- **Re-grade submitted attempts**: offered automatically after a key change or question add/remove, or by button.
+  Recomputes score, subject scores and wrong/unanswered lists. Removed questions drop out; questions added after a
+  student sat the test are not counted against them. The previous score is kept as `scoreBeforeRegrade`.
+- Faculty can only change the key on questions they uploaded; a denied change is named in the log and stays highlighted.
+
+### Added — ideal time per question
+
+- New optional `idealTimeSec` on questions; exams can override per question (`idealTimes`). Defaults by difficulty:
+  NEET 45/60/90 s, JEE 90/120/180 s (numericals ×1.5).
+- In the exam (when the test enables it): a live "⏱ time on this question / ideal" chip, amber once over.
+- Result page: **Ideal** and **Diagnosis** columns per question, ideal time per topic, and a new
+  **Diagnosis — speed × accuracy** section (Mastered / Correct but slow / Wrong & fast / Wrong & slow / Skipped)
+  with a "what to do next" line per topic. CSV gains `IdealSec` and `Diagnosis`.
+- Item Analysis: **Ideal** column, avg time shown amber when over it, and an **Over ideal time** flag (avg > 1.5× ideal).
+- Each attempt stores the ideal times it was held to (`idealTimes`), so later edits don't rewrite old reports.
+
+No Firestore rules change needed — this uses the existing exam/question/attempt write permissions.
+
+---
+
 ## 2026-08-23 — Bulk Import: auto answer key from filename, "Option N" display
 
 ### Changed — Bulk Import (admin)
