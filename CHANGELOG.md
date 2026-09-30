@@ -7,6 +7,89 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-09-30 — Levels, faster images, "why wrong" reflection, custom practice
+
+### Changed — levels renamed
+
+Difficulty is now the diagnostic **Level**: **Bloom Level → Intermediate Level → Advanced Level** everywhere
+(builder, bank, practice, reports, CSVs). Stored values are unchanged (`Easy`/`Medium`/`Hard`), so existing
+questions, JSON files and the practice index keep working; JSON uploads also accept the new names.
+Item Analysis flags "Hard"/"Easy" became "Low accuracy"/"High accuracy" to avoid clashing with levels.
+
+### Changed — image compression (faster exams)
+
+- Every uploaded image is re-encoded to ≤1000 px wide and ~180 KB — the smallest of WebP / PNG / JPEG
+  (option images ≤600 px, ~60 KB). Previously up to ~700 KB each. JSON uploads are compressed too.
+- **Questions → 🗜 Compress stored images** re-encodes images already in the bank (only replaced when clearly smaller).
+  Run it once after deploying. (WebP needs Safari 14+; set `IMG_ALLOW_WEBP = false` for very old iPads.)
+
+### Added — student report: concept understood?
+
+- Per topic: **Concept** verdict (✅ Understood / 🟡 Understood — slow / 🟠 Partly / ❌ Not understood yet) and
+  **Level reached** (highest level cleared at ≥60%, climbing from Bloom), time taken vs ideal.
+- **Level-wise** table: accuracy, time taken and ideal time per level, cleared / not cleared.
+- Question table gains Level and "Why (student)" columns.
+
+### Added — "Why did these go wrong?" (after the test)
+
+On the result page the student picks a reason (and optional note) for each wrong or skipped question.
+Saved on the attempt as `reasons`; shown to staff in the result, Item Analysis ("Why (students)") and CSVs.
+
+### Added — Item Analysis: concept understanding by student
+
+Student × topic grid of concept verdicts and level reached, plus how many reasons each student gave.
+
+### Added — Custom Practice tab
+
+Per-student follow-up tests from wrong/skipped questions, chosen by reason (concept gap → Bloom upward;
+accuracy slip → same level; speed → same or easier level; no reason → inferred from timing), optional re-test of
+the originals and speed practice. Each is an exam assigned only to that student, ideal time shown, easiest first.
+
+No Firestore rules change needed — students already may update their own attempt.
+
+---
+
+## 2026-09-30 — Diagnostic Builder, editable tests, ideal time per question
+
+### Added — Diagnostic Builder tab (admin + faculty)
+
+Build topic-wise diagnostic tests without writing JSON.
+
+- **Images in**: pick files, drag & drop, or **paste a screenshot (Ctrl+V)** — each image becomes one question
+  (compressed to fit Firestore's 1 MB limit), tagged with the chosen subject/topic/difficulty. Answers are read
+  from filenames where possible, same as Bulk Import.
+- **Bank in**: find existing questions by topic and add the ones you want.
+- Per question: answer, topic, difficulty, **ideal time**, reorder (↑/↓), remove (✕). Paste a key in row order
+  (`1-A 2-C`, `ABCD…`, or option numbers `1 3 2 4`).
+- Test options: **keep question order** (no shuffling), **show ideal time to students**, duration = total ideal time +10%.
+- New image questions are written to the bank on save with IDs `DG_<TITLE>_<stamp>_NNN`.
+
+### Added — edit any existing test
+
+- **Edit** button in the Exams tab opens the test in the builder: **change the key, add or remove questions**,
+  change ideal times / scoring / duration. Audience and active state are left alone.
+- The key is stored on the question, so a change also applies to other tests using that question — the builder
+  shows "also in N other test(s)" and repeats it in the save confirmation.
+- **Re-grade submitted attempts**: offered automatically after a key change or question add/remove, or by button.
+  Recomputes score, subject scores and wrong/unanswered lists. Removed questions drop out; questions added after a
+  student sat the test are not counted against them. The previous score is kept as `scoreBeforeRegrade`.
+- Faculty can only change the key on questions they uploaded; a denied change is named in the log and stays highlighted.
+
+### Added — ideal time per question
+
+- New optional `idealTimeSec` on questions; exams can override per question (`idealTimes`). Defaults by difficulty:
+  NEET 45/60/90 s, JEE 90/120/180 s (numericals ×1.5).
+- In the exam (when the test enables it): a live "⏱ time on this question / ideal" chip, amber once over.
+- Result page: **Ideal** and **Diagnosis** columns per question, ideal time per topic, and a new
+  **Diagnosis — speed × accuracy** section (Mastered / Correct but slow / Wrong & fast / Wrong & slow / Skipped)
+  with a "what to do next" line per topic. CSV gains `IdealSec` and `Diagnosis`.
+- Item Analysis: **Ideal** column, avg time shown amber when over it, and an **Over ideal time** flag (avg > 1.5× ideal).
+- Each attempt stores the ideal times it was held to (`idealTimes`), so later edits don't rewrite old reports.
+
+No Firestore rules change needed — this uses the existing exam/question/attempt write permissions.
+
+---
+
 ## 2026-08-23 — Bulk Import: auto answer key from filename, "Option N" display
 
 ### Changed — Bulk Import (admin)
