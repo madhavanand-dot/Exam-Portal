@@ -1,0 +1,37 @@
+# Hourly: turns submitted diagnostic attempts (aiStatus = queued) into AI-drafted, AI-verified
+# practice questions in Firestore (aiDrafts). A teacher reviews and publishes them in the portal.
+# Setup: README → "AI follow-up practice".
+name: AI follow-up practice
+
+on:
+  schedule:
+    - cron: "17 * * * *"      # every hour at :17
+  workflow_dispatch: {}        # "Run workflow" button for an immediate run
+
+concurrency:
+  group: ai-followup
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 58
+    defaults:
+      run:
+        working-directory: ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --no-audit --no-fund
+      - run: node test.mjs
+      - run: node main.mjs
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          AI_BASE_URL: ${{ vars.AI_BASE_URL }}
+          AI_GEN_MODEL: ${{ vars.AI_GEN_MODEL }}
+          AI_VERIFY_MODEL: ${{ vars.AI_VERIFY_MODEL }}
+          AI_VISION_MODEL: ${{ vars.AI_VISION_MODEL }}
+          AI_RPM: ${{ vars.AI_RPM }}

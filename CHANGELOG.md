@@ -7,6 +7,26 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-01 — AI follow-up practice (write → blind-check → teacher publishes)
+
+### Added
+
+- **🤖 AI follow-up practice** option on tests (Diagnostic Builder; default on for new diagnostic tests). Each submission is queued.
+- **Hourly job** (`ai/`, `.github/workflows/ai-followup.yml`): waits up to 2 h for the student's reasons, one model writes new questions aimed at
+  each mistake, a different model solves each blind → ✅ Verified / ⚠ Disputed / ❌ Rejected. Image-only questions are transcribed first.
+  Results go to the new `aiDrafts` collection. Offline tests (`node ai/test.mjs`) run before every job.
+- **Custom Practice → AI follow-up drafts**: queue status, drafts to review, Review / Dismiss. Review opens the draft in the Diagnostic Builder
+  with each question's verdict, both solutions, and inline editing of stem/options/solution.
+- Saving creates the test for **that student only**; nothing is visible until you confirm **Publish**. Saved questions carry `aiGenerated`
+  (verdict, models, original AI key).
+
+### Setup required
+
+> **Publish `firestore.rules`** (new `aiDrafts` rule), add secrets `AI_API_KEY` and `FIREBASE_SERVICE_ACCOUNT`, then run the workflow once
+> from the Actions tab. See README → "AI follow-up practice". Existing tests: open in the Diagnostic Builder, tick AI follow-up, Save.
+
+---
+
 ## 2026-09-30 — Levels, faster images, "why wrong" reflection, custom practice
 
 ### Changed — levels renamed

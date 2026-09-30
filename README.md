@@ -141,6 +141,41 @@ For school exams that don't line up with the Aakash schedule, a student can buil
 
 ---
 
+## AI follow-up practice (optional)
+
+When a test has **🤖 AI follow-up practice** ticked (Diagnostic Builder; on by default for new diagnostic tests), every submission is queued
+(`attempts.aiStatus = "queued"`). An hourly GitHub Actions job (`.github/workflows/ai-followup.yml` → `ai/main.mjs`):
+
+1. waits up to **2 hours** for the student's "why did these go wrong?" reasons (uses timing if none are given);
+2. for each wrong / skipped / correct-but-slow question, asks the **writer** model for new questions aimed at that mistake
+   (concept gap → Bloom up to the question's level; accuracy slip → same level with the same kind of trap; speed → same or easier level),
+   transcribing image-only questions first with a vision model;
+3. has a **different checker** model solve every question **blind** (question + options only) →
+   ✅ **Verified** (same answer) / ⚠ **Disputed** (different answer) / ❌ **Rejected** (flaw found, left out);
+4. writes the result to `aiDrafts/{attemptId}`.
+
+A teacher opens **Custom Practice → 🤖 AI follow-up drafts → Review**. The draft opens in the Diagnostic Builder: fix keys, edit wording, delete,
+then **Save** — the questions join the bank (tagged `aiGenerated`, with the original AI key kept for audit) and the test is created for **that
+student only**. Nothing is visible to the student until you confirm **Publish**.
+
+### One-time setup
+
+1. **Publish `firestore.rules`** (adds the `aiDrafts` collection) — Firebase console → Firestore → Rules.
+2. **AI key** — create one at <https://build.nvidia.com> (any OpenAI-compatible provider works). GitHub repo → **Settings → Secrets and variables →
+   Actions → New repository secret**: `AI_API_KEY`.
+3. **Firebase service account** — Firebase console → Project settings → **Service accounts → Generate new private key**. Paste the whole JSON file
+   as the secret `FIREBASE_SERVICE_ACCOUNT`. (It is admin access: keep it only in GitHub Secrets, never in the repo or the page.)
+4. **Run it once** — repo → **Actions → AI follow-up practice → Run workflow**. The first step checks that the model ids exist and prints the
+   available ones if not. After that it runs every hour on its own.
+
+Optional **variables** (same settings page, *Variables* tab): `AI_GEN_MODEL` (default `openai/gpt-oss-120b`), `AI_VERIFY_MODEL`
+(default `nvidia/llama-3.3-nemotron-super-49b-v1.5`), `AI_VISION_MODEL` (default `meta/llama-3.2-90b-vision-instruct`), `AI_BASE_URL`
+(default NVIDIA), `AI_RPM` (default 30). Keep writer and checker from **different model families** so they don't share blind spots.
+
+Notes: NVIDIA's free tier is rate-limited (~40 requests/min) and intended for prototyping, not production — move to a paid endpoint by changing
+`AI_BASE_URL`/`AI_API_KEY` if you rely on it. GitHub pauses scheduled workflows in repos with no commits for 60 days (re-enable on the Actions tab).
+Both AIs can agree on a wrong answer, so teacher review is mandatory by design. `node ai/test.mjs` runs the offline tests (also run before every job).
+
 ## 7. Deploy on GitHub Pages
 
 1. Create a GitHub repository and push all files to the **root** (or a `/docs` folder).

@@ -79,6 +79,13 @@ service cloud.firestore {
       allow delete: if isStaff();
     }
 
+    // ---------- aiDrafts (AI-written, AI-checked follow-up practice awaiting teacher review) ----------
+    // Written by the hourly GitHub Actions job with a service account (bypasses rules); staff review them.
+    match /aiDrafts/{attemptId} {
+      allow read, update, delete: if isStaff();
+      allow create: if isStaff();
+    }
+
     // ---------- sessions (single active device per account) ----------
     match /sessions/{uid} {
       allow read, write: if isSelf(uid);
