@@ -86,6 +86,13 @@ service cloud.firestore {
       allow create: if isStaff();
     }
 
+    // ---------- settings (AI key & models; job status) ----------
+    // ai + aiSecret: super-admins only (the API key lives in aiSecret). aiStatus is written by the job.
+    match /settings/{id} {
+      allow read: if isSuperAdmin() || (id == "aiStatus" && isStaff());
+      allow write: if isSuperAdmin();
+    }
+
     // ---------- sessions (single active device per account) ----------
     match /sessions/{uid} {
       allow read, write: if isSelf(uid);

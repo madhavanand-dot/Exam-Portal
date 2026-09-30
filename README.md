@@ -88,6 +88,14 @@ As super-admin, open the **Faculty** tab → *Add Faculty* (name, email, passwor
 - **Exams** tab → set title, **duration**, **scoring** (type default / no-negative / custom), optional **shuffle option order**, choose **who can take it** (all of that type / specific batches / specific students), *Load Bank*, tick any questions (any subjects, any count — "First N" buttons help), *Create Exam*, then **Activate**. Multiple exams can be active at once for different audiences.
 - **Diagnostic Builder** tab → build a **topic-wise diagnostic test** straight from question **images** (pick files, drag & drop, or paste a screenshot with Ctrl+V) and/or matching bank questions filtered by topic. Per question: set the **answer** (dropdown, or paste a key in row order — `1-A 2-C`, `ABCD…`, or option numbers `1 3 2 4`), **topic**, **difficulty** and **ideal time**; reorder with ↑/↓ and remove with ✕. Options: keep question order (no shuffling, e.g. easy → hard), show ideal time to students, duration = total ideal time. **Edit** on any exam in the Exams tab opens it here to **change the key or add/remove questions**; if students already submitted, it offers to **re-grade** their attempts (old score kept as `scoreBeforeRegrade`). The key lives on the question, so the builder warns when a question is also used in other tests. Faculty can only change the key on questions they uploaded.
 - **Custom Practice** tab → pick a test (and batch): for every student who took it, builds a **follow-up test from what they got wrong or skipped, driven by the reason they gave** — *concept gap* (didn't understand / forgot formula / didn't know / guessed) → same topic from Bloom Level up to the question's level; *accuracy slip* (misread / calculation / silly) → same topic, same level; *speed* (rushed / too lengthy / ran out of time) → same topic, same or easier level. Optionally re-tests the original questions and adds speed practice for "correct but slow". Preview each plan, then create — each test is assigned only to its student (inactive by default). Uses the practice index, so **Rebuild practice index** after adding questions.
+- **● Live Monitor** tab → real-time view of every active test: who is **writing now** (progress, question, time left, live/idle heartbeat),
+  **tab switches / fullscreen exits** as they happen, and **⚡ too-quick answers** on tough questions (Advanced under 25% of ideal time, min 8 s;
+  Intermediate under 15%, min 5 s). An **Alerts** feed (optional sound) lists starts, switches, quick answers and submissions. Per student:
+  **📢 Warn** pops a message on their screen, **Stop** submits their test at once as malpractice with your reason. A "submitted in the last
+  3 hours" list shows clean / flagged / malpractice. Faculty see only their own tests.
+- **AI Settings** tab *(admin only)* → API key, base URL, writer / checker / vision models and limits for the AI job; overrides the GitHub
+  variables/secrets. The key is stored in Firestore readable only by admins and never shown again (last 4 characters only). The job reports
+  each run here: key accepted?, models found?, what it did, and the provider's model list as suggestions.
 - **Reports** tab → attempts table (admins see all; faculty see their own exams' attempts), filter by student/type/date, malpractice flag, click a row to open the full result, export CSV.
 - **Leaderboard** tab → ranks for one exam, optional batch filter, subject-wise columns, CSV export.
 - **Item Analysis** tab → **cumulative question-level analysis** across every submitted attempt for a test (optionally one batch). Shows % correct / wrong / blank per question, the **most-picked wrong option** (distractor analysis), average time, average revisits, and auto flags (`Hard`, `Trap → C`, `Often skipped`, `Time sink`, `Easy`), plus a chapter rollup and a drill-down naming which students got each question wrong, left it blank, or were slowest on. **Staff only — never shown to students.** Faculty see only their own exams.
@@ -95,10 +103,10 @@ As super-admin, open the **Faculty** tab → *Add Faculty* (name, email, passwor
 - **Progress** tab → a student's score trend across attempts.
 
 **As student:**
-- Log in → **Available Exams** lists every active exam targeted to you (by type, batch, or direct assignment) → **Start Exam (Fullscreen)**.
+- Log in → **Available Exams** lists every active exam targeted to you; **Start** unlocks after ticking the **honesty pledge** (by type, batch, or direct assignment) → **Start Exam (Fullscreen)**.
 - Timer (red under 5 min), subject tabs, NTA-colour palette, Mark for Review, Save & Next, auto-save every 30 s, auto-submit at 0:00.
-- **Proctoring:** exam runs in fullscreen; switching tabs / leaving fullscreen / leaving the window is recorded. After **3 warnings** the test auto-submits and is flagged **malpractice** (with a logged reason + timestamps).
-- On submit: instant score, percentile, rank, subject breakdown, **topic-wise weak-area analysis**, a **"Why did these go wrong?" form** (reason + optional note for each wrong/skipped question, saved on the attempt, feeds Custom Practice), a **concept verdict** per topic (✅ Understood / 🟡 Understood — slow / 🟠 Partly / ❌ Not yet) with the **level reached**, a **level-wise** table (Bloom → Intermediate → Advanced, cleared at ≥60%), a **speed × accuracy diagnosis** per topic (Mastered / Correct but slow / Wrong & fast / Wrong & slow / Skipped, measured against each question's ideal time, with a "what to do next" line), per-question table with time spent, **Pace Analysis** (avg per attempted question, slow questions over 2 min) and their **5 slowest questions**, error log (wrong + unanswered with images), CSV download, and **Print / Save as PDF** scorecard.
+- **Proctoring:** the teacher sees the attempt **live** (heartbeat every 30 s, tab switches instantly, too-quick answers), can send a warning that pops up on screen, or stop the test. Exam runs in fullscreen; switching tabs / leaving fullscreen / leaving the window is recorded. After **3 warnings** the test auto-submits and is flagged **malpractice** (with a logged reason + timestamps).
+- On submit: an **🛡 Integrity report** (tab switches with times, tough questions answered too quickly, the pledge, and the teacher's note — or a "✅ Honest attempt" recognition), instant score, percentile, rank, subject breakdown, **topic-wise weak-area analysis**, a **"Why did these go wrong?" form** (reason + optional note for each wrong/skipped question, saved on the attempt, feeds Custom Practice), a **concept verdict** per topic (✅ Understood / 🟡 Understood — slow / 🟠 Partly / ❌ Not yet) with the **level reached**, a **level-wise** table (Bloom → Intermediate → Advanced, cleared at ≥60%), a **speed × accuracy diagnosis** per topic (Mastered / Correct but slow / Wrong & fast / Wrong & slow / Skipped, measured against each question's ideal time, with a "what to do next" line), per-question table with time spent, **Pace Analysis** (avg per attempted question, slow questions over 2 min) and their **5 slowest questions**, error log (wrong + unanswered with images), CSV download, and **Print / Save as PDF** scorecard.
 
 **Practice by Chapter (student self-study):**
 
@@ -160,15 +168,15 @@ student only**. Nothing is visible to the student until you confirm **Publish**.
 
 ### One-time setup
 
-1. **Publish `firestore.rules`** (adds the `aiDrafts` collection) — Firebase console → Firestore → Rules.
-2. **AI key** — create one at <https://build.nvidia.com> (any OpenAI-compatible provider works). GitHub repo → **Settings → Secrets and variables →
-   Actions → New repository secret**: `AI_API_KEY`.
+1. **Publish `firestore.rules`** (adds the `aiDrafts` and `settings` collections) — Firebase console → Firestore → Rules.
+2. **AI key** — create one at <https://build.nvidia.com> (any OpenAI-compatible provider works) and paste it in the portal's **AI Settings** tab
+   (or, alternatively, as the GitHub repo secret `AI_API_KEY` — the AI Settings tab wins if both are set).
 3. **Firebase service account** — Firebase console → Project settings → **Service accounts → Generate new private key**. Paste the whole JSON file
    as the secret `FIREBASE_SERVICE_ACCOUNT`. (It is admin access: keep it only in GitHub Secrets, never in the repo or the page.)
 4. **Run it once** — repo → **Actions → AI follow-up practice → Run workflow**. The first step checks that the model ids exist and prints the
    available ones if not. After that it runs every hour on its own.
 
-Optional **variables** (same settings page, *Variables* tab): `AI_GEN_MODEL` (default `openai/gpt-oss-120b`), `AI_VERIFY_MODEL`
+Models, base URL and limits are best changed in the portal's **AI Settings** tab. As a fallback, GitHub repo **variables** work too: `AI_GEN_MODEL` (default `openai/gpt-oss-120b`), `AI_VERIFY_MODEL`
 (default `nvidia/llama-3.3-nemotron-super-49b-v1.5`), `AI_VISION_MODEL` (default `meta/llama-3.2-90b-vision-instruct`), `AI_BASE_URL`
 (default NVIDIA), `AI_RPM` (default 30). Keep writer and checker from **different model families** so they don't share blind spots.
 

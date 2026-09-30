@@ -22,6 +22,27 @@ export const CONFIG_DEFAULTS = {
   staleMin: 180             // a "processing" claim older than this is retried
 };
 
+// Settings precedence: built-in defaults < GitHub variables/secrets (env) < admin's AI Settings tab (Firestore).
+export function resolveConfig(env = {}, ai = {}, secret = {}){
+  const pick = (fsVal, envVal, def) => (fsVal !== undefined && fsVal !== null && fsVal !== "") ? fsVal : (envVal ? envVal : def);
+  const num = (fsVal, envVal, def, lo, hi) => { const v = Number(pick(fsVal, envVal, def)); return Number.isFinite(v) && v >= lo ? Math.min(v, hi) : def; };
+  const D = CONFIG_DEFAULTS;
+  const cfg = {
+    enabled: ai.enabled !== false,
+    baseUrl: String(pick(ai.baseUrl, env.AI_BASE_URL, D.baseUrl)).replace(/\/+$/, ""),
+    genModel: pick(ai.genModel, env.AI_GEN_MODEL, D.genModel),
+    verifyModel: pick(ai.verifyModel, env.AI_VERIFY_MODEL, D.verifyModel),
+    visionModel: pick(ai.visionModel, env.AI_VISION_MODEL, D.visionModel),
+    rpm: num(ai.rpm, env.AI_RPM, D.rpm, 1, 600),
+    perNeed: num(ai.perNeed, env.AI_PER_NEED, D.perNeed, 1, 5),
+    maxPerStudent: num(ai.maxPerStudent, env.AI_MAX_PER_STUDENT, D.maxPerStudent, 3, 60),
+    reasonWaitMin: num(ai.reasonWaitMin, env.AI_REASON_WAIT_MIN, D.reasonWaitMin, 0, 1440),
+    runMinutes: num(undefined, env.AI_RUN_MINUTES, D.runMinutes, 5, 350)
+  };
+  const apiKey = secret?.apiKey || env.AI_API_KEY || "";
+  return { cfg, apiKey, keySource: secret?.apiKey ? "AI Settings tab" : env.AI_API_KEY ? "GitHub secret" : "none" };
+}
+
 const LEVELS = [
   { key: "Easy",   name: "Bloom",        desc: "direct recall or a single-step application of one NCERT idea" },
   { key: "Medium", name: "Intermediate", desc: "two to three steps, applying the concept in a slightly new situation" },
@@ -283,7 +304,7 @@ export function makeLlm({ baseUrl, apiKey, rpm, fetchImpl = fetch, sleep = ms =>
     },
     async listModels(){
       const res = await fetchImpl(`${baseUrl}/models`, { headers: { "Authorization": `Bearer ${apiKey}` } });
-      if (!res.ok) throw new Error(`HTTP ${res.status} listing models`);
+      if (!res.ok) { const e = new Error(`HTTP ${res.status} listing models`); e.status = res.status; throw e; }
       return ((await res.json()).data || []).map(m => m.id);
     }
   };

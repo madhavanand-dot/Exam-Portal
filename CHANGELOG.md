@@ -7,6 +7,37 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-01 — Live Monitor, honesty & consequences, AI Settings
+
+### Added — ● Live Monitor (admin + faculty)
+
+- Real-time list of students writing each active test: progress, current question, time left, live/idle heartbeat.
+- **Tab switches / fullscreen exits** reported the moment they happen (previously only saved at submit).
+- **⚡ Too-quick answers** on tough questions: Advanced under 25% of ideal time (min 8 s), Intermediate under 15% (min 5 s). Bloom never flagged.
+- Alerts feed with optional sound; "submitted in the last 3 hours" with clean / flagged / malpractice.
+- Teacher actions: **📢 Warn** (message pops up on the student's screen) and **Stop** (submits immediately, flagged malpractice, reason shown).
+
+### Added — honesty & consequences for students
+
+- **Honesty pledge** checkbox before Start; recorded on the attempt.
+- Warnings now tell the student the teacher was notified live; the proctoring notice says what the teacher sees.
+- **🛡 Integrity report** on every result: tab switches with times, too-quick answers, pledge, teacher's note (staff write it on the result
+  page; the student sees it) — or a "✅ Honest attempt" recognition when clean.
+- Reports table shows flagged attempts with 🚨 switch and ⚡ quick counts. Attempts store `quickAnswers`.
+
+### Added — AI Settings tab (admin only)
+
+API key, base URL, writer / checker / vision models and limits for the AI job, stored in Firestore (`settings/ai`, `settings/aiSecret`) and
+overriding GitHub variables/secrets. The key is shown only as its last 4 characters. The job reports each run to `settings/aiStatus`
+(key accepted, models found, summary, provider's model list — offered as suggestions). `AI_API_KEY` in GitHub is now optional.
+
+> **Publish `firestore.rules`** (new `settings` rule: admins only; `aiStatus` readable by staff).
+
+Note: students can still edit their own attempt document (existing rule), so a determined student could tamper with recorded flags via
+developer tools; the live alerts the teacher already saw can't be undone. Anti-cheat remains client-side (see README → Notes).
+
+---
+
 ## 2026-10-01 — AI follow-up practice (write → blind-check → teacher publishes)
 
 ### Added

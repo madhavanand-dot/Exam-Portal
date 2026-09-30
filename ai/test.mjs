@@ -103,4 +103,16 @@ for (let i = 0; i < 4; i++) await paced.chat({ model: "m", messages: [] });
 Date.now = realNow;
 ok(slept === 3 * 2000, "30 requests/minute pacing (2 s apart)");
 
+// --- settings precedence: defaults < env (GitHub) < Firestore (AI Settings tab)
+import { resolveConfig } from "./pipeline.mjs";
+{
+  const r0 = resolveConfig({}, {}, {});
+  ok(r0.cfg.genModel === CONFIG_DEFAULTS.genModel && r0.apiKey === "" && r0.keySource === "none" && r0.cfg.enabled, "defaults with nothing set");
+  const r1 = resolveConfig({ AI_API_KEY: "envkey", AI_GEN_MODEL: "env/model", AI_RPM: "20", AI_BASE_URL: "" }, {}, {});
+  ok(r1.apiKey === "envkey" && r1.keySource === "GitHub secret" && r1.cfg.genModel === "env/model" && r1.cfg.rpm === 20 && r1.cfg.baseUrl === CONFIG_DEFAULTS.baseUrl, "GitHub vars/secrets override defaults; empty vars ignored");
+  const r2 = resolveConfig({ AI_API_KEY: "envkey", AI_GEN_MODEL: "env/model" }, { genModel: "fs/model", rpm: 9999, perNeed: 0, baseUrl: "https://x.ai/v1/", enabled: false }, { apiKey: "fskey" });
+  ok(r2.apiKey === "fskey" && r2.keySource === "AI Settings tab" && r2.cfg.genModel === "fs/model" && r2.cfg.rpm === 600 && r2.cfg.perNeed === CONFIG_DEFAULTS.perNeed && r2.cfg.baseUrl === "https://x.ai/v1" && r2.cfg.enabled === false,
+     "AI Settings override GitHub; numbers clamped/validated; trailing slash trimmed; switch-off honoured");
+}
+
 console.log(`\n${passed} passed`);

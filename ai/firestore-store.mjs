@@ -35,6 +35,11 @@ export function makeStore({ serviceAccount, databaseId }){
       for (const [k, v] of Object.entries(patch)) p[k] = /At$/.test(k) && typeof v === "number" ? ts(v) : (v === null ? FieldValue.delete() : v);
       await db.collection("attempts").doc(id).update(p);
     },
+    async getSettings(){
+      const [a, k] = await Promise.all([db.collection("settings").doc("ai").get(), db.collection("settings").doc("aiSecret").get()]);
+      return { ai: a.exists ? a.data() : {}, secret: k.exists ? k.data() : {} };
+    },
+    async writeStatus(st){ await db.collection("settings").doc("aiStatus").set({ ...st, lastRunAt: ts(st.lastRunAt) }, { merge: true }); },
     async writeDraft(id, draft){ await db.collection("aiDrafts").doc(id).set({ ...draft, createdAt: ts(draft.createdAt) }); }
   };
 }
