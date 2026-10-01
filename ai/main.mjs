@@ -3,6 +3,7 @@
 // variables/secrets, runs the pipeline, and reports back to settings/aiStatus (shown in the portal).
 import { run, makeLlm, resolveConfig } from "./pipeline.mjs";
 import { makeStore } from "./firestore-store.mjs";
+import { estimateQuestions } from "./estimate.mjs";
 
 const env = process.env;
 if (!env.FIREBASE_SERVICE_ACCOUNT) {
@@ -36,10 +37,14 @@ try {
   }
   console.warn("Could not list models (continuing): " + e.message);
 }
+// 1) AI-proposed answer keys + ideal times for new image questions (never blocks the follow-up run below)
+let estimate = null;
+try { estimate = await estimateQuestions({ store, llm, cfg }); }
+catch (e) { console.warn("Key/time estimation failed: " + e.message); estimate = { error: e.message }; }
 try {
   const s = await run({ store, llm, cfg });
   await report(!(s.errors && !s.drafted), s.errors ? `Finished with ${s.errors} error(s) — see the queue in Custom Practice.` : "Finished normally.",
-               { summary: s, ...(available.length ? { availableModels: available.slice(0, 400) } : {}) });
+               { summary: s, estimate, ...(available.length ? { availableModels: available.slice(0, 400) } : {}) });
   if (s.errors && !s.drafted) process.exitCode = 1;
 } catch (e) {
   await report(false, "Job crashed: " + e.message);
