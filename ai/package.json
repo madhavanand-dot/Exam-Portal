@@ -1,0 +1,8 @@
+{
+  "name": "exam-portal-ai-followup",
+  "private": true,
+  "type": "module",
+  "description": "Hourly job: AI-drafted, AI-verified follow-up practice for submitted diagnostic tests",
+  "scripts": { "start": "node main.mjs", "test": "node test.mjs" },
+  "dependencies": { "firebase-admin": "^12.7.0" }
+}

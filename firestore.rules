@@ -79,6 +79,20 @@ service cloud.firestore {
       allow delete: if isStaff();
     }
 
+    // ---------- aiDrafts (AI-written, AI-checked follow-up practice awaiting teacher review) ----------
+    // Written by the hourly GitHub Actions job with a service account (bypasses rules); staff review them.
+    match /aiDrafts/{attemptId} {
+      allow read, update, delete: if isStaff();
+      allow create: if isStaff();
+    }
+
+    // ---------- settings (AI key & models; job status) ----------
+    // ai + aiSecret: super-admins only (the API key lives in aiSecret). aiStatus is written by the job.
+    match /settings/{id} {
+      allow read: if isSuperAdmin() || (id == "aiStatus" && isStaff());
+      allow write: if isSuperAdmin();
+    }
+
     // ---------- sessions (single active device per account) ----------
     match /sessions/{uid} {
       allow read, write: if isSelf(uid);

@@ -7,6 +7,57 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-01 — Live Monitor, honesty & consequences, AI Settings
+
+### Added — ● Live Monitor (admin + faculty)
+
+- Real-time list of students writing each active test: progress, current question, time left, live/idle heartbeat.
+- **Tab switches / fullscreen exits** reported the moment they happen (previously only saved at submit).
+- **⚡ Too-quick answers** on tough questions: Advanced under 25% of ideal time (min 8 s), Intermediate under 15% (min 5 s). Bloom never flagged.
+- Alerts feed with optional sound; "submitted in the last 3 hours" with clean / flagged / malpractice.
+- Teacher actions: **📢 Warn** (message pops up on the student's screen) and **Stop** (submits immediately, flagged malpractice, reason shown).
+
+### Added — honesty & consequences for students
+
+- **Honesty pledge** checkbox before Start; recorded on the attempt.
+- Warnings now tell the student the teacher was notified live; the proctoring notice says what the teacher sees.
+- **🛡 Integrity report** on every result: tab switches with times, too-quick answers, pledge, teacher's note (staff write it on the result
+  page; the student sees it) — or a "✅ Honest attempt" recognition when clean.
+- Reports table shows flagged attempts with 🚨 switch and ⚡ quick counts. Attempts store `quickAnswers`.
+
+### Added — AI Settings tab (admin only)
+
+API key, base URL, writer / checker / vision models and limits for the AI job, stored in Firestore (`settings/ai`, `settings/aiSecret`) and
+overriding GitHub variables/secrets. The key is shown only as its last 4 characters. The job reports each run to `settings/aiStatus`
+(key accepted, models found, summary, provider's model list — offered as suggestions). `AI_API_KEY` in GitHub is now optional.
+
+> **Publish `firestore.rules`** (new `settings` rule: admins only; `aiStatus` readable by staff).
+
+Note: students can still edit their own attempt document (existing rule), so a determined student could tamper with recorded flags via
+developer tools; the live alerts the teacher already saw can't be undone. Anti-cheat remains client-side (see README → Notes).
+
+---
+
+## 2026-10-01 — AI follow-up practice (write → blind-check → teacher publishes)
+
+### Added
+
+- **🤖 AI follow-up practice** option on tests (Diagnostic Builder; default on for new diagnostic tests). Each submission is queued.
+- **Hourly job** (`ai/`, `.github/workflows/ai-followup.yml`): waits up to 2 h for the student's reasons, one model writes new questions aimed at
+  each mistake, a different model solves each blind → ✅ Verified / ⚠ Disputed / ❌ Rejected. Image-only questions are transcribed first.
+  Results go to the new `aiDrafts` collection. Offline tests (`node ai/test.mjs`) run before every job.
+- **Custom Practice → AI follow-up drafts**: queue status, drafts to review, Review / Dismiss. Review opens the draft in the Diagnostic Builder
+  with each question's verdict, both solutions, and inline editing of stem/options/solution.
+- Saving creates the test for **that student only**; nothing is visible until you confirm **Publish**. Saved questions carry `aiGenerated`
+  (verdict, models, original AI key).
+
+### Setup required
+
+> **Publish `firestore.rules`** (new `aiDrafts` rule), add secrets `AI_API_KEY` and `FIREBASE_SERVICE_ACCOUNT`, then run the workflow once
+> from the Actions tab. See README → "AI follow-up practice". Existing tests: open in the Diagnostic Builder, tick AI follow-up, Save.
+
+---
+
 ## 2026-09-30 — Levels, faster images, "why wrong" reflection, custom practice
 
 ### Changed — levels renamed

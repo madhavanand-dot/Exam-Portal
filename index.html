@@ -227,6 +227,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="bulkimport">Bulk Import</button>
       <button data-atab="keypatch">Answer Key</button>
       <button data-atab="topics">Topics</button>
+      <button data-atab="live"><span style="color:#e25555">●</span> Live Monitor</button>
       <button data-atab="exams">Exams</button>
       <button data-atab="diagnostic">Diagnostic Builder</button>
       <button data-atab="custompractice">Custom Practice</button>
@@ -235,6 +236,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="itemanalysis">Item Analysis</button>
       <button data-atab="attendance">Attendance</button>
       <button data-atab="progress">Progress</button>
+      <button data-atab="aisettings" id="tabAiSettings">AI Settings</button>
     </div>
 
     <div id="atab-students" class="atab">
@@ -489,7 +491,8 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;margin-bottom:4px;color:#345">Options</div>
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgKeepOrder" checked> Keep my question order (don't shuffle)</label>
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgShowIdeal" checked> Show ideal time to students during the test</label>
-            <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgShuffleOpt"> Shuffle option order</label></div>
+            <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgShuffleOpt"> Shuffle option order</label>
+            <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px" title="After each submission an AI writes practice questions for the student's mistakes and a second AI checks them; you review in Custom Practice → AI drafts"><input type="checkbox" id="dgAiFollow" checked> 🤖 AI follow-up practice after each submission</label></div>
         </div>
         <div class="flexrow">
           <div class="field"><label>Default ideal time (sec) — Bloom / Intermediate / Advanced</label>
@@ -543,6 +546,17 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
     </div>
 
     <div id="atab-custompractice" class="atab hidden">
+      <div class="card" style="margin-bottom:14px">
+        <h2 class="sec" style="margin-top:0">🤖 AI follow-up drafts <button class="btn secondary" id="aiLoadBtn" style="padding:3px 10px;font-size:12px;margin-left:8px">Refresh</button></h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">
+          For tests with <b>AI follow-up</b> switched on, each submission is queued. An hourly job waits up to 2 hours for the student's reasons, then one AI
+          <b>writes</b> practice questions aimed at their mistakes and a second AI <b>solves each one blind</b> to check the key:
+          <span class="badge pos">✅ Verified</span> both agree · <span class="badge zero">⚠ Disputed</span> they disagree · <span class="badge neg">❌ Rejected</span> flawed (left out).
+          <b>Review</b> opens the draft in the Diagnostic Builder — edit, delete, fix keys, then Save and publish to that student.
+        </p>
+        <div id="aiQueue" style="font-size:12.5px;margin-bottom:6px"></div>
+        <div id="aiWrap" style="overflow:auto"></div>
+      </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Custom practice tests from mistakes</h2>
         <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
@@ -573,6 +587,71 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <div id="cpWrap" style="margin-top:14px;overflow:auto"></div>
       <div class="flexrow" style="margin-top:10px"><button class="btn green" id="cpCreateBtn">Create practice tests for ticked students</button></div>
       <div id="cpLog" class="hidden" style="max-height:200px;overflow-y:auto;font-size:12.5px;font-family:ui-monospace,monospace;background:#f7f9fb;border:1px solid var(--border);border-radius:4px;padding:8px;margin-top:8px;white-space:pre-wrap"></div>
+    </div>
+
+    <div id="atab-live" class="atab hidden">
+      <div class="card">
+        <div class="flexrow" style="align-items:center">
+          <h2 class="sec" style="margin:0;flex:1">● Live Monitor <span id="lmDot" style="font-size:12px;font-weight:400;color:var(--muted)"></span></h2>
+          <div class="field" style="margin:0"><select id="lmExam"></select></div>
+          <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="lmSound"> 🔔 Sound on alerts</label>
+          <button class="btn secondary" id="lmRefresh" style="padding:4px 10px">Refresh</button>
+        </div>
+        <div id="lmStats" class="statRow" style="margin-top:10px"></div>
+      </div>
+      <div class="flexrow" style="align-items:flex-start;margin-top:12px">
+        <div style="flex:3;min-width:520px">
+          <h2 class="sec" style="margin-top:0">Writing now</h2>
+          <div id="lmWrap" style="overflow:auto"></div>
+          <h2 class="sec">Submitted in the last 3 hours</h2>
+          <div id="lmDone" style="overflow:auto"></div>
+        </div>
+        <div class="card" style="flex:1;min-width:260px;max-height:80vh;overflow:auto;padding:12px">
+          <div style="font-weight:700;color:var(--blue);margin-bottom:6px">Alerts</div>
+          <div id="lmFeed" style="font-size:12.5px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="atab-aisettings" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">AI follow-up — key &amp; models</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Used by the hourly AI job. Settings saved here <b>override</b> the GitHub repo variables/secrets. The API key is stored in Firestore where only
+          admins can read it; the page never shows it again after saving (only the last 4 characters). Any OpenAI-compatible provider works — change the
+          base URL and models together. Keep the writer and checker from <b>different model families</b>.
+        </p>
+        <div class="flexrow">
+          <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-bottom:14px"><input type="checkbox" id="aiEnabled" checked> AI job enabled</label>
+        </div>
+        <div class="flexrow">
+          <div class="field" style="min-width:320px"><label>API base URL</label><input id="aiBaseUrl" placeholder="https://integrate.api.nvidia.com/v1"></div>
+          <div class="field" style="min-width:300px"><label>API key <span id="aiKeyState" style="font-weight:400;color:var(--muted)"></span></label>
+            <input id="aiKey" type="password" autocomplete="off" placeholder="paste a new key to replace (leave blank to keep)"></div>
+          <button class="btn secondary" id="aiKeyRemove" style="margin-bottom:14px" title="Delete the stored key; the job falls back to the GitHub secret">Remove stored key</button>
+        </div>
+        <div class="flexrow">
+          <div class="field" style="min-width:280px"><label>Writer model</label><input id="aiGenModel" list="aiModelList" placeholder="openai/gpt-oss-120b"></div>
+          <div class="field" style="min-width:280px"><label>Checker model (different family)</label><input id="aiVerifyModel" list="aiModelList" placeholder="nvidia/llama-3.3-nemotron-super-49b-v1.5"></div>
+          <div class="field" style="min-width:280px"><label>Vision model (reads image questions)</label><input id="aiVisionModel" list="aiModelList" placeholder="meta/llama-3.2-90b-vision-instruct"></div>
+          <datalist id="aiModelList"></datalist>
+        </div>
+        <div class="flexrow">
+          <div class="field"><label>Requests / minute</label><input id="aiRpm" type="number" min="1" max="600" style="width:90px"></div>
+          <div class="field"><label>New Qs per mistake</label><input id="aiPerNeed" type="number" min="1" max="5" style="width:90px"></div>
+          <div class="field"><label>Max Qs per student</label><input id="aiMaxPerStudent" type="number" min="3" max="60" style="width:90px"></div>
+          <div class="field"><label>Wait for reasons (min)</label><input id="aiReasonWait" type="number" min="0" max="1440" style="width:90px"></div>
+          <button class="btn secondary" id="aiPresetBtn" style="margin-bottom:14px">NVIDIA defaults</button>
+        </div>
+        <button class="btn green" id="aiSaveBtn">Save settings</button>
+        <div id="aiMsg"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 class="sec" style="margin-top:0">Last run of the AI job</h2>
+        <div id="aiStatusBox" style="font-size:13px">—</div>
+        <p style="font-size:12px;color:var(--muted);margin-top:8px">The job runs every hour. To run it now or see full logs: GitHub repo → Actions → "AI follow-up practice" → Run workflow.
+          After you change the key or a model, the next run reports here whether the key works and lists the provider's available models (suggested in the model boxes above).</p>
+      </div>
     </div>
 
     <div id="atab-reports" class="atab hidden">
@@ -911,6 +990,14 @@ function normLevel(v){
 const levelLabel = v => LEVELS.find(l => l.key === normLevel(v)).label;
 const levelShort = v => LEVELS.find(l => l.key === normLevel(v)).short;
 const levelOptions = sel => LEVELS.map(l => `<option value="${l.key}" ${normLevel(sel)===l.key?"selected":""}>${l.label}</option>`).join("");
+// "Too quick" rule: answering a tough question in a small fraction of its ideal time usually means a blind guess
+// or outside help. Advanced: under 25% of ideal (min 8 s); Intermediate: under 15% (min 5 s); Bloom: never flagged.
+const QUICK_RULE = { Hard: [0.25, 8], Medium: [0.15, 5] };
+function quickThreshold(q, idealSec){
+  const r = QUICK_RULE[normLevel(q?.difficulty)];
+  return r ? Math.max(r[1], r[0] * (idealSec || 0)) : 0;
+}
+const VIOLATION_TEXT = { tab_hidden: "switched tab", window_blur: "switched to another window/app", exit_fullscreen: "left fullscreen" };
 // Ideal (target) time to solve one question, in seconds. Resolution order:
 // the exam's own per-question setting → the question's stored idealTimeSec → a default by difficulty.
 const IDEAL_DEFAULTS = {
@@ -1185,6 +1272,8 @@ function enterAdmin(){
   $("dashTitle").textContent = isSuper() ? "Admin Dashboard" : "Faculty Dashboard";
   // role-based UI: faculty can't manage students or faculty, and can't clear whole banks
   $("tabFaculty").classList.toggle("hidden", !isSuper());
+  $("tabAiSettings").classList.toggle("hidden", !isSuper());
+  lmStop();
   $("addStudentCard").classList.toggle("hidden", !isSuper());
   $("bulkImportCard").classList.toggle("hidden", !isSuper());
   $("qbClearBtn").classList.toggle("hidden", !isSuper());
@@ -1214,6 +1303,8 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="keypatch") initKeyPatch();
     if (b.dataset.atab==="diagnostic") initDiagnostic();
     if (b.dataset.atab==="custompractice") initCustomPractice();
+    if (b.dataset.atab==="live") initLive(); else lmStop();
+    if (b.dataset.atab==="aisettings") initAiSettings();
     if (b.dataset.atab==="topics") initTopics();
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
@@ -2331,6 +2422,7 @@ function initDiagnostic(){
 function dgNew(){
   DG = { examDocId: null, rows: [], origIds: [] };
   $("dgTitle").value = ""; $("dgExisting").value = "";
+  $("dgAiFollow").checked = true;
   $("dgScoring").value = "preset"; $("dgCustomMarks").style.display = "none";
   $("dgKeepOrder").checked = true; $("dgShowIdeal").checked = true; $("dgShuffleOpt").checked = false;
   $("dgDuration").value = 30;
@@ -2348,6 +2440,7 @@ async function dgOpenExam(docId){
   $("dgKeepOrder").checked = !!ex.keepOrder;
   $("dgShowIdeal").checked = !!ex.showIdealTime;
   $("dgShuffleOpt").checked = !!ex.shuffleOptions;
+  $("dgAiFollow").checked = !!ex.aiFollowUp;
   const base = EXAM_CONFIG[ex.examType].marks, m = ex.marks || base;
   if (m.A.correct === base.A.correct && m.A.wrong === base.A.wrong && m.B.wrong === base.B.wrong) $("dgScoring").value = "preset";
   else if (m.A.correct === 4 && m.A.wrong === 0) $("dgScoring").value = "neg0";
@@ -2400,6 +2493,26 @@ async function dgAddFiles(files){
     (topic ? "" : " No Topic was set above — give each row a topic so the topic-wise report works."), !!topic);
   dgRender();
 }
+// An AI-drafted question: rendered stem/options, the two models' verdict, and inline editing.
+const AI_VERDICT = {
+  verified: ["✅ Verified", "pos",  "The checker solved it blind and got the same answer"],
+  disputed: ["⚠ Disputed", "zero", "The checker got a different answer — decide which is right"],
+  rejected: ["❌ Rejected", "neg",  "The checker found a flaw"]
+};
+function dgAiPreview(r){
+  const a = r.ai, v = AI_VERDICT[a.verdict] || AI_VERDICT.disputed;
+  const opts = r.options.map((o,k) => `<div style="${"ABCD"[k]===r.correct_answer?"font-weight:700;color:#1e7a44":""}">(${"ABCD"[k]}) ${o}</div>`).join("");
+  return `<div class="dgai"><span class="badge ${v[1]}" title="${esc(v[2])}">${v[0]}</span>
+      <span style="font-size:11px;color:var(--muted)">${esc(GROUP_LABEL[a.group]||a.group||"")}${a.reasons?.length?` · student: ${esc(a.reasons.map(x=>REASON_TEXT[x]||x).join(", "))}`:""}</span>
+    <div style="font-size:13.5px;margin:4px 0">${r.text}</div><div style="font-size:12.5px">${opts}</div>
+    <details style="font-size:12px;margin-top:4px"><summary style="cursor:pointer;color:var(--blue)">Solutions &amp; edit</summary>
+      <div style="margin:4px 0"><b>Writer's answer ${esc(a.key)}:</b> ${r.solution||"—"}</div>
+      <div style="margin:4px 0"><b>Checker's answer ${esc(a.verifierAnswer||"?")}:</b> ${a.verifierWorking||"—"}${a.problem?`<br><b>Problem flagged:</b> ${esc(a.problem)}`:""}</div>
+      <textarea data-dgf="text" rows="3" style="width:100%;font-size:12.5px">${esc(r.text)}</textarea>
+      ${r.options.map((o,k)=>`<div style="display:flex;gap:4px;align-items:center;margin-top:2px"><b>${"ABCD"[k]}</b><input data-dgf="opt${k}" value="${esc(o)}" style="flex:1;font-size:12.5px"></div>`).join("")}
+      <textarea data-dgf="solution" rows="2" style="width:100%;font-size:12px;margin-top:3px" placeholder="solution shown in reports">${esc(r.solution||"")}</textarea>
+    </details></div>`;
+}
 function dgRender(){
   const rows = DG.rows;
   $("dgMode").textContent = DG.examDocId ? "— editing an existing test" : "— new test";
@@ -2421,14 +2534,15 @@ function dgRender(){
     </tr></thead><tbody>` + rows.map((r,i) => {
       const missing = r.section==="A" ? !"ABCD".includes(r.correct_answer||"x") : (r.correct_answer==="" || isNaN(parseFloat(r.correct_answer)));
       const changed = !r.isNew && r.correct_answer !== r.origAnswer;
-      const bg = missing ? "background:#fdecea" : changed ? "background:#fff6e0" : "";
+      const bg = missing ? "background:#fdecea" : (changed || r.ai?.verdict === "disputed") ? "background:#fff6e0" : "";
       const others = r.isNew ? 0 : examsCache.filter(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId)).length;
       const preview = r.image
         ? `<img src="${r.image}" data-dgzoom="${i}" style="max-width:200px;max-height:110px;border:1px solid var(--border);border-radius:4px;cursor:zoom-in">`
+        : r.ai ? dgAiPreview(r)
         : `<span style="font-size:12.5px">${esc(String(r.text||"").replace(/<[^>]*>/g,"").slice(0,110))}</span>`;
       return `<tr data-dg="${i}" style="${bg}">
         <td><b>${i+1}</b></td>
-        <td>${preview}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||"")} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
+        <td style="max-width:460px">${preview}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||(r.ai?"AI draft":""))} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
         <td style="font-size:12.5px">${esc(r.subject)}</td>
         <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px"></td>
         <td><select data-dgf="difficulty">${levelOptions(r.difficulty)}</select></td>
@@ -2446,6 +2560,9 @@ function dgRender(){
       const f = inp.dataset.dgf;
       let v = inp.value.trim();
       if (f === "idealSec") v = Math.max(5, parseInt(v) || dgDefaultIdeal(r));
+      // wording edits on AI drafts update in place (no re-render, so the edit panel stays open)
+      if (/^opt[0-3]$/.test(f)) { r.options[+f[3]] = v; return; }
+      if (f === "text" || f === "solution") { r[f] = inp.value; return; }
       r[f] = v;
       setTimeout(dgRender, 0);   // deferred: a change fired by blur-during-rerender must not re-enter innerHTML
     });
@@ -2459,6 +2576,8 @@ function dgRender(){
   $("dgWrap").querySelectorAll("[data-dgzoom]").forEach(im => im.onclick = () => {
     $("lightboxImg").src = im.src; $("lightbox").classList.remove("hidden");
   });
+  if (DG.rows.some(r => r.ai)) typeset($("dgWrap"));
+  $("dgMode").textContent = DG.aiDraftId ? `— 🤖 AI practice for ${DG.studentName} (review, then Save)` : $("dgMode").textContent;
 }
 function dgValidate(){
   const errs = [];
@@ -2484,7 +2603,9 @@ async function dgSave(){
   const shared = keyEdits.filter(r => examsCache.some(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId))).length;
   const removed = DG.origIds.filter(id => !DG.rows.some(r => r.docId === id)).length;
   const msg = [`Save "${$("dgTitle").value.trim()}" with ${DG.rows.length} questions?`];
-  if (newRows.length) msg.push(`• ${newRows.length} new image question(s) will be uploaded to the bank`);
+  if (newRows.length) msg.push(`• ${newRows.length} new question(s) will be added to the bank`);
+  const disputed = DG.rows.filter(r => r.ai?.verdict === "disputed").length;
+  if (disputed) msg.push(`• ⚠ ${disputed} AI question(s) are DISPUTED (the two AIs disagreed) — make sure each key is right`);
   if (keyEdits.length) msg.push(`• ${keyEdits.length} answer key change(s)` + (shared ? ` — ${shared} of these questions are also used in other tests, which will get the new key too` : ""));
   if (removed) msg.push(`• ${removed} question(s) removed from this test (they stay in the bank)`);
   if (!confirm(msg.join("\n"))) { log.classList.add("hidden"); return; }
@@ -2499,9 +2620,12 @@ async function dgSave(){
       const batch = writeBatch(db);
       newRows.slice(i, i+25).forEach(r => batch.set(doc(db,"questions",r.docId), {
         id: r.docId, examType, subject: r.subject, section: r.section,
-        text: "", options: r.section === "A" ? ["","","",""] : [],
+        text: r.text || "", options: r.section === "A" ? (r.options || ["","","",""]) : [],
         correct_answer: String(r.correct_answer), topic: r.topic, difficulty: r.difficulty,
-        image: r.image, idealTimeSec: +r.idealSec,
+        ...(r.image ? { image: r.image } : {}), idealTimeSec: +r.idealSec,
+        ...(r.solution ? { solution: r.solution } : {}),
+        ...(r.ai ? { aiGenerated: { draftId: DG.aiDraftId || null, verdict: r.ai.verdict, keyAtDraft: r.ai.key,
+                                    verifierAnswer: r.ai.verifierAnswer || null, models: r.ai.models || null } } : {}),
         createdBy: currentUser.uid, createdByName: currentUser.name, createdAt: serverTimestamp()
       }));
       await batch.commit();
@@ -2537,6 +2661,7 @@ async function dgSave(){
       showIdealTime: $("dgShowIdeal").checked,
       keepOrder: $("dgKeepOrder").checked,
       shuffleOptions: $("dgShuffleOpt").checked,
+      aiFollowUp: $("dgAiFollow").checked,
       topics: [...new Set(DG.rows.map(r=>r.topic).filter(Boolean))],
       updatedAt: serverTimestamp()
     };
@@ -2546,10 +2671,21 @@ async function dgSave(){
       await updateDoc(doc(db,"exams",DG.examDocId), payload);
       say("Test updated.");
     } else {
-      const ref = await addDoc(collection(db,"exams"), { ...payload, diagnostic: true, audience: { mode:"all" },
+      const ref = await addDoc(collection(db,"exams"), { ...payload, diagnostic: !DG.aiDraftId, audience: DG.audience || { mode:"all" },
+        ...(DG.aiDraftId ? { aiPractice: { draftId: DG.aiDraftId, studentUid: DG.audience.studentUids[0] } } : {}),
         startAt: null, endAt: null, isActive: false, createdAt: serverTimestamp(),
         createdBy: currentUser.uid, createdByName: currentUser.name });
       DG.examDocId = ref.id;
+      if (DG.aiDraftId) {
+        try { await updateDoc(doc(db,"aiDrafts",DG.aiDraftId), { status: "approved", examId: ref.id, approvedBy: currentUser.name, approvedAt: serverTimestamp() }); }
+        catch(e) { say("Note: could not mark the AI draft approved: " + e.message); }
+        say(`Test created for ${DG.studentName} (inactive).`);
+        // the final push: nothing reaches the student until this
+        if (confirm(`Publish now? "${payload.title}" becomes visible to ${DG.studentName} only.`)) {
+          await updateDoc(doc(db,"exams",ref.id), { isActive: true });
+          say(`Published — ${DG.studentName} can take it now.`);
+        } else say("Not published. Activate it later from the Exams tab.");
+      } else
       say("Test created (inactive). Activate it from the Exams tab and choose who can take it.");
     }
     DG.origIds = payload.questionIds.slice();
@@ -2710,7 +2846,59 @@ $("dgRegradeBtn").onclick = () => {
    ============================================================ */
 let cpRows = [];     // [{att, plan, include}]
 let cpSource = null; // { exam, qById }
+let aiDrafts = [];
+async function loadAiDrafts(){
+  $("aiWrap").innerHTML = "Loading…";
+  try {
+    const mine = new Set((isSuper() ? examsCache : examsCache.filter(e=>e.createdBy===currentUser.uid)).map(e=>e.docId));
+    aiDrafts = (await getDocs(collection(db,"aiDrafts"))).docs.map(d => ({ docId: d.id, ...d.data() }))
+      .filter(d => isSuper() || mine.has(d.examId))
+      .sort((a,b) => (a.status==="ready"?0:1)-(b.status==="ready"?0:1) || (b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+    const q = {};
+    for (const st of ["queued","processing","error"])
+      q[st] = (await getDocs(query(collection(db,"attempts"), where("aiStatus","==",st)))).docs.filter(d => isSuper() || mine.has(d.data().examId));
+    $("aiQueue").innerHTML = `Queue: <b>${q.queued.length}</b> waiting · <b>${q.processing.length}</b> being prepared` +
+      (q.error.length ? ` · <span style="color:#b03a2e"><b>${q.error.length}</b> failed</span> (${q.error.slice(0,3).map(d=>esc(d.data().studentName)+": "+esc(d.data().aiError||"")).join("; ")})` : "");
+    $("aiWrap").innerHTML = aiDrafts.length ? `<table class="tbl"><thead><tr><th>Student</th><th>Source test</th><th>Prepared</th><th>✅</th><th>⚠</th><th>❌</th><th>Status</th><th></th></tr></thead><tbody>` +
+      aiDrafts.map((d,i) => `<tr><td><b>${esc(d.studentName)}</b></td><td>${esc(d.examTitle)}</td><td style="font-size:12px">${fmtDate(d.createdAt)}</td>
+        <td>${d.counts?.verified||0}</td><td>${d.counts?.disputed||0}</td><td>${d.counts?.rejected||0}</td>
+        <td>${d.status==="approved"?`<span class="badge pos">approved</span>`:d.status==="dismissed"?`<span class="badge zero">dismissed</span>`:`<span class="badge zero">to review</span>`}</td>
+        <td style="white-space:nowrap">${d.status==="ready"?`<button class="btn" style="padding:3px 10px" data-aireview="${i}">Review</button>
+          <button class="btn secondary" style="padding:3px 8px" data-aidismiss="${i}" title="Don't use this draft">Dismiss</button>`:""}</td></tr>`).join("") + `</tbody></table>`
+      : `<div style="color:var(--muted);padding:6px">No AI drafts yet.</div>`;
+    $("aiWrap").querySelectorAll("[data-aireview]").forEach(b => b.onclick = () => dgLoadAiDraft(aiDrafts[+b.dataset.aireview]));
+    $("aiWrap").querySelectorAll("[data-aidismiss]").forEach(b => b.onclick = async () => {
+      if (!confirm("Dismiss this draft? The questions are not added anywhere.")) return;
+      await updateDoc(doc(db,"aiDrafts",aiDrafts[+b.dataset.aidismiss].docId), { status: "dismissed" });
+      loadAiDrafts();
+    });
+  } catch(e) { $("aiWrap").innerHTML = `<div style="color:#b03a2e">Could not load AI drafts: ${esc(e.message)} — has the updated firestore.rules been published?</div>`; }
+}
+// Open an AI draft in the Diagnostic Builder: rejected items are left out, verified first.
+function dgLoadAiDraft(d){
+  document.querySelector('[data-atab="diagnostic"]').click();
+  dgNew();
+  $("dgType").value = d.examType || "medical"; dgFillSubjects(); dgSetIdealInputs();
+  $("dgTitle").value = `AI Practice — ${d.studentName} — ${d.examTitle}`;
+  $("dgAiFollow").checked = false;
+  DG.aiDraftId = d.docId; DG.studentName = d.studentName;
+  DG.audience = { mode: "students", studentUids: [d.studentUid] };
+  const order = { verified: 0, disputed: 1 };
+  (d.items||[]).filter(it => it.verdict !== "rejected").sort((a,b)=>order[a.verdict]-order[b.verdict]).forEach(it => {
+    const r = { key: ++dgSeq, docId: null, isNew: true, image: null, text: it.stem, options: it.options.slice(),
+      subject: it.subject, section: "A", topic: it.topic, difficulty: normLevel(it.level), correct_answer: it.key,
+      solution: it.solution || "", ai: { ...it, models: d.models } };
+    r.idealSec = it.idealSec || dgDefaultIdeal(r);
+    DG.rows.push(r);
+  });
+  $("dgAutoDurBtn").click();
+  const rej = (d.items||[]).filter(it => it.verdict === "rejected").length;
+  setMsg($("dgMsg"), `Loaded ${DG.rows.length} AI question(s) for ${d.studentName}${rej?` (${rej} rejected by the checker were left out)`:""}. Check every ⚠ Disputed key, edit or ✕ anything you don't want, then Save.`, true);
+  dgRender();
+}
+$("aiLoadBtn").onclick = loadAiDrafts;
 function initCustomPractice(){
+  loadAiDrafts();
   const exams = (isSuper() ? examsCache : examsCache.filter(e=>e.createdBy===currentUser.uid)).filter(e => !e.customPractice);
   const cur = $("cpExam").value;
   $("cpExam").innerHTML = exams.map(e=>`<option value="${e.docId}">${e.diagnostic?"🩺 ":""}${esc(e.title)} (${esc(e.examType)})</option>`).join("") || `<option value="">No exams</option>`;
@@ -2870,6 +3058,192 @@ $("cpCreateBtn").onclick = async () => {
     await loadExams();
   } catch(e) { log.textContent += "FAILED: " + e.message + "\n"; setMsg($("cpMsg"), `Stopped after ${made}: ${e.message}`); }
   finally { $("cpCreateBtn").disabled = false; }
+};
+
+/* ============================================================
+   LIVE MONITOR  —  who is writing right now, tab switches and too-quick answers as they happen,
+   and the teacher's levers: a live warning message or stopping the test.
+   ============================================================ */
+let lmUnsubs = [], lmState = {}, lmSeeded = new Set(), lmTimer = null, lmFeed = [], lmAudio = null, lmOpen = new Set();
+function lmStop(){ lmUnsubs.forEach(u => { try { u(); } catch(e){} }); lmUnsubs = []; clearInterval(lmTimer); lmTimer = null; }
+const tsMs = t => t?.toMillis ? t.toMillis() : (t?.seconds ? t.seconds*1000 : (typeof t === "number" ? t : 0));
+function lmBeep(){
+  if (!$("lmSound").checked) return;
+  try {
+    lmAudio = lmAudio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = lmAudio.createOscillator(), g = lmAudio.createGain();
+    o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(lmAudio.destination);
+    o.start(); o.stop(lmAudio.currentTime + 0.2);
+  } catch(e){}
+}
+function lmAlert(kind, text){
+  lmFeed.unshift({ at: Date.now(), kind, text });
+  lmFeed = lmFeed.slice(0, 150);
+  if (kind === "violation" || kind === "malpractice" || kind === "quick") lmBeep();
+}
+async function initLive(){
+  lmStop();
+  lmState = {}; lmSeeded = new Set(); lmFeed = [];
+  await loadExams();
+  const exams = (isSuper() ? examsCache : examsCache.filter(e => e.createdBy === currentUser.uid)).filter(e => e.isActive);
+  const cur = $("lmExam").value;
+  $("lmExam").innerHTML = `<option value="">All active tests (${exams.length})</option>` + exams.map(e => `<option value="${e.docId}">${esc(e.title)}</option>`).join("");
+  if (exams.some(e => e.docId === cur)) $("lmExam").value = cur;
+  if (!exams.length) { $("lmWrap").innerHTML = `<div style="color:var(--muted);padding:8px">No active tests right now.</div>`; $("lmDone").innerHTML = ""; $("lmStats").innerHTML = ""; $("lmFeed").innerHTML = ""; return; }
+  const watch = exams.slice(0, 20);
+  watch.forEach(ex => lmUnsubs.push(onSnapshot(query(collection(db,"attempts"), where("examId","==",ex.docId)), snap => {
+    const cur = {};
+    snap.docs.forEach(d => { cur[d.id] = { docId: d.id, ...d.data(), _exam: ex }; });
+    if (lmSeeded.has(ex.docId)) lmDiff(cur);
+    Object.keys(lmState).forEach(k => { if (lmState[k]._exam.docId === ex.docId && !cur[k]) delete lmState[k]; });
+    Object.assign(lmState, cur);
+    lmSeeded.add(ex.docId);
+    lmRender();
+  }, err => { $("lmDot").textContent = "connection problem: " + err.message; })));
+  lmTimer = setInterval(lmRender, 5000);
+  $("lmDot").innerHTML = `<span style="color:#2e8b57">● listening</span> to ${watch.length} test(s)${exams.length > watch.length ? ` (first ${watch.length})` : ""}`;
+}
+function lmDiff(cur){
+  for (const a of Object.values(cur)) {
+    const p = lmState[a.docId], who = `<b>${esc(a.studentName || "?")}</b>`, test = `<span style="color:var(--muted)">${esc(a._exam.title)}</span>`;
+    if (!p && !a.submitTime) lmAlert("start", `▶ ${who} started ${test}`);
+    if ((a.warnings || 0) > (p?.warnings || 0)) {
+      const last = (a.violations || []).slice(-1)[0];
+      lmAlert("violation", `🚨 ${who} ${esc(VIOLATION_TEXT[last?.type] || "left the test screen")} — warning ${a.warnings}/${MAX_WARNINGS} · ${test}`);
+    }
+    const pq = p?.quickLive || {};
+    Object.entries(a.quickLive || {}).forEach(([qid, x]) => {
+      if (!pq[qid]) lmAlert("quick", `⚡ ${who} answered an ${esc(LEVELS.find(l=>l.key===x.level)?.short || "")} question (Q${x.n}) in <b>${x.t}s</b> — ideal ${fmtSec(x.ideal)} · ${test}`);
+    });
+    if (a.submitTime && !p?.submitTime)
+      lmAlert(a.malpractice ? "malpractice" : "submit", a.malpractice
+        ? `⛔ ${who} auto-submitted for MALPRACTICE — ${esc(a.malpracticeReason || "")} · ${test}`
+        : `✅ ${who} submitted — ${a.score ?? "?"} / ${attemptCfg(a).maxMarks} · ${test}`);
+  }
+}
+function lmRender(){
+  if ($("atab-live").classList.contains("hidden")) return;
+  const now = Date.now(), f = $("lmExam").value;
+  const all = Object.values(lmState).filter(a => !f || a._exam.docId === f);
+  const writing = all.filter(a => !a.submitTime && now - tsMs(a.startTime) < 12*3600e3);
+  const done = all.filter(a => a.submitTime && now - tsMs(a.submitTime) < 3*3600e3)
+    .sort((a,b) => tsMs(b.submitTime) - tsMs(a.submitTime));
+  const liveN = writing.filter(a => now - tsMs(a.live?.lastSeen) < 90e3).length;
+  const sw = writing.reduce((s,a) => s + (a.warnings||0), 0) + done.reduce((s,a) => s + (a.warnings||0), 0);
+  const qk = writing.reduce((s,a) => s + Object.keys(a.quickLive||{}).length, 0) + done.reduce((s,a) => s + Object.keys(a.quickAnswers||{}).length, 0);
+  const chip = (v, l, c) => `<div class="stat"><div class="v" style="${c?`color:${c}`:""}">${v}</div><div class="l">${l}</div></div>`;
+  $("lmStats").innerHTML = chip(liveN, "Writing now (online)", "#2e8b57") + chip(writing.length - liveN, "Idle / disconnected") +
+    chip(sw, "Tab switches", sw ? "#c0392b" : "") + chip(qk, "Too-quick answers", qk ? "#a4610b" : "") +
+    chip(done.filter(a=>a.malpractice).length, "Malpractice", "#c0392b") + chip(done.length, "Submitted (3 h)");
+  writing.sort((a,b) => (b.warnings||0) - (a.warnings||0) || Object.keys(b.quickLive||{}).length - Object.keys(a.quickLive||{}).length || String(a.studentName).localeCompare(String(b.studentName)));
+  const byUid = Object.fromEntries(studentCache.map(s=>[s.uid,s]));
+  $("lmWrap").innerHTML = writing.length ? `<table class="tbl"><thead><tr><th>Student</th><th>Test</th><th>Progress</th><th>Time left</th><th>Seen</th><th>🚨 Switches</th><th>⚡ Quick</th><th></th></tr></thead><tbody>` +
+    writing.map(a => {
+      const cfg = examCfg(a._exam), left = Math.max(0, Math.round((tsMs(a.startTime) + cfg.durationSec*1000 - now)/1000));
+      const seen = now - tsMs(a.live?.lastSeen), online = seen < 90e3;
+      const L = a.live || {}, pct = L.total ? Math.round(100*(L.answered||0)/L.total) : 0;
+      const nq = Object.keys(a.quickLive||{}).length, w = a.warnings||0;
+      const bg = w >= 2 ? "background:#fdecea" : (w || nq) ? "background:#fff6e0" : "";
+      const detail = lmOpen.has(a.docId) ? `<tr><td colspan="8" style="background:#fafbfc;font-size:12.5px">
+          <b>Tab switches:</b> ${(a.violations||[]).length ? (a.violations||[]).map(v => `${new Date(tsMs(v.at)).toLocaleTimeString("en-IN")} ${esc(VIOLATION_TEXT[v.type]||v.type)}`).join(" · ") : "none"}<br>
+          <b>Too quick:</b> ${nq ? Object.values(a.quickLive).map(x => `Q${x.n} (${esc(LEVELS.find(l=>l.key===x.level)?.short||"")}) ${x.t}s / ideal ${fmtSec(x.ideal)}`).join(" · ") : "none"}
+          ${a.staffWarning ? `<br><b>Last warning sent:</b> "${esc(a.staffWarning.msg)}" by ${esc(a.staffWarning.by||"")}` : ""}
+          ${a.forceSubmit ? `<br><b style="color:#c0392b">Stop requested</b> by ${esc(a.forceSubmit.by||"")} — waiting for the student's device` : ""}</td></tr>` : "";
+      return `<tr style="${bg}"><td><b>${esc(a.studentName||"?")}</b><br><span style="font-size:11px;color:var(--muted)">${esc(byUid[a.studentUid]?.batch||"")}</span></td>
+        <td style="font-size:12.5px">${esc(a._exam.title)}</td>
+        <td style="min-width:130px"><div style="background:#eef1f4;border-radius:4px;height:8px"><div style="width:${pct}%;background:var(--blue);height:8px;border-radius:4px"></div></div>
+          <span style="font-size:11.5px">${L.answered||0}/${L.total||"?"} answered · on Q${L.q||"?"}</span></td>
+        <td>${fmtClock(left)}</td>
+        <td>${online ? `<span style="color:#2e8b57">● live</span>` : `<span style="color:var(--muted)" title="no heartbeat for ${Math.round(seen/60000)} min">○ ${tsMs(a.live?.lastSeen) ? Math.round(seen/60000)+" min" : "—"}</span>`}</td>
+        <td>${w ? `<span class="badge ${w>=2?"neg":"zero"}">${w}/${MAX_WARNINGS}</span>` : "0"}</td>
+        <td>${nq ? `<span class="badge zero">${nq}</span>` : "0"}</td>
+        <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 8px" data-lmdet="${a.docId}">${lmOpen.has(a.docId)?"Hide":"Details"}</button>
+          <button class="btn secondary" style="padding:2px 8px" data-lmwarn="${a.docId}" title="Pops up on the student's screen">📢 Warn</button>
+          <button class="btn danger" style="padding:2px 8px" data-lmstop="${a.docId}" title="Submit their test now, flagged as malpractice">Stop</button></td></tr>${detail}`;
+    }).join("") + `</tbody></table>` : `<div style="color:var(--muted);padding:8px">Nobody is writing right now.</div>`;
+  $("lmDone").innerHTML = done.length ? `<table class="tbl"><thead><tr><th>Student</th><th>Test</th><th>Submitted</th><th>Score</th><th>🚨</th><th>⚡ Quick (correct)</th><th>Status</th><th></th></tr></thead><tbody>` +
+    done.map(a => { const q = Object.values(a.quickAnswers||{}); return `<tr style="${a.malpractice?"background:#fdecea":""}">
+      <td><b>${esc(a.studentName||"?")}</b></td><td style="font-size:12.5px">${esc(a._exam.title)}</td>
+      <td style="font-size:12px">${new Date(tsMs(a.submitTime)).toLocaleTimeString("en-IN")}</td>
+      <td>${a.score ?? "—"} / ${attemptCfg(a).maxMarks}</td><td>${a.warnings||0}</td>
+      <td>${q.length ? `${q.length} (${q.filter(x=>x.correct).length})` : 0}</td>
+      <td>${a.malpractice ? `<span class="badge neg" title="${esc(a.malpracticeReason||"")}">MALPRACTICE</span>` : (a.warnings || q.length) ? `<span class="badge zero">flagged</span>` : `<span class="badge pos">clean</span>`}</td>
+      <td><button class="btn secondary" style="padding:2px 8px" data-lmview="${a.docId}">View</button></td></tr>`; }).join("") + `</tbody></table>`
+    : `<div style="color:var(--muted);padding:8px">No submissions in the last 3 hours.</div>`;
+  $("lmFeed").innerHTML = lmFeed.map(x => `<div style="padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--muted);font-size:11px">${new Date(x.at).toLocaleTimeString("en-IN")}</span><br>${x.text}</div>`).join("")
+    || `<div style="color:var(--muted)">Alerts appear here as they happen: starts, tab switches, too-quick answers, submissions.</div>`;
+  $("lmWrap").querySelectorAll("[data-lmdet]").forEach(b => b.onclick = () => { const id = b.dataset.lmdet; lmOpen.has(id) ? lmOpen.delete(id) : lmOpen.add(id); lmRender(); });
+  $("lmWrap").querySelectorAll("[data-lmwarn]").forEach(b => b.onclick = async () => {
+    const a = lmState[b.dataset.lmwarn];
+    const msg = prompt(`Message to show on ${a.studentName}'s screen:`, "Please focus on your own screen. Your activity is being monitored live and is recorded.");
+    if (!msg) return;
+    await updateDoc(doc(db,"attempts",a.docId), { staffWarning: { msg: msg.slice(0,300), by: currentUser.name, at: serverTimestamp() } });
+    lmAlert("staff", `📢 Warning sent to <b>${esc(a.studentName)}</b>: "${esc(msg)}"`); lmRender();
+  });
+  $("lmWrap").querySelectorAll("[data-lmstop]").forEach(b => b.onclick = async () => {
+    const a = lmState[b.dataset.lmstop];
+    const reason = prompt(`Stop ${a.studentName}'s test now? It will be submitted and flagged as MALPRACTICE.\n\nReason (the student sees this):`, "Repeated tab switching after a warning");
+    if (!reason) return;
+    await updateDoc(doc(db,"attempts",a.docId), { forceSubmit: { reason: reason.slice(0,300), by: currentUser.name, at: serverTimestamp() } });
+    lmAlert("staff", `⛔ Stop requested for <b>${esc(a.studentName)}</b>: ${esc(reason)}`); lmRender();
+  });
+  $("lmDone").querySelectorAll("[data-lmview]").forEach(b => b.onclick = () => { const a = lmState[b.dataset.lmview]; const { _exam, ...rest } = a; showResult(rest); });
+}
+$("lmExam").onchange = lmRender;
+$("lmRefresh").onclick = initLive;
+
+/* ============================================================
+   AI SETTINGS (admin)  —  settings/ai (models, limits), settings/aiSecret (key), settings/aiStatus (written by the job)
+   ============================================================ */
+const AI_PRESET = { baseUrl: "https://integrate.api.nvidia.com/v1", genModel: "openai/gpt-oss-120b",
+  verifyModel: "nvidia/llama-3.3-nemotron-super-49b-v1.5", visionModel: "meta/llama-3.2-90b-vision-instruct",
+  rpm: 30, perNeed: 2, maxPerStudent: 20, reasonWaitMin: 120 };
+const AI_FIELDS = { aiBaseUrl: "baseUrl", aiGenModel: "genModel", aiVerifyModel: "verifyModel", aiVisionModel: "visionModel",
+  aiRpm: "rpm", aiPerNeed: "perNeed", aiMaxPerStudent: "maxPerStudent", aiReasonWait: "reasonWaitMin" };
+async function initAiSettings(){
+  setMsg($("aiMsg"), "");
+  try {
+    const [cfg, sec, st] = await Promise.all(["ai","aiSecret","aiStatus"].map(id => getDoc(doc(db,"settings",id))));
+    const c = cfg.exists() ? cfg.data() : {};
+    Object.entries(AI_FIELDS).forEach(([el, k]) => { $(el).value = c[k] ?? ""; });
+    $("aiEnabled").checked = c.enabled !== false;
+    $("aiKey").value = "";
+    const k = sec.exists() ? sec.data() : null;
+    $("aiKeyState").textContent = k?.apiKey ? `— stored key …${k.last4 || ""} (set ${fmtDate(k.setAt)} by ${k.setBy || "?"})` : "— none stored here (job uses the GitHub secret)";
+    const s = st.exists() ? st.data() : null;
+    $("aiModelList").innerHTML = (s?.availableModels || []).map(m => `<option value="${esc(m)}">`).join("");
+    $("aiStatusBox").innerHTML = !s ? "The job hasn't reported yet." : `
+      <div><b>${s.ok ? '<span style="color:#1e7a44">✓ OK</span>' : '<span style="color:#b03a2e">✗ Problem</span>'}</b> — ${fmtDate(s.lastRunAt)}</div>
+      <div style="margin-top:4px">${esc(s.message || "")}</div>
+      ${s.summary ? `<div style="margin-top:4px;color:var(--muted)">Drafted ${s.summary.drafted||0} · waiting for reasons ${s.summary.waiting||0} · nothing to do ${s.summary.nothingToDo||0} · errors ${s.summary.errors||0}</div>` : ""}
+      ${s.models ? `<div style="margin-top:4px;color:var(--muted)">Models: writer ${esc(s.models.gen)} · checker ${esc(s.models.verify)} · vision ${esc(s.models.vision)} · key from ${esc(s.keySource||"?")}</div>` : ""}
+      ${(s.availableModels||[]).length ? `<div style="margin-top:4px;color:var(--muted)">${s.availableModels.length} models available at the provider (suggested in the boxes above).</div>` : ""}`;
+  } catch(e) { setMsg($("aiMsg"), "Could not load settings: " + e.message + " — has the updated firestore.rules been published?"); }
+}
+$("aiPresetBtn").onclick = () => Object.entries(AI_FIELDS).forEach(([el, k]) => { $(el).value = AI_PRESET[k]; });
+$("aiSaveBtn").onclick = async () => {
+  const c = { enabled: $("aiEnabled").checked, updatedBy: currentUser.name, updatedAt: serverTimestamp() };
+  for (const [el, k] of Object.entries(AI_FIELDS)) {
+    const v = $(el).value.trim();
+    if (!v) continue;
+    if (el === "aiBaseUrl" && !/^https:\/\/\S+$/.test(v)) { setMsg($("aiMsg"), "Base URL must start with https://"); return; }
+    c[k] = /^ai(Rpm|PerNeed|MaxPerStudent|ReasonWait)$/.test(el) ? Math.max(0, parseInt(v) || 0) : v;
+  }
+  if (c.genModel && c.verifyModel && c.genModel === c.verifyModel && !confirm("Writer and checker are the same model — they will share blind spots. Save anyway?")) return;
+  try {
+    await setDoc(doc(db,"settings","ai"), c);
+    const key = $("aiKey").value.trim();
+    if (key) await setDoc(doc(db,"settings","aiSecret"), { apiKey: key, last4: key.slice(-4), setBy: currentUser.name, setAt: serverTimestamp() });
+    setMsg($("aiMsg"), `Saved${key ? " (new API key stored)" : ""}. The next hourly run uses these settings and reports back below.`, true);
+    initAiSettings();
+    setMsg($("aiMsg"), `Saved${key ? " (new API key stored)" : ""}. The next hourly run uses these settings and reports back below.`, true);
+  } catch(e) { setMsg($("aiMsg"), "Save failed: " + e.message); }
+};
+$("aiKeyRemove").onclick = async () => {
+  if (!confirm("Delete the API key stored here? The AI job will fall back to the GitHub secret AI_API_KEY (if set).")) return;
+  try { await deleteDoc(doc(db,"settings","aiSecret")); initAiSettings(); setMsg($("aiMsg"), "Stored key removed.", true); }
+  catch(e) { setMsg($("aiMsg"), "Failed: " + e.message); }
 };
 
 /* ============================================================
@@ -3430,7 +3804,8 @@ async function loadReports(){
     <td><button class="btn secondary" style="padding:2px 9px" data-rpview="${a.docId}">${esc(a.examTitle||a.examId)}</button></td><td><b>${a.score}</b> / ${attemptCfg(a).maxMarks}</td>
     <td>${Math.round((a.totalTimeSec||0)/60)}</td>
     <td>${a.wrongQuestions?.length||0}</td><td>${a.unansweredQuestions?.length||0}</td>
-    <td>${a.malpractice?'<span class="badge neg">MALPRACTICE</span>':'<span class="badge pos">clean</span>'}</td>
+    <td>${a.malpractice?'<span class="badge neg">MALPRACTICE</span>':(a.warnings||Object.keys(a.quickAnswers||{}).length)?'<span class="badge zero">flagged</span>':'<span class="badge pos">clean</span>'}
+      ${a.warnings?`<span title="tab switches / fullscreen exits" style="font-size:12px"> 🚨${a.warnings}</span>`:""}${Object.keys(a.quickAnswers||{}).length?`<span title="tough questions answered too quickly" style="font-size:12px"> ⚡${Object.keys(a.quickAnswers).length}</span>`:""}</td>
     <td><button class="btn danger" style="padding:2px 9px" data-rpdel="${a.docId}">Delete</button></td></tr>`).join("")
     || `<tr><td colspan="10">No attempts found.</td></tr>`;
   $("rpRows").querySelectorAll("[data-rpview]").forEach(b => b.onclick = () => {
@@ -3508,9 +3883,12 @@ async function loadActiveExam(){
       return `<div class="card" style="margin-bottom:10px">
         <p style="margin-bottom:8px"><b>${esc(ex.title)}</b> &mdash; ${esc(EXAM_CONFIG[ex.examType].label)}<br>
         <span style="color:var(--muted);font-size:13px">${ex.questionIds.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${Math.round(cfg.durationSec/60)} min &bull; Max ${cfg.maxMarks}${w.at?` &bull; closes ${fmtDate(new Date(w.at))}`:""}</span></p>
-        <button class="btn green" data-startex="${i}">Start Exam (Fullscreen)</button></div>`;
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:6px 0 10px;cursor:pointer"><input type="checkbox" data-pledge="${i}" style="margin-top:3px">
+          <span><b>Honesty pledge:</b> I will take this test on my own — no switching tabs, no other device, no help from anyone, no blind guessing.
+          I understand my teacher sees live when I switch tabs or answer tough questions too quickly.</span></label>
+        <button class="btn green" data-startex="${i}" disabled title="Tick the honesty pledge first">Start Exam (Fullscreen)</button></div>`;
     }).join("") +
-      `<p style="font-size:12.5px;color:#a4271a">⚠ These are proctored tests. They run in fullscreen; switching tabs or leaving fullscreen is recorded. After 3 warnings the test auto-submits as malpractice.</p>`;
+      `<p style="font-size:12.5px;color:#a4271a">⚠ These are proctored tests. They run in fullscreen. Your teacher sees <b>live</b> who is writing, every tab switch or exit from fullscreen, and tough questions answered suspiciously fast. After 3 warnings the test auto-submits as malpractice — and that stays on your record.</p>`;
   }
   if (upcoming.length) {
     html += `<h4 style="color:var(--blue);margin:6px 0">Upcoming</h4>` + upcoming.map(u =>
@@ -3518,6 +3896,9 @@ async function loadActiveExam(){
        <span style="color:var(--muted);font-size:13px">Opens ${fmtDate(new Date(u.at))}</span></div>`).join("");
   }
   $("activeExamInfo").innerHTML = html || "No exam available for you right now. Check back later.";
+  $("activeExamInfo").querySelectorAll("[data-pledge]").forEach(c => c.onchange = () => {
+    $("activeExamInfo").querySelector(`[data-startex="${c.dataset.pledge}"]`).disabled = !c.checked;
+  });
   $("activeExamInfo").querySelectorAll("[data-startex]").forEach(b => b.onclick = () => {
     activeExam = availableExams[+b.dataset.startex];
     startExam();
@@ -3601,12 +3982,13 @@ async function startExam(){
   const attemptId = `${activeExam.docId}_${currentUser.uid}`;
   const attemptRef = doc(db,"attempts",attemptId);
   const prev = await getDoc(attemptRef);
-  let startTime = Date.now(), savedResponses = {}, savedTimes = {};
+  let startTime = Date.now(), savedResponses = {}, savedTimes = {}, pledgedAt = Timestamp.now();
   if (prev.exists() && !prev.data().submitTime) {
     const p = prev.data();
     startTime = p.startTime?.toDate?.().getTime() ?? Date.now();
     savedResponses = p.responses || {};
     savedTimes = p.questionTimeSec || {};
+    if (p.pledgedAt) pledgedAt = p.pledgedAt;
   } else if (prev.exists() && prev.data().submitTime) {
     if (!confirm("You have already submitted this exam. Start a fresh attempt? (Previous result is kept in reports but will be overwritten on this attempt id.)")) {
       return;
@@ -3619,7 +4001,7 @@ async function startExam(){
       studentUid: currentUser.uid, studentName: currentUser.name,
       examId: activeExam.docId, examTitle: activeExam.title, examType: activeExam.examType,
       startTime: Timestamp.fromMillis(startTime), submitTime: null,
-      responses: {}, score: null
+      responses: {}, score: null, pledgedAt
     });
   }
 
@@ -3644,7 +4026,10 @@ async function startExam(){
     shownAt: null,
     submitted: false,
     violations: [],     // {type, at}
-    warnings: 0
+    warnings: 0,
+    quick: {},          // questions answered "too quickly" (live, for the teacher's monitor)
+    pledgedAt,
+    seenWarnAt: Date.now()
   };
 
   // subject tabs
@@ -3667,6 +4052,25 @@ async function startExam(){
   autosaveInt = setInterval(()=>saveProgress().catch(()=>{}), AUTOSAVE_MS);
   startProctoring();
   tick();
+  saveProgress().catch(()=>{});        // appear on the teacher's Live Monitor right away
+  // teacher → student channel: live warnings and "stop this test"
+  EX.unsubAttempt = onSnapshot(attemptRef, snap => {
+    if (!EX || EX.submitted) return;
+    const d = snap.data() || {};
+    const wAt = d.staffWarning?.at?.toMillis?.() || 0;
+    if (wAt > EX.seenWarnAt) {
+      EX.seenWarnAt = wAt;
+      $("cheatBody").innerHTML = `<p style="margin-bottom:8px"><b>📢 Message from ${esc(d.staffWarning.by || "your teacher")}</b></p>
+        <p style="font-size:15px">${esc(d.staffWarning.msg || "")}</p>
+        <p style="margin-top:8px;color:var(--muted);font-size:12.5px">Your teacher is watching this test live. This message is recorded on your attempt.</p>`;
+      $("cheatModal").classList.remove("hidden");
+    }
+    if (d.forceSubmit) {
+      stopProctoring();
+      $("cheatModal").classList.add("hidden");
+      submitExam(false, { malpractice: true, reason: `Stopped by ${d.forceSubmit.by || "teacher"}: ${d.forceSubmit.reason || "malpractice"}` });
+    }
+  });
 }
 
 /* ========== ANTI-CHEAT / PROCTORING ========== */
@@ -3690,6 +4094,7 @@ function recordViolation(type, label){
   $("cheatBody").innerHTML =
     `<p style="margin-bottom:8px"><b>${esc(label)}</b></p>
      <p>This is <b>warning ${EX.warnings} of ${MAX_WARNINGS}</b>. Leaving the test screen is treated as malpractice.</p>
+     <p style="margin-top:6px">🔴 <b>Your teacher has just been notified</b>, and it is recorded on your result.</p>
      <p style="margin-top:8px;color:#a4271a">On the ${MAX_WARNINGS}rd warning your test will be submitted automatically and flagged.</p>`;
   $("cheatModal").classList.remove("hidden");
 }
@@ -3783,6 +4188,15 @@ function gotoQuestion(i, save=false){
   if (save) {
     const ans = captureCurrentInput();
     const st = EX.state[EX.idx];
+    const cur = EX.questions[EX.idx];
+    if (ans != null && ans !== st.answer && !EX.quick[cur.docId]) {
+      const spent = st.timeSec + (EX.shownAt != null ? (Date.now() - EX.shownAt)/1000 : 0);
+      const thr = quickThreshold(cur, cur._idealSec);
+      if (thr && spent < thr) {
+        EX.quick[cur.docId] = { t: Math.round(spent), ideal: cur._idealSec, level: normLevel(cur.difficulty), n: EX.idx + 1 };
+        saveProgress().catch(()=>{});
+      }
+    }
     st.answer = ans;
     if (st.status === STATUS.MA || st.status === STATUS.MN)
       st.status = ans!=null ? STATUS.MA : STATUS.MN;
@@ -3902,7 +4316,10 @@ async function saveProgress(){
   const responses = buildResponses();
   const cq = EX.questions[EX.idx];
   if (responses[cq.docId]) responses[cq.docId].timeSec = Math.round(EX.state[EX.idx].timeSec + liveExtra);
-  await setDoc(EX.attemptRef, { responses }, { merge:true });
+  const live = { lastSeen: serverTimestamp(), q: EX.idx + 1, total: EX.questions.length,
+                 answered: EX.state.filter(st => st.answer != null).length, subject: cq.subject || "" };
+  await setDoc(EX.attemptRef, { responses, live, warnings: EX.warnings, quickLive: EX.quick,
+    violations: EX.violations.map(v => ({ type: v.type, at: Timestamp.fromMillis(v.at) })) }, { merge:true });
 }
 
 /* ---- submit ---- */
@@ -3925,6 +4342,7 @@ $("modalConfirm").onclick = () => { $("modalBack").classList.add("hidden"); subm
 async function submitExam(auto, flag={}){
   if (!EX || EX.submitted) return;
   EX.submitted = true;
+  try { EX.unsubAttempt?.(); } catch(e){}
   clearInterval(tickInt); clearInterval(autosaveInt);
   stopProctoring();
   $("modalBack").classList.add("hidden");
@@ -3936,6 +4354,7 @@ async function submitExam(auto, flag={}){
   const wrongQuestions = [], unansweredQuestions = [];
   const detail = []; // for result rendering
   const idealTimes = {}; // snapshot of the ideal time each question was held to
+  const quickAnswers = {}; // final "too quick on a tough question" flags
 
   EX.questions.forEach((q,i) => {
     const st = EX.state[i];
@@ -3960,6 +4379,9 @@ async function submitExam(auto, flag={}){
     subjectScores[q.subject] += delta;
     detail.push({ q, answer: st.answer, delta, verdict, timeSec: Math.round(st.timeSec) });
     idealTimes[q.docId] = q._idealSec;
+    const thr = quickThreshold(q, q._idealSec);
+    if (st.answer != null && thr && st.timeSec < thr)
+      quickAnswers[q.docId] = { t: Math.round(st.timeSec), ideal: q._idealSec, level: normLevel(q.difficulty), correct: verdict === "correct" };
   });
 
   const totalTimeSec = Math.round((Date.now() - EX.startTime)/1000);
@@ -3973,7 +4395,9 @@ async function submitExam(auto, flag={}){
     score, subjectScores, wrongQuestions, unansweredQuestions,
     // config snapshot so the result renders correctly regardless of exam edits
     examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks,
-    idealTimes,
+    idealTimes, quickAnswers, pledgedAt: EX.pledgedAt,
+    // queue for the hourly AI follow-up job (ai/ + .github/workflows/ai-followup.yml)
+    ...(activeExam?.aiFollowUp ? { aiStatus: "queued", aiTries: 0 } : {}),
     // proctoring
     malpractice: !!flag.malpractice,
     malpracticeReason: flag.malpractice ? (flag.reason || "") : "",
@@ -3985,7 +4409,7 @@ async function submitExam(auto, flag={}){
   sessionStorage.removeItem(EX.cacheKey);
   try { if (document.fullscreenElement) await document.exitFullscreen(); } catch(e){}
 
-  if (flag.malpractice) alert("Test auto-submitted due to repeated rule violations. This attempt is flagged as malpractice.");
+  if (flag.malpractice) alert(`Your test was submitted and flagged as MALPRACTICE.\n\nReason: ${flag.reason || "repeated rule violations"}\n\nYour teacher has been notified.`);
   else if (auto) alert("Time is up! Your exam has been auto-submitted.");
   showResult({ ...attemptData, submitTime: new Date(), _detail: detail });
   EX = null;
@@ -4483,6 +4907,7 @@ async function showResult(attempt){
     </div>
     <button class="btn" id="csvReportBtn">Download Report (CSV)</button>
     <button class="btn secondary" id="pdfReportBtn">Print / Save as PDF</button>
+    <div id="integrityCard"></div>
     <div id="whyCard"></div>
     <h2 class="sec">Subject-wise</h2>
     <table class="tbl"><thead><tr><th>Subject</th><th>Score</th><th>Time</th></tr></thead><tbody>${subRows}</tbody></table>
@@ -4530,10 +4955,48 @@ async function showResult(attempt){
     downloadCsv("exam_report.csv", rows);
   };
   $("pdfReportBtn").onclick = () => window.print();
+  renderIntegrity(attempt, detail);
   renderWhyCard(attempt, detail);
   typeset($("resultWrap"));
 }
 
+// Integrity report: tab switches, tough questions answered too quickly, and the teacher's note. Shown to the
+// student too — the point is that actions have visible consequences, and honest attempts get recognised.
+function renderIntegrity(attempt, detail){
+  const box = $("integrityCard"); if (!box) return;
+  const isStaffView = currentUser && (currentUser.role === "admin" || currentUser.role === "faculty");
+  const viol = (attempt.violations || []).map(v => ({ type: v.type, at: v.at?.toMillis ? v.at.toMillis() : (v.at?.seconds ? v.at.seconds*1000 : v.at) }));
+  // de-duplicate the burst of events one switch produces (blur + hidden within 1.5 s)
+  const incidents = viol.filter((v,i) => i === 0 || v.at - viol[i-1].at > 1500);
+  const quick = detail.map((d,i) => ({ d, i })).filter(({d}) => d.answer != null && d.timeSec < quickThreshold(d.q, d.idealSec));
+  const note = attempt.integrityNote;
+  const clean = !incidents.length && !quick.length && !attempt.malpractice;
+  const attemptId = attempt.docId || `${attempt.examId}_${attempt.studentUid}`;
+  box.innerHTML = `<div class="card" style="margin:16px 0;border-color:${clean ? "#2e8b57" : attempt.malpractice ? "#c0392b" : "var(--orange)"}">
+    <h3 style="color:var(--blue);margin-bottom:6px">🛡 Integrity report</h3>
+    ${clean ? `<p style="color:#1e7a44"><b>✅ Honest attempt.</b> No tab switches, no tough questions answered suspiciously fast. Well done — this is how real progress is measured.</p>` : ""}
+    ${attempt.pledgedAt ? `<p style="font-size:12px;color:var(--muted)">Honesty pledge taken ${fmtDate(attempt.pledgedAt)}.</p>` : ""}
+    ${incidents.length ? `<p style="margin-top:6px"><b>🚨 Left the test screen ${incidents.length} time(s)</b> — your teacher was notified each time:</p>
+      <ul style="font-size:13px;margin:4px 0 0 18px">${incidents.map(v => `<li>${new Date(v.at).toLocaleTimeString("en-IN")} — ${esc(VIOLATION_TEXT[v.type] || v.type)}</li>`).join("")}</ul>` : ""}
+    ${quick.length ? `<p style="margin-top:8px"><b>⚡ ${quick.length} tough question(s) answered too quickly.</b>
+      <span style="font-size:12.5px;color:var(--muted)">An Advanced/Intermediate question answered in a small fraction of its ideal time usually means a blind guess or outside help. Your teacher reviews these.</span></p>
+      <table class="tbl" style="margin-top:6px"><thead><tr><th>Q#</th><th>Topic</th><th>Level</th><th>Your time</th><th>Ideal</th><th>Result</th></tr></thead><tbody>
+      ${quick.map(({d,i}) => `<tr><td>${i+1}</td><td>${esc(d.q.topic||"")}</td><td>${esc(levelShort(d.q.difficulty))}</td><td><b>${d.timeSec}s</b></td><td>${fmtSec(d.idealSec)}</td>
+        <td><span class="badge ${d.verdict==="correct"?"zero":"neg"}">${d.verdict}</span></td></tr>`).join("")}</tbody></table>` : ""}
+    ${note?.text ? `<div style="margin-top:10px;padding:8px 10px;background:#f4f7fa;border-left:4px solid var(--blue)"><b>📝 Note from ${esc(note.by||"your teacher")}:</b> ${esc(note.text)}</div>` : ""}
+    ${isStaffView ? `<div style="margin-top:10px"><label style="font-size:12.5px;font-weight:600">Note to the student (they see it on this page)</label>
+      <div class="flexrow" style="margin-top:4px"><input id="integrityNote" value="${esc(note?.text||"")}" style="flex:1;min-width:260px" placeholder="e.g. We discussed the tab switches — next time it counts as zero.">
+      <button class="btn secondary" id="integritySave">Save note</button><span id="integrityMsg" style="font-size:12.5px;align-self:center"></span></div></div>` : ""}
+  </div>`;
+  if (isStaffView) $("integritySave").onclick = async () => {
+    try {
+      const n = { text: $("integrityNote").value.trim(), by: currentUser.name, at: serverTimestamp() };
+      await updateDoc(doc(db,"attempts",attemptId), { integrityNote: n });
+      attempt.integrityNote = n;
+      $("integrityMsg").innerHTML = `<span style="color:#1e7a44">Saved — the student will see it.</span>`;
+    } catch(e) { $("integrityMsg").innerHTML = `<span style="color:#b03a2e">${esc(e.message)}</span>`; }
+  };
+}
 // After the test: the student says why each wrong/skipped question went that way. Saved on the attempt
 // (attempts/{examId}_{uid}.reasons) and used by staff to generate custom practice tests.
 function renderWhyCard(attempt, detail){
@@ -4549,7 +5012,7 @@ function renderWhyCard(attempt, detail){
     <summary style="cursor:pointer;font-weight:700;color:var(--blue);font-size:16px">
       📝 Why did these go wrong? <span style="font-weight:400;font-size:13px;color:var(--muted)">(${done}/${items.length} answered)</span></summary>
     <p style="font-size:12.5px;color:var(--muted);margin:8px 0">Tell your teacher why you got each question wrong or left it. This takes a minute and is used to build a
-      <b>practice test made just for you</b>. It does not change your marks.</p>
+      <b>practice test made just for you</b>. It does not change your marks.${attempt.aiStatus ? " <b>Please answer within 2 hours</b> — your personalised practice is prepared from these." : ""}</p>
     <table class="tbl"><thead><tr><th>Q#</th><th>Topic / Level</th><th>Question</th><th>You / Correct</th><th>Time / Ideal</th><th>Why?</th><th>Note (optional)</th></tr></thead><tbody>` +
     items.map(d => {
       const i = detail.indexOf(d) + 1, cur = reasons[d.q.docId] || {};
