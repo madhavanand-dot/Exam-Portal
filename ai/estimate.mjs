@@ -94,3 +94,38 @@ export async function estimateQuestions({ store, llm, cfg, log = console.log, ma
   }
   return out;
 }
+
+// Read-only second opinion on values the teacher typed by hand (keySrc/idealTimeSrc "user").
+// Never changes correct_answer or idealTimeSec; only stores a verdict in `aiVerify` on the question.
+export async function verifyUserQuestions({ store, llm, cfg, log = console.log, max = 40 }){
+  const out = { checked: 0, agree: 0, disagree: 0, unsure: 0, timeOff: 0, errors: 0, details: [] };
+  const todo = (await store.listUserKeyQuestions(200)).filter(q => q.image && q.correct_answer !== "" && q.correct_answer != null && !(q.aiVerify && q.aiVerify.forKey === String(q.correct_answer) && q.aiVerify.forTime === q.idealTimeSec)).slice(0, max);
+  log(`User-keyed image questions to verify: ${todo.length}`);
+  for (const q of todo) {
+    out.checked++;
+    try {
+      const tr = parseJsonReply(await llm.chat({ model: cfg.visionModel, messages: transcribePrompt(q), temperature: 0, maxTokens: 1200 }));
+      tr.stem = String(tr.stem || "").trim();
+      if (!tr.stem) throw new Error("could not read the image");
+      const [a, b] = await Promise.all([
+        solveWith(llm, cfg.verifyModel, q, tr).catch(e => ({ error: e.message })),
+        solveWith(llm, cfg.genModel, q, tr).catch(e => ({ error: e.message }))
+      ]);
+      const mine = normAnswer(q.correct_answer, q.section);
+      const votes = [a, b].filter(x => !x.error && x.answer != null);
+      const agreeN = votes.filter(x => sameAnswer(x.answer, mine, q.section)).length;
+      const verdict = votes.length === 0 ? "unsure" : agreeN === votes.length && votes.length >= 1 ? (votes.length === 2 ? "agrees" : "agrees-weak") : agreeN === 0 ? "disagrees" : "split";
+      const secs = [a.idealSec, b.idealSec].filter(Boolean);
+      const aiSec = secs.length ? Math.round(secs.reduce((x, y) => x + y, 0) / secs.length) : null;
+      const my = Number(q.idealTimeSec) || null;
+      const timeVerdict = !aiSec || !my ? "n/a" : (my / aiSec > 1.8 || aiSec / my > 1.8) ? "far-from-ai" : "ok";
+      const rec = { verdict, timeVerdict, aiAnswers: { verifier: a.error ? null : a.answer, writer: b.error ? null : b.answer }, aiIdealSec: aiSec, stem: tr.stem.slice(0, 160), forKey: String(q.correct_answer), forTime: q.idealTimeSec ?? null, at: new Date().toISOString() };
+      await store.patchQuestion(q.docId, () => ({ aiVerify: rec }));
+      if (verdict.startsWith("agrees")) out.agree++; else if (verdict === "unsure") out.unsure++; else out.disagree++;
+      if (timeVerdict === "far-from-ai") out.timeOff++;
+      out.details.push({ id: q.docId, key: q.correct_answer, ai: rec.aiAnswers, verdict, mySec: my, aiSec, timeVerdict });
+      log(`  ${q.docId}: your key ${q.correct_answer} vs AI ${rec.aiAnswers.verifier}/${rec.aiAnswers.writer} → ${verdict}; your time ${my}s vs AI ${aiSec}s → ${timeVerdict}`);
+    } catch (e) { out.errors++; log(`  ${q.docId}: verify failed: ${e.message}`); }
+  }
+  return out;
+}
