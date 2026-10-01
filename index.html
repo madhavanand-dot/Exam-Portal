@@ -1252,7 +1252,8 @@ onAuthStateChanged(auth, async (user) => {
     }
     if (!snap.exists()) { setMsg($("loginMsg"), "Account has no profile. Contact admin."); await signOut(auth); return; }
     currentUser = { uid: user.uid, ...snap.data() };
-    await claimSession(user.uid);
+    // Admins may stay signed in on several devices; the one-device rule applies to faculty and students.
+    if (currentUser.role !== "admin") await claimSession(user.uid);
     if (currentUser.role === "admin" || currentUser.role === "faculty") { enterAdmin(); } else { enterStudent(); }
   } catch(e) {
     setMsg($("loginMsg"), "Failed to load profile: " + e.message);
