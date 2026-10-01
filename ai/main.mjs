@@ -14,12 +14,23 @@ const store = makeStore({ serviceAccount: JSON.parse(env.FIREBASE_SERVICE_ACCOUN
 const { ai, secret } = await store.getSettings();
 const { cfg, apiKey, keySource } = resolveConfig(env, ai, secret);
 const models = { gen: cfg.genModel, verify: cfg.verifyModel, vision: cfg.visionModel };
-const report = (ok, message, extra = {}) => store.writeStatus({ ok, message, models, baseUrl: cfg.baseUrl, keySource, lastRunAt: Date.now(), ...extra });
+// live progress: mirrored to settings/aiStatus so the portal (AI Settings tab) can show it as it happens
+const logBuf = []; const startedAt = Date.now(); let phase = "Starting", lastFlush = 0, done = false;
+const flush = async (force) => {
+  if (done || (!force && Date.now() - lastFlush < 4000)) return;
+  lastFlush = Date.now();
+  try { await store.writeStatus({ running: true, phase, startedAt, progress: logBuf.slice(-80), progressAt: Date.now(), lastRunAt: startedAt }); } catch (e) { console.warn("live status write failed: " + e.message); }
+};
+const log = (msg) => { console.log(msg); logBuf.push(new Date().toISOString().slice(11, 19) + " " + msg); flush(false); };
+const setPhase = async (p) => { phase = p; log("== " + p); await flush(true); };
+const report = (ok, message, extra = {}) => (done = true, store.writeStatus({ ok, message, models, baseUrl: cfg.baseUrl, keySource, lastRunAt: Date.now(), running: false, phase: "Idle", startedAt, finishedAt: Date.now(), progress: logBuf.slice(-80), ...extra }));
+await setPhase("Checking settings");
 
 if (!cfg.enabled) { await report(true, "AI job is switched off in AI Settings — nothing processed."); console.log("Disabled in AI Settings."); process.exit(0); }
 if (!apiKey) { await report(false, "No API key: add one in AI Settings (or the GitHub secret AI_API_KEY)."); console.error("No API key."); process.exit(1); }
 
 const llm = makeLlm({ baseUrl: cfg.baseUrl, apiKey, rpm: cfg.rpm });
+await setPhase("Checking the API key and models");
 // preflight: is the key accepted, and do the chosen models exist? (fails loudly, reported in the portal)
 let available = [];
 try {
@@ -40,12 +51,15 @@ try {
 // 1) AI-proposed answer keys + ideal times for new image questions (never blocks the follow-up run below)
 let estimate = null;
 let verify = null;
-try { verify = await verifyUserQuestions({ store, llm, cfg }); }
+await setPhase("Reviewing the answer keys and ideal times you entered");
+try { verify = await verifyUserQuestions({ store, llm, cfg, log }); }
 catch (e) { console.warn("Verification failed: " + e.message); verify = { error: e.message }; }
-try { estimate = await estimateQuestions({ store, llm, cfg }); }
+await setPhase("Proposing keys and ideal times for new image questions");
+try { estimate = await estimateQuestions({ store, llm, cfg, log }); }
 catch (e) { console.warn("Key/time estimation failed: " + e.message); estimate = { error: e.message }; }
 try {
-  const s = await run({ store, llm, cfg });
+  await setPhase("Writing follow-up practice for students");
+  const s = await run({ store, llm, cfg, log });
   await report(!(s.errors && !s.drafted), s.errors ? `Finished with ${s.errors} error(s) — see the queue in Custom Practice.` : "Finished normally.",
                { summary: s, estimate, verify, ...(available.length ? { availableModels: available.slice(0, 400) } : {}) });
   if (s.errors && !s.drafted) process.exitCode = 1;
