@@ -7,6 +7,40 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-01 (later) — Assign Tests tab, batch dropdowns, AI answer-key review, live AI progress
+
+### Added — 📚 Assign Tests tab (admin + faculty)
+
+- All your diagnostic tests in one place, **grouped by chapter, then subtopic**, each chapter collapsible. Filter by exam type and active / inactive.
+- Per test: **Preview**, **Edit** (opens it in the Diagnostic Builder), **Assign** (choose who gets it) and **Activate / Deactivate**.
+- Diagnostic tests no longer clutter the **Exams** tab (that tab is for ordinary tests only).
+- New optional exam fields **`chapter`** and **`subtopic`**, set in the Diagnostic Builder. Older tests fall back to their first topic as the chapter and "General" as the subtopic.
+
+### Added — batch and student assignment
+
+- **Batch dropdown** (tick several) wherever a batch is chosen — Diagnostic Builder, Activate popup, Exams form. Lists `TR01, TW01, OR01, OW01, RM01, RM02, RM03` plus any other batch your students already have. Matching is case-insensitive.
+- The Diagnostic Builder has a **Who can take this test?** control (all students / specific batches / specific students) saved with the test.
+- Fixed the **student picker** layout (checkbox and name were stretched apart because every input was forced to full width).
+
+### Added — AI reviews the answer keys and ideal times you enter
+
+- For image questions you keyed yourself, the AI job solves each one with two models and records `aiVerify` (agrees / agrees-weak / disagrees / split / unsure) and whether your ideal time is far from its estimate. It never changes your key or time.
+- When you leave a key or time blank, the AI proposes one (`keySrc` / `idealTimeSrc` record where each value came from). A test cannot go live while a question still has no key.
+- Older questions without `keySrc` (ids starting `DG_`) are now included in the review.
+
+### Added — live AI progress in the website
+
+- **AI Settings → AI job — live progress**: shows RUNNING / Idle, the current step, and the job's log lines as they happen (the job writes them to `settings/aiStatus`). No more checking GitHub Actions for progress.
+
+### Changed
+
+- Admin accounts are exempt from the one-device login rule (faculty and students still sign in on one device at a time).
+
+> **After merging:** nothing to publish (no new Firestore rules). The live-progress box fills in on the **next AI job run** — start the
+> **AI follow-up practice** workflow once from GitHub → Actions → Run workflow, or wait for the hourly run.
+
+---
+
 ## 2026-10-01 — Live Monitor, honesty & consequences, AI Settings
 
 ### Added — ● Live Monitor (admin + faculty)
