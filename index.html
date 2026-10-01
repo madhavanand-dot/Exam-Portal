@@ -167,6 +167,14 @@ details.qexp div{margin-top:6px;font-size:13px;line-height:1.5}
 h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 .checklist{max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;padding:8px}
 .checklist label{display:flex;gap:8px;padding:5px 4px;font-size:13px;border-bottom:1px solid #eef1f4;align-items:flex-start;cursor:pointer}
+.checklist input[type=checkbox],.msel input[type=checkbox]{width:auto;flex:none;margin:2px 0 0;padding:0}
+.checklist label{font-weight:400;text-align:left}
+.msel>details>summary{list-style:none;cursor:pointer;padding:9px 10px;border:1px solid var(--border);border-radius:4px;background:#fff;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.msel>details>summary::-webkit-details-marker{display:none}
+.msel>details>summary::after{content:"\25BE";color:#667}
+.msel .mselLbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msel .opts{border:1px solid var(--border);border-radius:4px;margin-top:3px;max-height:210px;overflow-y:auto;padding:4px 8px;background:#fff}
+.msel .opts label{display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13px;font-weight:400;cursor:pointer;border-bottom:1px solid #eef1f4;margin:0}
 </style>
 </head>
 <body>
@@ -230,6 +238,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="live"><span style="color:#e25555">●</span> Live Monitor</button>
       <button data-atab="exams">Exams</button>
       <button data-atab="diagnostic">Diagnostic Builder</button>
+      <button data-atab="assign">Assign Tests</button>
       <button data-atab="custompractice">Custom Practice</button>
       <button data-atab="reports">Reports</button>
       <button data-atab="leaderboard">Leaderboard</button>
@@ -439,7 +448,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
             <option value="batch">Specific batch(es)</option>
             <option value="students">Specific students</option>
           </select></div>
-          <div class="field" id="exBatchWrap" style="display:none"><label>Batches (comma-separated, must match student batch)</label><input id="exBatches" placeholder="e.g. Batch A, Batch B"></div>
+          <div class="field" id="exBatchWrap" style="display:none"><label>Batches</label><div id="exBatchPick" class="checklist" style="max-height:170px"></div></div>
           <div class="field" id="exStudentsWrap" style="display:none;max-width:320px"><label>Pick students</label>
             <div id="exStudentPick" class="checklist" style="max-height:140px"></div></div>
         </div>
@@ -456,6 +465,18 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       </div>
       <h2 class="sec">Exams</h2>
       <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Qs</th><th>Audience</th><th>Status</th><th>Created By</th><th></th></tr></thead><tbody id="examRows"></tbody></table>
+    </div>
+
+    <div id="atab-assign" class="atab hidden">
+      <div class="card" id="dgLibCard">
+        <h2 class="sec" style="margin-top:0">📚 Assign Diagnostic Tests <span id="dgLibCount" style="font-weight:400;font-size:13px;color:var(--muted)"></span></h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Grouped by <b>chapter</b>, then <b>subtopic</b>. Activate a test to choose which batches / students get it; Deactivate hides it again. Set the chapter and subtopic in the Diagnostic Builder tab.</p>
+        <div class="flexrow" style="margin-bottom:6px">
+          <div class="field"><label>Exam type</label><select id="dgLibType"><option value="">All</option><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <div class="field"><label>Show</label><select id="dgLibShow"><option value="">All tests</option><option value="active">Active only</option><option value="inactive">Inactive only</option></select></div>
+        </div>
+        <div id="dgLibList"></div>
+      </div>
     </div>
 
     <div id="atab-diagnostic" class="atab hidden">
@@ -476,6 +497,8 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <div class="field"><label>Exam type</label><select id="dgType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
           <div class="field"><label>Subject (for new questions)</label><select id="dgSubject"></select></div>
           <div class="field" style="min-width:220px"><label>Topic (for new questions)</label><input id="dgTopic" list="dgTopicList" placeholder="e.g. Laws of Motion"><datalist id="dgTopicList"></datalist></div>
+          <div class="field" style="min-width:200px"><label>Chapter (for the test library)</label><input id="dgChapter" list="dgChapterList" placeholder="e.g. Laws of Motion"><datalist id="dgChapterList"></datalist></div>
+          <div class="field" style="min-width:200px"><label>Subtopic</label><input id="dgSubtopic" placeholder="e.g. Friction"></div>
         </div>
         <div class="flexrow">
           <div class="field"><label>Scoring</label><select id="dgScoring">
@@ -493,6 +516,15 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgShowIdeal" checked> Show ideal time to students during the test</label>
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgShuffleOpt"> Shuffle option order</label>
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px" title="After each submission an AI writes practice questions for the student's mistakes and a second AI checks them; you review in Custom Practice → AI drafts"><input type="checkbox" id="dgAiFollow" checked> 🤖 AI follow-up practice after each submission</label></div>
+        </div>
+        <div class="flexrow" style="margin-bottom:10px">
+          <div class="field"><label>Who can take this test?</label><select id="dgAudience">
+            <option value="all">All students of this exam type</option>
+            <option value="batch">Specific batch(es)</option>
+            <option value="students">Specific students</option>
+          </select></div>
+          <div class="field" id="dgBatchWrap" style="display:none"><label>Batches</label><div id="dgBatchPick" class="checklist" style="max-height:170px"></div></div>
+          <div class="field" id="dgStudentsWrap" style="display:none;max-width:340px"><label>Pick students</label><div id="dgStudentPick" class="checklist" style="max-height:170px"></div></div>
         </div>
         <div class="flexrow">
           <div class="field"><label>Default ideal time (sec) — Bloom / Intermediate / Advanced</label>
@@ -645,6 +677,10 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         </div>
         <button class="btn green" id="aiSaveBtn">Save settings</button>
         <div id="aiMsg"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 class="sec" style="margin-top:0">AI job — live progress</h2>
+        <div id="aiLiveBox" style="font-size:13px">Connecting…</div>
       </div>
       <div class="card" style="margin-top:14px">
         <h2 class="sec" style="margin-top:0">Last run of the AI job</h2>
@@ -872,7 +908,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <option value="batch">Specific batch(es)</option>
       <option value="students">Specific students</option>
     </select></div>
-    <div class="field" id="audBatchWrap" style="display:none;margin-bottom:10px"><label>Batches (comma-separated, must match student batch)</label><input id="audBatches" placeholder="e.g. Batch A, Batch B"></div>
+    <div class="field" id="audBatchWrap" style="display:none;margin-bottom:10px"><label>Batches</label><div id="audBatchPick" class="checklist" style="max-height:170px"></div></div>
     <div class="field" id="audStudentsWrap" style="display:none;max-width:100%;margin-bottom:10px"><label>Pick students</label>
       <div id="audStudentPick" class="checklist" style="max-height:180px"></div></div>
     <div id="audMsg"></div>
@@ -1303,9 +1339,10 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="bulkimport") biFillSubjects();
     if (b.dataset.atab==="keypatch") initKeyPatch();
     if (b.dataset.atab==="diagnostic") initDiagnostic();
+    if (b.dataset.atab==="assign") { try { dgLibRender(); } catch(e) { console.warn(e); } }
     if (b.dataset.atab==="custompractice") initCustomPractice();
     if (b.dataset.atab==="live") initLive(); else lmStop();
-    if (b.dataset.atab==="aisettings") initAiSettings();
+    if (b.dataset.atab==="aisettings") { initAiSettings(); aiLiveStart(); } else aiLiveStop();
     if (b.dataset.atab==="topics") initTopics();
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
@@ -1768,6 +1805,7 @@ async function loadStudents(){
   // populate "specific students" picker in exam builder
   const pick = $("exStudentPick");
   if (pick) pick.innerHTML = studentCache.map(s=>`<label><input type="checkbox" value="${s.uid}" data-stype="${s.examType}"><span>${esc(s.name)} <small style="color:var(--muted)">(${esc(s.examType)}${s.batch?", "+esc(s.batch):""})</small></span></label>`).join("") || `<div style="color:var(--muted);padding:5px">No students.</div>`;
+  renderBatchPick($("exBatchPick")); $("dgBatchPick").innerHTML = "";
   // reports filter dropdown
   $("rpStudent").innerHTML = `<option value="">All</option>` +
     studentCache.map(s=>`<option value="${s.uid}">${esc(s.name)}${s.batch?" ("+esc(s.batch)+")":""}</option>`).join("");
@@ -2410,6 +2448,98 @@ function dgMarks(){
   }
   return EXAM_CONFIG[$("dgType").value].marks;
 }
+/* ----- batch / student assignment helpers ----- */
+const BATCH_CODES = ["TR01","TW01","OR01","OW01","RM01","RM02","RM03"];
+function batchOptions(){
+  const seen = new Set(), out = [];
+  [...BATCH_CODES, ...studentCache.map(s => (s.batch||"").trim()).filter(Boolean)].forEach(b => { const k = b.toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push(b); } });
+  return out;
+}
+function renderBatchPick(el, selected){
+  if (!el) return;
+  el.className = "msel"; el.style.maxHeight = "";
+  const sel = new Set((selected||[]).map(x => String(x).toLowerCase()));
+  el.innerHTML = `<details><summary><span class="mselLbl">Select batches</span></summary><div class="opts">` +
+    batchOptions().map(b => `<label><input type="checkbox" value="${esc(b)}" ${sel.has(b.toLowerCase())?"checked":""}> ${esc(b)}</label>`).join("") + `</div></details>`;
+  const upd = () => { const n = readBatchPick(el); el.querySelector(".mselLbl").textContent = n.length ? n.join(", ") : "Select batches"; };
+  el.querySelectorAll("input").forEach(c => c.onchange = upd);
+  upd();
+}
+function readBatchPick(el){ return [...el.querySelectorAll("input:checked")].map(c => c.value); }
+function dgAudToggle(){
+  const m = $("dgAudience").value;
+  $("dgBatchWrap").style.display = m === "batch" ? "" : "none";
+  $("dgStudentsWrap").style.display = m === "students" ? "" : "none";
+}
+function dgAudRender(a){
+  a = a || { mode: "all" };
+  $("dgAudience").value = a.mode || "all";
+  renderBatchPick($("dgBatchPick"), a.batches);
+  const picked = new Set(a.studentUids || []);
+  $("dgStudentPick").innerHTML = studentCache.map(s => `<label style="display:flex;gap:7px;align-items:center;font-weight:400;font-size:13px"><input type="checkbox" value="${s.uid}" ${picked.has(s.uid)?"checked":""}> ${esc(s.name)} <span style="color:var(--muted)">(${esc(s.examType)}${s.batch?", "+esc(s.batch):""})</span></label>`).join("") || `<span style="color:var(--muted);font-size:12px">No students.</span>`;
+  dgAudToggle();
+}
+function dgReadAudience(){
+  const mode = $("dgAudience").value, a = { mode };
+  if (mode === "batch") { a.batches = readBatchPick($("dgBatchPick")); if (!a.batches.length) return { error: "Tick at least one batch (or choose another audience)." }; }
+  else if (mode === "students") { a.studentUids = [...$("dgStudentPick").querySelectorAll("input:checked")].map(c => c.value); if (!a.studentUids.length) return { error: "Pick at least one student (or choose another audience)." }; }
+  return a;
+}
+$("dgAudience").onchange = dgAudToggle;
+
+/* ----- diagnostic test library: grouped by chapter -> subtopic ----- */
+function dgChapterOf(e){ return ((e.chapter || (e.topics||[])[0] || "") + "").trim() || "Uncategorised"; }
+function dgLibRender(){
+  const box = $("dgLibList"); if (!box) return;
+  const t = $("dgLibType").value, sh = $("dgLibShow").value;
+  const mine = examsCache.filter(e => e.diagnostic && (isSuper() || e.createdBy === currentUser.uid));
+  let list = mine.filter(e => (!t || e.examType === t) && (!sh || (sh === "active") === !!e.isActive));
+  $("dgLibCount").textContent = `${mine.length} test(s), ${mine.filter(e => e.isActive).length} active`;
+  const dl = $("dgChapterList");
+  if (dl) dl.innerHTML = [...new Set(mine.map(dgChapterOf).filter(c => c !== "Uncategorised"))].sort().map(c => `<option value="${esc(c)}">`).join("");
+  if (!list.length) { box.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:6px 0">No diagnostic tests match.</div>`; return; }
+  const groups = new Map();
+  list.forEach(e => {
+    const ch = dgChapterOf(e), sub = ((e.subtopic || "") + "").trim() || "General";
+    if (!groups.has(ch)) groups.set(ch, new Map());
+    const g = groups.get(ch); if (!g.has(sub)) g.set(sub, []); g.get(sub).push(e);
+  });
+  const row = e => `<tr><td>${esc(e.title)}</td><td>${esc(e.examType)}</td><td>${e.questionIds?.length||0}</td>
+    <td style="font-size:12px">${esc(audienceLabel(e))}</td>
+    <td>${e.isActive?'<span class="badge pos">ACTIVE</span>':'<span class="badge zero">inactive</span>'}</td>
+    <td style="white-space:nowrap"><button class="btn secondary" style="padding:3px 10px" data-libprev="${e.docId}">Preview</button>
+      <button class="btn secondary" style="padding:3px 10px" data-libedit="${e.docId}">Edit</button>
+      <button class="btn secondary" style="padding:3px 10px" data-libassign="${e.docId}" title="Choose batches / students">Assign</button>
+      <button class="btn ${e.isActive?'secondary':'green'}" style="padding:3px 10px" data-libtoggle="${e.docId}" data-act="${e.isActive?0:1}">${e.isActive?'Deactivate':'Activate'}</button></td></tr>`;
+  box.innerHTML = [...groups.keys()].sort((a,b) => a === "Uncategorised" ? 1 : b === "Uncategorised" ? -1 : a.localeCompare(b)).map(ch => {
+    const g = groups.get(ch), all = [...g.values()].flat();
+    return `<details open style="border:1px solid var(--border);border-radius:6px;margin-bottom:8px;padding:6px 10px">
+      <summary style="cursor:pointer;font-weight:700;color:var(--blue)">${esc(ch)} <span style="font-weight:400;color:var(--muted);font-size:12px">— ${all.length} test(s), ${all.filter(e => e.isActive).length} active</span></summary>
+      ${[...g.keys()].sort().map(sub => `<div style="margin:8px 0 2px 6px;font-weight:600;font-size:13px">${esc(sub)}</div>
+        <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Qs</th><th>Audience</th><th>Status</th><th></th></tr></thead><tbody>${g.get(sub).map(row).join("")}</tbody></table>`).join("")}
+    </details>`;
+  }).join("");
+  box.querySelectorAll("[data-libprev]").forEach(b => b.onclick = () => previewExam(b.dataset.libprev));
+  box.querySelectorAll("[data-libedit]").forEach(b => b.onclick = () => {
+    document.querySelector('[data-atab="diagnostic"]').click();
+    $("dgExisting").value = b.dataset.libedit; dgOpenExam(b.dataset.libedit);
+    $("dgTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  box.querySelectorAll("[data-libassign]").forEach(b => b.onclick = async () => {
+    const ex = examsCache.find(e => e.docId === b.dataset.libassign);
+    if (ex && !ex.isActive && await blockIfKeysMissing(ex)) return;
+    openAudienceModal(b.dataset.libassign);
+  });
+  box.querySelectorAll("[data-libtoggle]").forEach(b => b.onclick = async () => {
+    const id = b.dataset.libtoggle;
+    if (b.dataset.act === "1") { const ex = examsCache.find(e => e.docId === id); if (ex && await blockIfKeysMissing(ex)) return; openAudienceModal(id); return; }
+    await updateDoc(doc(db,"exams",id), { isActive: false });
+    loadExams();
+  });
+}
+$("dgLibType").onchange = dgLibRender;
+$("dgLibShow").onchange = dgLibRender;
+
 function initDiagnostic(){
   const exams = isSuper() ? examsCache : examsCache.filter(e=>e.createdBy===currentUser.uid);
   const cur = $("dgExisting").value;
@@ -2418,11 +2548,14 @@ function initDiagnostic(){
   if (cur) $("dgExisting").value = cur;
   if (!$("dgSubject").options.length) dgFillSubjects();
   if (!$("dgIdE").value) dgSetIdealInputs();
+  if (!$("dgBatchPick").children.length) dgAudRender(DG.audience);
+  dgLibRender();
   dgRender();
 }
 function dgNew(){
   DG = { examDocId: null, rows: [], origIds: [] };
   $("dgTitle").value = ""; $("dgExisting").value = "";
+  $("dgChapter").value = ""; $("dgSubtopic").value = ""; dgAudRender({ mode: "all" });
   $("dgAiFollow").checked = true;
   $("dgScoring").value = "preset"; $("dgCustomMarks").style.display = "none";
   $("dgKeepOrder").checked = true; $("dgShowIdeal").checked = true; $("dgShuffleOpt").checked = false;
@@ -2437,6 +2570,8 @@ async function dgOpenExam(docId){
   setMsg($("dgMsg"), `Loading ${ex.questionIds?.length||0} questions…`, true);
   $("dgType").value = ex.examType; dgFillSubjects();
   $("dgTitle").value = ex.title || "";
+  $("dgChapter").value = ex.chapter || (ex.topics||[])[0] || ""; $("dgSubtopic").value = ex.subtopic || "";
+  dgAudRender(ex.audience);
   $("dgDuration").value = ex.durationMin || 30;
   $("dgKeepOrder").checked = !!ex.keepOrder;
   $("dgShowIdeal").checked = !!ex.showIdealTime;
@@ -2592,6 +2727,7 @@ function dgRender(){
 }
 function dgValidate(){
   const errs = [];
+  if (!DG.aiDraftId) { const a = dgReadAudience(); if (a.error) errs.push(a.error); }
   if (!$("dgTitle").value.trim()) errs.push("Enter a title.");
   if (!DG.rows.length) errs.push("Add at least one question.");
   const subs = EXAM_CONFIG[$("dgType").value].subjects;
@@ -2676,6 +2812,8 @@ async function dgSave(){
       keepOrder: $("dgKeepOrder").checked,
       shuffleOptions: $("dgShuffleOpt").checked,
       aiFollowUp: $("dgAiFollow").checked,
+      chapter: $("dgChapter").value.trim() || (DG.rows.find(r => r.topic)?.topic || ""), subtopic: $("dgSubtopic").value.trim(),
+      ...(DG.aiDraftId ? {} : { audience: dgReadAudience() }),
       topics: [...new Set(DG.rows.map(r=>r.topic).filter(Boolean))],
       updatedAt: serverTimestamp()
     };
@@ -2685,7 +2823,7 @@ async function dgSave(){
       await updateDoc(doc(db,"exams",DG.examDocId), payload);
       say("Test updated.");
     } else {
-      const ref = await addDoc(collection(db,"exams"), { ...payload, diagnostic: !DG.aiDraftId, audience: DG.audience || { mode:"all" },
+      const ref = await addDoc(collection(db,"exams"), { ...payload, diagnostic: !DG.aiDraftId, audience: DG.aiDraftId ? DG.audience : dgReadAudience(),
         ...(DG.aiDraftId ? { aiPractice: { draftId: DG.aiDraftId, studentUid: DG.audience.studentUids[0] } } : {}),
         startAt: null, endAt: null, isActive: false, createdAt: serverTimestamp(),
         createdBy: currentUser.uid, createdByName: currentUser.name });
@@ -2700,7 +2838,7 @@ async function dgSave(){
           say(`Published — ${DG.studentName} can take it now.`);
         } else say("Not published. Activate it later from the Exams tab.");
       } else
-      say("Test created (inactive). Activate it from the Exams tab and choose who can take it.");
+      say("Test created (inactive). Open the 'Assign Tests' tab to choose batches / students and activate it.");
     }
     DG.origIds = payload.questionIds.slice();
     allBankCache = null;
@@ -3235,6 +3373,30 @@ async function initAiSettings(){
       ${(s.availableModels||[]).length ? `<div style="margin-top:4px;color:var(--muted)">${s.availableModels.length} models available at the provider (suggested in the boxes above).</div>` : ""}`;
   } catch(e) { setMsg($("aiMsg"), "Could not load settings: " + e.message + " — has the updated firestore.rules been published?"); }
 }
+/* live view of what the AI job is doing (the job mirrors its log into settings/aiStatus) */
+let aiLiveUnsub = null, aiLiveTimer = null, aiLiveData = null;
+function aiLiveRender(){
+  const box = $("aiLiveBox"); if (!box) return;
+  const s = aiLiveData;
+  if (!s) { box.innerHTML = `<span style="color:var(--muted)">The job hasn't reported yet.</span>`; return; }
+  const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago"; };
+  const started = s.startedAt, stale = s.running && s.progressAt && Date.now() - s.progressAt > 10 * 60000;
+  const head = s.running && !stale
+    ? `<span style="color:#1e7a44;font-weight:700">● RUNNING</span> — ${esc(s.phase || "")} <span style="color:var(--muted)">(started ${started ? ago(started) : "?"})</span>`
+    : stale ? `<span style="color:#b03a2e;font-weight:700">● No update for 10+ min</span> — the run may have been cancelled (last step: ${esc(s.phase || "")})`
+    : `<span style="color:var(--muted);font-weight:700">○ Idle</span> — last run finished ${s.finishedAt ? ago(s.finishedAt) : "earlier"}. The job starts itself every hour.`;
+  const sm = (t, o) => o && !o.error ? `<div style="color:var(--muted)">${t}: ${Object.entries(o).filter(([k,v]) => typeof v === "number").map(([k,v]) => k + " " + v).join(" · ")}</div>` : "";
+  box.innerHTML = `<div>${head}</div>${s.running ? "" : sm("Answer-key review", s.verify) + sm("Key/time proposals", s.estimate) + sm("Follow-up practice", s.summary)}
+    <pre style="margin-top:8px;background:#0f1720;color:#d6e2ee;padding:10px;border-radius:6px;max-height:260px;overflow:auto;font-size:11.5px;white-space:pre-wrap">${esc((s.progress || []).join("\n") || "(no log lines yet)")}</pre>`;
+  const pre = box.querySelector("pre"); if (pre) pre.scrollTop = pre.scrollHeight;
+}
+function aiLiveStart(){
+  aiLiveStop();
+  try { aiLiveUnsub = onSnapshot(doc(db,"settings","aiStatus"), d => { aiLiveData = d.exists() ? d.data() : null; aiLiveRender(); }, e => { $("aiLiveBox").textContent = "Could not read status: " + e.message; }); }
+  catch(e) { $("aiLiveBox").textContent = "Could not read status: " + e.message; }
+  aiLiveTimer = setInterval(aiLiveRender, 30000);
+}
+function aiLiveStop(){ if (aiLiveUnsub) { aiLiveUnsub(); aiLiveUnsub = null; } if (aiLiveTimer) { clearInterval(aiLiveTimer); aiLiveTimer = null; } }
 $("aiPresetBtn").onclick = () => Object.entries(AI_FIELDS).forEach(([el, k]) => { $(el).value = AI_PRESET[k]; });
 $("aiSaveBtn").onclick = async () => {
   const c = { enabled: $("aiEnabled").checked, updatedBy: currentUser.name, updatedAt: serverTimestamp() };
@@ -3667,8 +3829,8 @@ $("exCreateBtn").onclick = async () => {
   const mode = $("exAudience").value;
   const audience = { mode };
   if (mode === "batch") {
-    audience.batches = $("exBatches").value.split(",").map(s=>s.trim()).filter(Boolean);
-    if (!audience.batches.length) { setMsg($("exMsg"),"Enter at least one batch name."); return; }
+    audience.batches = readBatchPick($("exBatchPick"));
+    if (!audience.batches.length) { setMsg($("exMsg"),"Tick at least one batch."); return; }
   } else if (mode === "students") {
     audience.studentUids = [...$("exStudentPick").querySelectorAll("input:checked")].map(c=>c.value);
     if (!audience.studentUids.length) { setMsg($("exMsg"),"Pick at least one student."); return; }
@@ -3713,8 +3875,9 @@ async function loadExams(){
   const exams = qs.docs.map(d=>({ docId:d.id, ...d.data() }));
   exams.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
   examsCache = exams;
+  try { dgLibRender(); } catch(e) { console.warn(e); }
   // faculty only see/manage their own exams; super-admin sees all
-  const visible = isSuper() ? exams : exams.filter(e => e.createdBy === currentUser.uid);
+  const visible = (isSuper() ? exams : exams.filter(e => e.createdBy === currentUser.uid)).filter(e => !e.diagnostic);  // diagnostic tests live in the Assign Tests tab
   const schedBadge = e => {
     if (!e.startAt && !e.endAt) return "";
     const w = examWindow(e);
@@ -3780,7 +3943,7 @@ function openAudienceModal(docId){
   setMsg($("audMsg"), "");
   const a = ex.audience || { mode: "all" };
   $("audMode").value = a.mode || "all";
-  $("audBatches").value = (a.batches||[]).join(", ");
+  renderBatchPick($("audBatchPick"), a.batches);
   $("audBatchWrap").style.display = a.mode==="batch" ? "" : "none";
   $("audStudentsWrap").style.display = a.mode==="students" ? "" : "none";
   const picked = new Set(a.studentUids||[]);
@@ -3796,8 +3959,8 @@ $("audConfirm").onclick = async () => {
   const mode = $("audMode").value;
   const audience = { mode };
   if (mode === "batch") {
-    audience.batches = $("audBatches").value.split(",").map(s=>s.trim()).filter(Boolean);
-    if (!audience.batches.length) { setMsg($("audMsg"),"Enter at least one batch name."); return; }
+    audience.batches = readBatchPick($("audBatchPick"));
+    if (!audience.batches.length) { setMsg($("audMsg"),"Tick at least one batch."); return; }
   } else if (mode === "students") {
     audience.studentUids = [...$("audStudentPick").querySelectorAll("input:checked")].map(c=>c.value);
     if (!audience.studentUids.length) { setMsg($("audMsg"),"Pick at least one student."); return; }
