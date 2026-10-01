@@ -1,6 +1,6 @@
 // Firestore access for the pipeline (firebase-admin; bypasses security rules — the key stays in GitHub Secrets).
 import { initializeApp, cert } from "firebase-admin/app";
-import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, FieldPath, Timestamp } from "firebase-admin/firestore";
 
 export function makeStore({ serviceAccount, databaseId }){
   const app = initializeApp({ credential: cert(serviceAccount) });
@@ -48,8 +48,13 @@ export function makeStore({ serviceAccount, databaseId }){
       return [...byId.values()].slice(0, limit);
     },
     async listUserKeyQuestions(limit){
+      const byId = new Map();
       const s = await db.collection("questions").where("keySrc", "==", "user").limit(limit).get();
-      return s.docs.map(d => ({ docId: d.id, ...d.data() }));
+      s.docs.forEach(d => byId.set(d.id, { docId: d.id, ...d.data() }));
+      // older Diagnostic Builder questions were saved before keySrc existed: ids start with DG_
+      const g = await db.collection("questions").where(FieldPath.documentId(), ">=", "DG_").where(FieldPath.documentId(), "<", "DG`").limit(limit).get();
+      g.docs.forEach(d => { if (!byId.has(d.id) && !d.data().keySrc) byId.set(d.id, { docId: d.id, ...d.data() }); });
+      return [...byId.values()];
     },
     // read-modify-write inside a transaction so a teacher's edit made meanwhile is never overwritten
     async patchQuestion(id, fn){
