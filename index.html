@@ -167,6 +167,14 @@ details.qexp div{margin-top:6px;font-size:13px;line-height:1.5}
 h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 .checklist{max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;padding:8px}
 .checklist label{display:flex;gap:8px;padding:5px 4px;font-size:13px;border-bottom:1px solid #eef1f4;align-items:flex-start;cursor:pointer}
+.checklist input[type=checkbox],.msel input[type=checkbox]{width:auto;flex:none;margin:2px 0 0;padding:0}
+.checklist label{font-weight:400;text-align:left}
+.msel>details>summary{list-style:none;cursor:pointer;padding:9px 10px;border:1px solid var(--border);border-radius:4px;background:#fff;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.msel>details>summary::-webkit-details-marker{display:none}
+.msel>details>summary::after{content:"\25BE";color:#667}
+.msel .mselLbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msel .opts{border:1px solid var(--border);border-radius:4px;margin-top:3px;max-height:210px;overflow-y:auto;padding:4px 8px;background:#fff}
+.msel .opts label{display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13px;font-weight:400;cursor:pointer;border-bottom:1px solid #eef1f4;margin:0}
 </style>
 </head>
 <body>
@@ -230,6 +238,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="live"><span style="color:#e25555">●</span> Live Monitor</button>
       <button data-atab="exams">Exams</button>
       <button data-atab="diagnostic">Diagnostic Builder</button>
+      <button data-atab="assign">Assign Tests</button>
       <button data-atab="custompractice">Custom Practice</button>
       <button data-atab="reports">Reports</button>
       <button data-atab="leaderboard">Leaderboard</button>
@@ -458,16 +467,19 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Qs</th><th>Audience</th><th>Status</th><th>Created By</th><th></th></tr></thead><tbody id="examRows"></tbody></table>
     </div>
 
-    <div id="atab-diagnostic" class="atab hidden">
+    <div id="atab-assign" class="atab hidden">
       <div class="card" id="dgLibCard">
-        <h2 class="sec" style="margin-top:0">📚 My diagnostic tests <span id="dgLibCount" style="font-weight:400;font-size:13px;color:var(--muted)"></span></h2>
-        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Grouped by <b>chapter</b>, then <b>subtopic</b>. Activate a test to choose which batches / students get it; Deactivate hides it again. Set the chapter and subtopic in the builder below.</p>
+        <h2 class="sec" style="margin-top:0">📚 Assign Diagnostic Tests <span id="dgLibCount" style="font-weight:400;font-size:13px;color:var(--muted)"></span></h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Grouped by <b>chapter</b>, then <b>subtopic</b>. Activate a test to choose which batches / students get it; Deactivate hides it again. Set the chapter and subtopic in the Diagnostic Builder tab.</p>
         <div class="flexrow" style="margin-bottom:6px">
           <div class="field"><label>Exam type</label><select id="dgLibType"><option value="">All</option><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
           <div class="field"><label>Show</label><select id="dgLibShow"><option value="">All tests</option><option value="active">Active only</option><option value="inactive">Inactive only</option></select></div>
         </div>
         <div id="dgLibList"></div>
       </div>
+    </div>
+
+    <div id="atab-diagnostic" class="atab hidden">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Topic-wise Diagnostic Test <span id="dgMode" style="font-weight:400;font-size:13px;color:var(--muted)"></span></h2>
         <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
@@ -665,6 +677,10 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         </div>
         <button class="btn green" id="aiSaveBtn">Save settings</button>
         <div id="aiMsg"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 class="sec" style="margin-top:0">AI job — live progress</h2>
+        <div id="aiLiveBox" style="font-size:13px">Connecting…</div>
       </div>
       <div class="card" style="margin-top:14px">
         <h2 class="sec" style="margin-top:0">Last run of the AI job</h2>
@@ -1323,9 +1339,10 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="bulkimport") biFillSubjects();
     if (b.dataset.atab==="keypatch") initKeyPatch();
     if (b.dataset.atab==="diagnostic") initDiagnostic();
+    if (b.dataset.atab==="assign") { try { dgLibRender(); } catch(e) { console.warn(e); } }
     if (b.dataset.atab==="custompractice") initCustomPractice();
     if (b.dataset.atab==="live") initLive(); else lmStop();
-    if (b.dataset.atab==="aisettings") initAiSettings();
+    if (b.dataset.atab==="aisettings") { initAiSettings(); aiLiveStart(); } else aiLiveStop();
     if (b.dataset.atab==="topics") initTopics();
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
@@ -2440,8 +2457,13 @@ function batchOptions(){
 }
 function renderBatchPick(el, selected){
   if (!el) return;
+  el.className = "msel"; el.style.maxHeight = "";
   const sel = new Set((selected||[]).map(x => String(x).toLowerCase()));
-  el.innerHTML = batchOptions().map(b => `<label style="display:flex;gap:7px;align-items:center;font-weight:400;font-size:13px"><input type="checkbox" value="${esc(b)}" ${sel.has(b.toLowerCase())?"checked":""}> ${esc(b)}</label>`).join("");
+  el.innerHTML = `<details><summary><span class="mselLbl">Select batches</span></summary><div class="opts">` +
+    batchOptions().map(b => `<label><input type="checkbox" value="${esc(b)}" ${sel.has(b.toLowerCase())?"checked":""}> ${esc(b)}</label>`).join("") + `</div></details>`;
+  const upd = () => { const n = readBatchPick(el); el.querySelector(".mselLbl").textContent = n.length ? n.join(", ") : "Select batches"; };
+  el.querySelectorAll("input").forEach(c => c.onchange = upd);
+  upd();
 }
 function readBatchPick(el){ return [...el.querySelectorAll("input:checked")].map(c => c.value); }
 function dgAudToggle(){
@@ -2487,6 +2509,7 @@ function dgLibRender(){
     <td>${e.isActive?'<span class="badge pos">ACTIVE</span>':'<span class="badge zero">inactive</span>'}</td>
     <td style="white-space:nowrap"><button class="btn secondary" style="padding:3px 10px" data-libprev="${e.docId}">Preview</button>
       <button class="btn secondary" style="padding:3px 10px" data-libedit="${e.docId}">Edit</button>
+      <button class="btn secondary" style="padding:3px 10px" data-libassign="${e.docId}" title="Choose batches / students">Assign</button>
       <button class="btn ${e.isActive?'secondary':'green'}" style="padding:3px 10px" data-libtoggle="${e.docId}" data-act="${e.isActive?0:1}">${e.isActive?'Deactivate':'Activate'}</button></td></tr>`;
   box.innerHTML = [...groups.keys()].sort((a,b) => a === "Uncategorised" ? 1 : b === "Uncategorised" ? -1 : a.localeCompare(b)).map(ch => {
     const g = groups.get(ch), all = [...g.values()].flat();
@@ -2498,8 +2521,14 @@ function dgLibRender(){
   }).join("");
   box.querySelectorAll("[data-libprev]").forEach(b => b.onclick = () => previewExam(b.dataset.libprev));
   box.querySelectorAll("[data-libedit]").forEach(b => b.onclick = () => {
+    document.querySelector('[data-atab="diagnostic"]').click();
     $("dgExisting").value = b.dataset.libedit; dgOpenExam(b.dataset.libedit);
     $("dgTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  box.querySelectorAll("[data-libassign]").forEach(b => b.onclick = async () => {
+    const ex = examsCache.find(e => e.docId === b.dataset.libassign);
+    if (ex && !ex.isActive && await blockIfKeysMissing(ex)) return;
+    openAudienceModal(b.dataset.libassign);
   });
   box.querySelectorAll("[data-libtoggle]").forEach(b => b.onclick = async () => {
     const id = b.dataset.libtoggle;
@@ -2809,7 +2838,7 @@ async function dgSave(){
           say(`Published — ${DG.studentName} can take it now.`);
         } else say("Not published. Activate it later from the Exams tab.");
       } else
-      say("Test created (inactive). Activate it from 'My diagnostic tests' above (or the Exams tab).");
+      say("Test created (inactive). Open the 'Assign Tests' tab to choose batches / students and activate it.");
     }
     DG.origIds = payload.questionIds.slice();
     allBankCache = null;
@@ -3344,6 +3373,30 @@ async function initAiSettings(){
       ${(s.availableModels||[]).length ? `<div style="margin-top:4px;color:var(--muted)">${s.availableModels.length} models available at the provider (suggested in the boxes above).</div>` : ""}`;
   } catch(e) { setMsg($("aiMsg"), "Could not load settings: " + e.message + " — has the updated firestore.rules been published?"); }
 }
+/* live view of what the AI job is doing (the job mirrors its log into settings/aiStatus) */
+let aiLiveUnsub = null, aiLiveTimer = null, aiLiveData = null;
+function aiLiveRender(){
+  const box = $("aiLiveBox"); if (!box) return;
+  const s = aiLiveData;
+  if (!s) { box.innerHTML = `<span style="color:var(--muted)">The job hasn't reported yet.</span>`; return; }
+  const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago"; };
+  const started = s.startedAt, stale = s.running && s.progressAt && Date.now() - s.progressAt > 10 * 60000;
+  const head = s.running && !stale
+    ? `<span style="color:#1e7a44;font-weight:700">● RUNNING</span> — ${esc(s.phase || "")} <span style="color:var(--muted)">(started ${started ? ago(started) : "?"})</span>`
+    : stale ? `<span style="color:#b03a2e;font-weight:700">● No update for 10+ min</span> — the run may have been cancelled (last step: ${esc(s.phase || "")})`
+    : `<span style="color:var(--muted);font-weight:700">○ Idle</span> — last run finished ${s.finishedAt ? ago(s.finishedAt) : "earlier"}. The job starts itself every hour.`;
+  const sm = (t, o) => o && !o.error ? `<div style="color:var(--muted)">${t}: ${Object.entries(o).filter(([k,v]) => typeof v === "number").map(([k,v]) => k + " " + v).join(" · ")}</div>` : "";
+  box.innerHTML = `<div>${head}</div>${s.running ? "" : sm("Answer-key review", s.verify) + sm("Key/time proposals", s.estimate) + sm("Follow-up practice", s.summary)}
+    <pre style="margin-top:8px;background:#0f1720;color:#d6e2ee;padding:10px;border-radius:6px;max-height:260px;overflow:auto;font-size:11.5px;white-space:pre-wrap">${esc((s.progress || []).join("\n") || "(no log lines yet)")}</pre>`;
+  const pre = box.querySelector("pre"); if (pre) pre.scrollTop = pre.scrollHeight;
+}
+function aiLiveStart(){
+  aiLiveStop();
+  try { aiLiveUnsub = onSnapshot(doc(db,"settings","aiStatus"), d => { aiLiveData = d.exists() ? d.data() : null; aiLiveRender(); }, e => { $("aiLiveBox").textContent = "Could not read status: " + e.message; }); }
+  catch(e) { $("aiLiveBox").textContent = "Could not read status: " + e.message; }
+  aiLiveTimer = setInterval(aiLiveRender, 30000);
+}
+function aiLiveStop(){ if (aiLiveUnsub) { aiLiveUnsub(); aiLiveUnsub = null; } if (aiLiveTimer) { clearInterval(aiLiveTimer); aiLiveTimer = null; } }
 $("aiPresetBtn").onclick = () => Object.entries(AI_FIELDS).forEach(([el, k]) => { $(el).value = AI_PRESET[k]; });
 $("aiSaveBtn").onclick = async () => {
   const c = { enabled: $("aiEnabled").checked, updatedBy: currentUser.name, updatedAt: serverTimestamp() };
@@ -3824,7 +3877,7 @@ async function loadExams(){
   examsCache = exams;
   try { dgLibRender(); } catch(e) { console.warn(e); }
   // faculty only see/manage their own exams; super-admin sees all
-  const visible = isSuper() ? exams : exams.filter(e => e.createdBy === currentUser.uid);
+  const visible = (isSuper() ? exams : exams.filter(e => e.createdBy === currentUser.uid)).filter(e => !e.diagnostic);  // diagnostic tests live in the Assign Tests tab
   const schedBadge = e => {
     if (!e.startAt && !e.endAt) return "";
     const w = examWindow(e);
