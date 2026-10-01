@@ -39,6 +39,24 @@ export function makeStore({ serviceAccount, databaseId }){
       const [a, k] = await Promise.all([db.collection("settings").doc("ai").get(), db.collection("settings").doc("aiSecret").get()]);
       return { ai: a.exists ? a.data() : {}, secret: k.exists ? k.data() : {} };
     },
+    async listPendingQuestions(limit){
+      const byId = new Map();
+      for (const field of ["keySrc", "idealTimeSrc"]) {
+        const s = await db.collection("questions").where(field, "==", "pending-ai").limit(limit).get();
+        s.docs.forEach(d => byId.set(d.id, { docId: d.id, ...d.data() }));
+      }
+      return [...byId.values()].slice(0, limit);
+    },
+    // read-modify-write inside a transaction so a teacher's edit made meanwhile is never overwritten
+    async patchQuestion(id, fn){
+      const ref = db.collection("questions").doc(id);
+      await db.runTransaction(async t => {
+        const s = await t.get(ref);
+        if (!s.exists) return;
+        const p = fn(s.data());
+        if (p && Object.keys(p).length) t.update(ref, p);
+      });
+    },
     async writeStatus(st){ await db.collection("settings").doc("aiStatus").set({ ...st, lastRunAt: ts(st.lastRunAt) }, { merge: true }); },
     async writeDraft(id, draft){ await db.collection("aiDrafts").doc(id).set({ ...draft, createdAt: ts(draft.createdAt) }); }
   };

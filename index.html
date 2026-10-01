@@ -2467,6 +2467,7 @@ function dgRowFromQuestion(q, idealTimes){
   };
   r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty;
   r.idealSec = idealTimes?.[q.docId] ?? q.idealTimeSec ?? dgDefaultIdeal(r);
+  r.keySrc = q.keySrc || ""; r.idealSrc = q.idealTimeSrc || ""; r.aiKeyNote = q.aiKeyNote || "";
   return r;
 }
 async function dgAddFiles(files){
@@ -2487,6 +2488,7 @@ async function dgAddFiles(files){
         subject: $("dgSubject").value, section, topic, difficulty: $("dgDiff").value,
         correct_answer: guess, kb: Math.round(image.length/1024) };
       r.idealSec = dgDefaultIdeal(r);
+      r.keySrc = guess ? "filename" : "pending-ai"; r.idealSrc = "pending-ai";   // the AI job proposes the key / ideal time
       DG.rows.push(r); ok++;
     } catch(e){ bad++; }
   }
@@ -2514,6 +2516,11 @@ function dgAiPreview(r){
       <textarea data-dgf="solution" rows="2" style="width:100%;font-size:12px;margin-top:3px" placeholder="solution shown in reports">${esc(r.solution||"")}</textarea>
     </details></div>`;
 }
+const keyBadge = r => r.keySrc === "pending-ai" && !r.correct_answer ? `<div style="font-size:11px;color:#2563a8">🤖 AI will propose</div>`
+  : r.keySrc === "ai" ? `<div style="font-size:11px;color:#2563a8" title="${esc(r.aiKeyNote)}">🤖 AI-proposed — check it</div>`
+  : r.keySrc === "ai-unsure" && !r.correct_answer ? `<div style="font-size:11px;color:#b3261e" title="${esc(r.aiKeyNote)}">⚠ AI unsure — you set it</div>`
+  : r.keySrc === "user" ? `<div style="font-size:11px;color:var(--muted)">set by you</div>` : "";
+const idealBadge = r => r.idealSrc === "pending-ai" ? `<div style="font-size:11px;color:#2563a8">🤖 AI will set</div>` : r.idealSrc === "ai" ? `<div style="font-size:11px;color:#2563a8">🤖 AI</div>` : "";
 function dgRender(){
   const rows = DG.rows;
   $("dgMode").textContent = DG.examDocId ? "— editing an existing test" : "— new test";
@@ -2533,7 +2540,8 @@ function dgRender(){
   $("dgWrap").innerHTML = `<table class="tbl"><thead><tr>
       <th>#</th><th>Question</th><th>Subject</th><th>Topic</th><th>Level</th><th>Sec</th><th>Answer</th><th>Ideal time (sec)</th><th>Order</th><th></th>
     </tr></thead><tbody>` + rows.map((r,i) => {
-      const missing = r.section==="A" ? !"ABCD".includes(r.correct_answer||"x") : (r.correct_answer==="" || isNaN(parseFloat(r.correct_answer)));
+      const pendKey = r.keySrc === "pending-ai" && r.correct_answer === "";
+      const missing = !pendKey && (r.section==="A" ? !"ABCD".includes(r.correct_answer||"x") : (r.correct_answer==="" || isNaN(parseFloat(r.correct_answer))));
       const changed = !r.isNew && r.correct_answer !== r.origAnswer;
       const bg = missing ? "background:#fdecea" : (changed || r.ai?.verdict === "disputed") ? "background:#fff6e0" : "";
       const others = r.isNew ? 0 : examsCache.filter(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId)).length;
@@ -2548,8 +2556,8 @@ function dgRender(){
         <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px"></td>
         <td><select data-dgf="difficulty">${levelOptions(r.difficulty)}</select></td>
         <td>${esc(r.section)}</td>
-        <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}</td>
-        <td><input data-dgf="idealSec" type="number" min="5" value="${r.idealSec}" style="width:70px"> <span style="font-size:11px;color:var(--muted)">${fmtSec(r.idealSec)}</span></td>
+        <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}</td>
+        <td><input data-dgf="idealSec" type="number" min="5" value="${r.idealSec}" style="width:70px"> <span style="font-size:11px;color:var(--muted)">${fmtSec(r.idealSec)}</span>${idealBadge(r)}</td>
         <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="-1" ${i===0?"disabled":""}>↑</button>
             <button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="1" ${i===rows.length-1?"disabled":""}>↓</button></td>
         <td><button class="btn danger" style="padding:2px 8px" data-dgrm="${i}" title="Remove from this test (the question stays in the bank)">✕</button></td>
@@ -2565,6 +2573,8 @@ function dgRender(){
       if (/^opt[0-3]$/.test(f)) { r.options[+f[3]] = v; return; }
       if (f === "text" || f === "solution") { r[f] = inp.value; return; }
       r[f] = v;
+      if (f === "correct_answer") r.keySrc = "user";
+      if (f === "idealSec") r.idealSrc = "user";
       setTimeout(dgRender, 0);   // deferred: a change fired by blur-during-rerender must not re-enter innerHTML
     });
   });
@@ -2588,6 +2598,7 @@ function dgValidate(){
   DG.rows.forEach((r,i) => {
     const w = `Q${i+1}`;
     if (!subs.includes(r.subject)) errs.push(`${w}: subject "${r.subject}" is not valid for ${$("dgType").value}.`);
+    if (r.keySrc === "pending-ai" && r.correct_answer === "") return;   // the AI proposes it; the test cannot be activated until every key is set
     if (r.section === "A") { if (!"ABCD".includes(r.correct_answer||"x")) errs.push(`${w}: pick the answer (A–D).`); }
     else if (r.correct_answer === "" || isNaN(parseFloat(r.correct_answer))) errs.push(`${w}: numerical answer required.`);
   });
@@ -2624,6 +2635,7 @@ async function dgSave(){
         text: r.text || "", options: r.section === "A" ? (r.options || ["","","",""]) : [],
         correct_answer: String(r.correct_answer), topic: r.topic, difficulty: r.difficulty,
         ...(r.image ? { image: r.image } : {}), idealTimeSec: +r.idealSec,
+        ...(r.keySrc ? { keySrc: r.keySrc } : {}), ...(r.idealSrc ? { idealTimeSrc: r.idealSrc } : {}),
         ...(r.solution ? { solution: r.solution } : {}),
         ...(r.ai ? { aiGenerated: { draftId: DG.aiDraftId || null, verdict: r.ai.verdict, keyAtDraft: r.ai.key,
                                     verifierAnswer: r.ai.verifierAnswer || null, models: r.ai.models || null } } : {}),
@@ -2637,7 +2649,7 @@ async function dgSave(){
     let failed = 0, keysSaved = 0;
     for (const r of edits) {
       const upd = {};
-      if (r.correct_answer !== r.origAnswer) upd.correct_answer = String(r.correct_answer);
+      if (r.correct_answer !== r.origAnswer) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
       if (r.topic !== r.origTopic) upd.topic = r.topic;
       if (r.difficulty !== r.origDiff) upd.difficulty = r.difficulty;
       try {
@@ -2658,7 +2670,8 @@ async function dgSave(){
       questionIds: DG.rows.map(r=>r.docId), subjects,
       durationMin: Math.max(1, parseInt($("dgDuration").value) || 30),
       marks, maxMarks: DG.rows.reduce((s,r)=>s+(r.section==="B"?marks.B:marks.A).correct,0),
-      idealTimes: Object.fromEntries(DG.rows.map(r=>[r.docId, +r.idealSec])),
+      // questions whose ideal time the AI has not set yet are left out, so the AI value (stored on the question) applies once it arrives
+      idealTimes: Object.fromEntries(DG.rows.filter(r => r.idealSrc !== "pending-ai").map(r=>[r.docId, +r.idealSec])),
       showIdealTime: $("dgShowIdeal").checked,
       keepOrder: $("dgKeepOrder").checked,
       shuffleOptions: $("dgShuffleOpt").checked,
@@ -3728,7 +3741,7 @@ async function loadExams(){
   });
   $("examRows").querySelectorAll("[data-toggle]").forEach(b => b.onclick = async () => {
     const activate = b.dataset.act === "1";
-    if (activate) { openAudienceModal(b.dataset.toggle); return; }
+    if (activate) { const ex = examsCache.find(e => e.docId === b.dataset.toggle); if (ex && await blockIfKeysMissing(ex)) return; openAudienceModal(b.dataset.toggle); return; }
     await updateDoc(doc(db,"exams",b.dataset.toggle), { isActive: false });
     loadExams();
   });
@@ -3739,6 +3752,19 @@ async function loadExams(){
   });
 }
 
+// A test cannot go live while any of its questions still lacks an answer key (AI pending / AI unsure / blank).
+async function examKeyProblems(ex){
+  const ids = ex.questionIds || [], bad = new Set();
+  const snap = await getDocs(query(collection(db,"questions"), where("keySrc","in",["pending-ai","ai-unsure"])));
+  snap.docs.forEach(d => { if (ids.includes(d.id) && !String(d.data().correct_answer ?? "").trim()) bad.add(d.id); });
+  return ids.map((id,i) => bad.has(id) ? i+1 : 0).filter(Boolean);
+}
+async function blockIfKeysMissing(ex){
+  const bad = await examKeyProblems(ex);
+  if (!bad.length) return false;
+  alert(`Cannot activate yet: ${bad.length} question(s) have no answer key (Q${bad.slice(0,15).join(", Q")}${bad.length>15?" …":""}).\n\nThe AI proposes keys when its job runs (GitHub → Actions → Run workflow). If it is unsure, open this test in Diagnostic Builder and set those answers yourself.`);
+  return true;
+}
 /* ----- activate: audience picker modal ----- */
 let audTargetDocId = null;
 $("audMode").onchange = () => {
@@ -3776,6 +3802,7 @@ $("audConfirm").onclick = async () => {
     audience.studentUids = [...$("audStudentPick").querySelectorAll("input:checked")].map(c=>c.value);
     if (!audience.studentUids.length) { setMsg($("audMsg"),"Pick at least one student."); return; }
   }
+  { const ex = examsCache.find(e => e.docId === audTargetDocId); if (ex && await blockIfKeysMissing(ex)) return; }
   await updateDoc(doc(db,"exams",audTargetDocId), { isActive: true, audience });
   $("audBack").classList.add("hidden");
   audTargetDocId = null;
