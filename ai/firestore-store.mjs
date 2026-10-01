@@ -47,6 +47,10 @@ export function makeStore({ serviceAccount, databaseId }){
       }
       return [...byId.values()].slice(0, limit);
     },
+    async listUserKeyQuestions(limit){
+      const s = await db.collection("questions").where("keySrc", "==", "user").limit(limit).get();
+      return s.docs.map(d => ({ docId: d.id, ...d.data() }));
+    },
     // read-modify-write inside a transaction so a teacher's edit made meanwhile is never overwritten
     async patchQuestion(id, fn){
       const ref = db.collection("questions").doc(id);
