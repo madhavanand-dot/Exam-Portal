@@ -68,6 +68,19 @@ const REASON_TEXT = { concept:"didn't understand the concept", formula:"forgot t
   calc:"made a calculation mistake", careless:"made a silly mistake (knew it, marked the wrong option)", guess:"guessed",
   rushed:"rushed because of time pressure", unknown:"didn't know how to solve it", unsure:"was unsure and avoided negative marking",
   lengthy:"found it too lengthy and left it", time:"ran out of time / didn't reach it" };
+// MCQ keys: "B" = single correct, "AC" = several correct (mirrors normKey / isAnsCorrect in index.html).
+export function normKey(v){
+  const t = String(v ?? "").toUpperCase().trim();
+  if (!t) return "";
+  const m = t.match(/[A-D1-4]/g);
+  if (!m || t.replace(/[\sA-D1-4,;/&+]/g, "") !== "") return t;
+  return [...new Set(m.map(c => "ABCD"["1234".indexOf(c)] || c))].sort().join("");
+}
+export function isAnsCorrect(q, ans){
+  if (ans == null || ans === "") return false;
+  if ((q.section || "A") === "A") { const k = normKey(q.correct_answer); return !!k && normKey(ans) === k; }
+  return Math.abs(parseFloat(ans) - parseFloat(q.correct_answer)) < 1e-6;
+}
 const ms = t => t == null ? 0 : typeof t === "number" ? t : t.toMillis ? t.toMillis() : t._seconds ? t._seconds * 1000 : new Date(t).getTime();
 
 // ---------- what does this student need? (mirrors the portal's Custom Practice logic) ----------
@@ -78,8 +91,7 @@ export function studentNeeds(att, exam, qById){
     const q = qById[id]; if (!q) continue;
     const r = (att.responses || {})[id] || {};
     const ans = r.answer ?? null;
-    const verdict = ans == null ? "unanswered" : ((q.section || "A") === "A" ? ans === q.correct_answer
-      : Math.abs(parseFloat(ans) - parseFloat(q.correct_answer)) < 1e-6) ? "correct" : "wrong";
+    const verdict = ans == null ? "unanswered" : isAnsCorrect(q, ans) ? "correct" : "wrong";
     const tm = (att.questionTimeSec || {})[id] ?? r.timeSec ?? 0;
     const idealSec = ideal[id] > 0 ? ideal[id] : (q.idealTimeSec > 0 ? q.idealTimeSec : defaultIdeal(q, exam.examType));
     const slow = tm > idealSec;

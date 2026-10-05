@@ -6,7 +6,7 @@
 //      for the teacher to set by hand,
 //   4. sets the ideal time from the solver's estimate (idealTimeSrc "ai"), clamped to a sane range.
 // Anything the teacher set by hand is never touched (a pending flag is re-checked inside a transaction).
-import { parseJsonReply } from "./pipeline.mjs";
+import { parseJsonReply, normKey } from "./pipeline.mjs";
 
 const MIN_SEC = 20, MAX_SEC = 240;
 const EXAM_NAME = { medical: "NEET-UG", engineering: "JEE Main" };
@@ -21,15 +21,22 @@ function transcribePrompt(q){
 function solvePrompt(q, tr){
   const opts = (tr.options || []).map((o, k) => `(${"ABCD"[k]}) ${String(o).replace(/^\s*\(?[A-D1-4][).]\s*/, "")}`).join("\n");
   const numeric = q.section === "B";
+  const multi = !numeric && normKey(q.correct_answer).length > 1 && /^[A-D]+$/.test(normKey(q.correct_answer));
   return [{ role: "user", content: `You are an expert ${q.subject || "Physics"} teacher for ${EXAM_NAME[q.examType] || "NEET-UG"}. Solve this question carefully.\n\n${tr.stem}\n${opts}\n\n` +
-    (numeric ? "This is a numerical-answer question: give the final number only." : "Give the single correct option letter (A, B, C or D).") +
+    (numeric ? "This is a numerical-answer question: give the final number only."
+      : multi ? "ONE OR MORE options of this question are correct. Give every correct option letter together, e.g. \"AC\"."
+      : "Usually exactly one option is correct: give that letter (A, B, C or D). Only if the question says more than one may be correct, or two or more options are genuinely correct, give all of them together, e.g. \"AC\".") +
     "\nAlso estimate how many seconds a well-prepared student needs to solve it in the exam (reading + working), between 20 and 240.\n" +
-    "Reply with ONLY JSON: {\"answer\":\"" + (numeric ? "number" : "A|B|C|D") + "\",\"confidence\":0.0-1.0,\"idealSec\":number}" }];
+    "Reply with ONLY JSON: {\"answer\":\"" + (numeric ? "number" : "letter(s)") + "\",\"confidence\":0.0-1.0,\"idealSec\":number}" }];
 }
 
 function normAnswer(a, section){
   if (section === "B") { const n = parseFloat(String(a).replace(/[^0-9eE+\-.]/g, "")); return isFinite(n) ? n : null; }
-  const m = String(a ?? "").toUpperCase().match(/[A-D1-4]/);
+  // a clean key ("C", "AC", "A, C", "1 3", "(A) and (C)") keeps every letter; anything wordier → its first option letter
+  const clean = String(a ?? "").toUpperCase().replace(/\bAND\b|OPTIONS?/g, " ");
+  if (/^[\s(]*[A-D1-4][\s).]*([,;/&+\s]*[\s(]*[A-D1-4][\s).]*){0,3}$/.test(clean)) { const k = normKey(clean.replace(/[().]/g, " ")); if (/^[A-D]{1,4}$/.test(k)) return k; }
+  const up = String(a ?? "").toUpperCase();
+  const m = up.match(/(?<![A-Z])[A-D](?![A-Z])/) || up.match(/[1-4]/);
   if (!m) return null;
   return "ABCD"["1234".indexOf(m[0])] || m[0];
 }
@@ -126,6 +133,80 @@ export async function verifyUserQuestions({ store, llm, cfg, log = console.log, 
       out.details.push({ id: q.docId, key: q.correct_answer, ai: rec.aiAnswers, verdict, mySec: my, aiSec, timeVerdict });
       log(`  ${q.docId}: your key ${q.correct_answer} vs AI ${rec.aiAnswers.verifier}/${rec.aiAnswers.writer} → ${verdict}; your time ${my}s vs AI ${aiSec}s → ${timeVerdict}`);
     } catch (e) { out.errors++; log(`  ${q.docId}: verify failed: ${e.message}`); }
+  }
+  return out;
+}
+
+// "🤖 Ask AI to solve this test" (Diagnostic Builder): exams/{id}.aiSolve.status == "queued".
+// Every question of the test (text or image) is solved by TWO models blind to each other; the result per question
+// ({ answer, idealSec, agree, note }) is written to exams/{id}.aiSolve.results for the teacher to review and use.
+// The teacher's keys and times are never changed — except a BLANK key, which is filled when both models agree.
+export async function solveRequestedExams({ store, llm, cfg, log = console.log, maxExams = 3, budgetMs = 30 * 60000, now = Date.now }){
+  const out = { exams: 0, questions: 0, agree: 0, unsure: 0, keysFilled: 0, errors: 0 };
+  const t0 = now();
+  const reqs = (await store.listSolveRequests(180)).slice(0, maxExams);
+  log(`Tests the AI was asked to solve: ${reqs.length}`);
+  for (const ex of reqs) {
+    if (now() - t0 > budgetMs) { log("Solve time budget reached — the rest continue next run."); break; }
+    const token = ex.aiSolve?.token || String(now());
+    out.exams++;
+    try {
+      await store.patchExamSolve(ex.docId, null, { status: "processing", startedAt: now(), token });
+      const qById = await store.getQuestions(ex.questionIds || []);
+      const results = {};
+      let i = 0;
+      for (const id of ex.questionIds || []) {
+        const q = qById[id]; if (!q) continue;
+        i++; out.questions++;
+        try {
+          let stem = String(q.text || "").replace(/<br\s*\/?>/gi, "\n").trim();
+          let options = (q.options || []).map(o => String(o || ""));
+          if (q.image) {
+            const tr = parseJsonReply(await llm.chat({ model: cfg.visionModel, messages: transcribePrompt(q), temperature: 0, maxTokens: 1200 }));
+            stem = [stem, String(tr.stem || "").trim()].filter(Boolean).join("\n");
+            if (!options.some(o => o.trim()) && Array.isArray(tr.options)) options = tr.options.map(o => String(o || ""));
+          }
+          if (!stem) throw new Error("could not read the question");
+          const tr = { stem, options: (q.section || "A") === "A" ? options : [] };
+          const [a, b] = await Promise.all([
+            solveWith(llm, cfg.verifyModel, q, tr).catch(e => ({ error: e.message })),
+            solveWith(llm, cfg.genModel, q, tr).catch(e => ({ error: e.message }))
+          ]);
+          const agree = !a.error && !b.error && a.answer != null && sameAnswer(a.answer, b.answer, q.section);
+          const conf = Math.min(isFinite(a.confidence) ? a.confidence : 0.5, isFinite(b.confidence) ? b.confidence : 0.5);
+          const pick = agree ? a.answer : (!a.error && a.answer != null ? a.answer : !b.error && b.answer != null ? b.answer : null);
+          const secs = [a.idealSec, b.idealSec].filter(Boolean);
+          const idealSec = secs.length ? Math.round(secs.reduce((s, v) => s + v, 0) / secs.length) : null;
+          const note = `checker ${a.error ? "failed" : a.answer ?? "?"} / writer ${b.error ? "failed" : b.answer ?? "?"}`;
+          results[id] = { answer: pick == null ? null : String(pick), agree, confidence: Math.round(conf * 100) / 100, idealSec, note,
+                          yourKey: String(q.correct_answer ?? "") };
+          if (agree) out.agree++; else out.unsure++;
+          if (agree && conf >= 0.5) {
+            let filled = false;
+            await store.patchQuestion(id, cur => {
+              if (String(cur.correct_answer ?? "").trim() !== "") return null;
+              filled = true;
+              return { correct_answer: String(a.answer), keySrc: "ai", aiKeyNote: `Both AI models agreed (${note}) — asked to solve "${ex.title || ""}"` };
+            });
+            if (filled) out.keysFilled++;
+          }
+          log(`  [${i}] ${q.id || id}: AI ${results[id].answer ?? "?"}${agree ? "" : " (models split)"} vs your key ${q.correct_answer || "—"}; ideal ${idealSec ?? "—"}s`);
+        } catch (e) {
+          out.errors++;
+          results[id] = { answer: null, agree: false, idealSec: null, note: "AI failed: " + String(e.message).slice(0, 200) };
+          log(`  [${i}] ${q.id || id}: failed — ${e.message}`);
+        }
+      }
+      const vals = Object.values(results);
+      await store.patchExamSolve(ex.docId, token, { status: "done", doneAt: now(), results,
+        counts: { solved: vals.filter(r => r.answer).length, split: vals.filter(r => r.answer && !r.agree).length, failed: vals.filter(r => !r.answer).length },
+        models: { checker: cfg.verifyModel, writer: cfg.genModel, vision: cfg.visionModel } });
+      log(`${ex.title || ex.docId}: solved ${vals.length} question(s)`);
+    } catch (e) {
+      out.errors++;
+      log(`${ex.title || ex.docId}: solve FAILED — ${e.message}`);
+      await store.patchExamSolve(ex.docId, token, { status: "error", error: String(e.message).slice(0, 300), doneAt: now() }).catch(() => {});
+    }
   }
   return out;
 }

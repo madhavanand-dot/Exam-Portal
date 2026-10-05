@@ -66,6 +66,26 @@ export function makeStore({ serviceAccount, databaseId }){
         if (p && Object.keys(p).length) t.update(ref, p);
       });
     },
+    // tests a teacher asked the AI to solve (Diagnostic Builder → "Ask AI to solve this test")
+    async listSolveRequests(staleMin){
+      const q = await db.collection("exams").where("aiSolve.status", "==", "queued").limit(20).get();
+      const p = await db.collection("exams").where("aiSolve.status", "==", "processing").limit(20).get();
+      const stale = p.docs.filter(d => { const s = d.get("aiSolve.startedAt"); return !s || Date.now() - s.toMillis() > staleMin * 60000; });
+      return [...q.docs, ...stale].map(d => ({ docId: d.id, ...d.data() }));
+    },
+    // merge into exams/{id}.aiSolve; with a token, only while that request is still the current one
+    // (a teacher who asks again meanwhile replaces aiSolve, and the stale result is dropped)
+    async patchExamSolve(id, token, patch){
+      const ref = db.collection("exams").doc(id);
+      const p = {};
+      for (const [k, v] of Object.entries(patch)) p["aiSolve." + k] = /At$/.test(k) && typeof v === "number" ? ts(v) : v;
+      await db.runTransaction(async t => {
+        const s = await t.get(ref);
+        if (!s.exists) return;
+        if (token && s.get("aiSolve.token") !== token) return;
+        t.update(ref, p);
+      });
+    },
     async writeStatus(st){ await db.collection("settings").doc("aiStatus").set({ ...st, lastRunAt: ts(st.lastRunAt) }, { merge: true }); },
     async writeDraft(id, draft){ await db.collection("aiDrafts").doc(id).set({ ...draft, createdAt: ts(draft.createdAt) }); }
   };

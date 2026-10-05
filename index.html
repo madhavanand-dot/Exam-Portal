@@ -101,6 +101,9 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 .opt:hover{background:var(--blue-light)}
 .opt.sel{border-color:var(--blue);background:var(--blue-light);box-shadow:0 0 0 1px var(--blue)}
 .opt input{margin-top:3px}
+.dgKey{display:flex;gap:2px;white-space:nowrap}.dgKey label{display:inline-flex;align-items:center;gap:1px;font-weight:700;font-size:13px;border:1px solid var(--border);border-radius:4px;padding:1px 4px;cursor:pointer}
+.dgKey label small{font-weight:400;color:var(--muted);font-size:10px}.dgKey input{margin:0 2px 0 0;width:auto}
+.multiNote{font-size:13px;color:#7a4d00;background:#fff4dc;border:1px solid #f0d49a;border-radius:6px;padding:7px 11px;margin-bottom:9px}
 #numInputWrap input{width:220px;padding:10px;border:1px solid var(--border);border-radius:5px;font-size:16px}
 #examBtns{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border);background:#f7f9fb;flex-wrap:wrap}
 #examBtns .spacer{flex:1}
@@ -543,7 +546,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
               <input type="file" id="dgFiles" accept="image/*" multiple style="margin-top:8px">
             </div>
             <div class="flexrow" style="margin-top:8px">
-              <div class="field"><label>Section</label><select id="dgSection"><option value="A">A — MCQ</option><option value="B">B — Numerical</option></select></div>
+              <div class="field"><label>Section</label><select id="dgSection"><option value="A">MCQ (tick options)</option><option value="B">Numerical (student types the answer)</option></select></div>
               <div class="field"><label>Level</label><select id="dgDiff"><option value="Easy">Bloom Level</option><option value="Medium" selected>Intermediate Level</option><option value="Hard">Advanced Level</option></select></div>
             </div>
             <p style="font-size:11.5px;color:var(--muted)">Answers are read from filenames where possible (<code>Q12_B.png</code>, <code>Q12(3).jpg</code>). Images are compressed to fit Firestore's 1&nbsp;MB limit.</p>
@@ -564,14 +567,17 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <div class="card" style="margin-top:14px">
         <h2 class="sec" style="margin-top:0">Questions in this test <span id="dgSummary" style="font-weight:400;font-size:13px;color:var(--muted)"></span></h2>
         <div class="flexrow" style="margin-bottom:8px;align-items:flex-start">
-          <textarea id="dgKey" rows="2" style="flex:1;min-width:260px;font-family:ui-monospace,monospace;font-size:13px" placeholder="Paste a key to fill answers in row order: 1-A 2-C 3-B … or ABCD… or 1 3 2 4"></textarea>
+          <textarea id="dgKey" rows="2" style="flex:1;min-width:260px;font-family:ui-monospace,monospace;font-size:13px" placeholder="Paste a key to fill answers in row order: 1-A 2-C 3-B … or ABCD… or 1 3 2 4. Several correct: 1-AC or 1-A,C"></textarea>
           <button class="btn secondary" id="dgApplyKeyBtn">Apply key</button>
         </div>
+        <div id="dgAiSolveBox" class="hidden" style="border:1px solid #c9dcf2;background:#f2f7fd;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:13px"></div>
         <div id="dgWrap" style="overflow:auto;max-height:75vh"></div>
+        <input type="file" id="dgImgFile" accept="image/*" class="hidden">
         <div id="dgMsg"></div>
         <div class="flexrow" style="margin-top:10px">
           <button class="btn green" id="dgSaveBtn">Save test</button>
           <button class="btn secondary" id="dgRegradeBtn" title="Recompute scores of submitted attempts with the current key and question list">Re-grade submitted attempts</button>
+          <button class="btn secondary" id="dgAiSolveBtn" title="After saving: the AI job solves every question of this test and suggests an answer key and an ideal time for each">🤖 Ask AI to solve this test (key + time)</button>
         </div>
         <div id="dgLog" class="hidden" style="max-height:200px;overflow-y:auto;font-size:12.5px;font-family:ui-monospace,monospace;background:#f7f9fb;border:1px solid var(--border);border-radius:4px;padding:8px;margin-top:8px;white-space:pre-wrap"></div>
       </div>
@@ -885,6 +891,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 <!-- lightbox for image zoom -->
 <div id="lightbox" class="hidden"><button id="lightboxClose" title="Close (Esc)">&times;</button><img id="lightboxImg" src="" alt=""></div>
 
+<input type="file" id="qbImgFile" accept="image/*" class="hidden">
 <!-- question preview modal -->
 <div id="qpvBack" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;display:flex;align-items:center;justify-content:center;padding:20px">
   <div class="card" style="width:680px;max-width:96vw;max-height:88vh;overflow:auto">
@@ -1009,6 +1016,25 @@ function examCfg(exam){
     showIdealTime: exam?.showIdealTime ?? false,
     idealTimes: exam?.idealTimes || {}
   };
+}
+// MCQ answer keys. One letter ("B") = single correct; several letters ("AC") = one or more correct — the exam then
+// shows tick boxes instead of radio buttons and the student must tick exactly the keyed set (all-or-nothing).
+// normKey accepts "a, c", "A/C", "1 3", "13" (option numbers) and returns sorted unique letters, e.g. "AC".
+function normKey(v){
+  const t = String(v ?? "").toUpperCase().trim();
+  if (!t) return "";
+  const m = t.match(/[A-D1-4]/g);
+  if (!m || t.replace(/[\sA-D1-4,;/&+]/g, "") !== "") return t;   // not an option key — leave untouched
+  return [...new Set(m.map(c => "ABCD"["1234".indexOf(c)] || c))].sort().join("");
+}
+const validMcqKey = k => /^[A-D]{1,4}$/.test(normKey(k));
+const isMultiKey  = k => /^[A-D]{2,4}$/.test(normKey(k));
+const isMultiQ    = q => (q?.section || "A") === "A" && isMultiKey(q?.correct_answer);
+const keyHas      = (q, L) => normKey(q?.correct_answer).includes(L);
+function isAnsCorrect(q, ans){
+  if (ans == null || ans === "") return false;
+  if ((q.section || "A") === "A") { const k = normKey(q.correct_answer); return !!k && normKey(ans) === k; }
+  return Math.abs(parseFloat(ans) - parseFloat(q.correct_answer)) < 1e-6;
 }
 // Diagnostic levels. Stored values stay Easy/Medium/Hard (existing questions, JSON files and the practice
 // index all use them); only the names shown to people changed. Rename here if the scheme changes again.
@@ -1505,8 +1531,7 @@ async function runItemAnalysis(){
         const rr = (a.reasons||{})[q.docId]?.r;
         if (rr) why[rr] = (why[rr]||0) + 1;
         if (ans == null) { blank++; blankStudents.push(a.studentName); return; }
-        const ok = sec === "A" ? ans === q.correct_answer
-                 : Math.abs(parseFloat(ans) - parseFloat(q.correct_answer)) < 1e-6;
+        const ok = isAnsCorrect(q, ans);
         if (ok) correct++;
         else {
           wrong++;
@@ -1558,8 +1583,7 @@ function iaConceptMatrix(){
         const seen = r.q.docId in (a.questionTimeSec||a.responses||{});
         if (!seen) return null;
         const ans = resp.answer ?? null, tm = (a.questionTimeSec||{})[r.q.docId] ?? resp.timeSec ?? 0;
-        const verdict = ans == null ? "unanswered" : ((r.q.section||"A")==="A" ? ans===r.q.correct_answer
-          : Math.abs(parseFloat(ans)-parseFloat(r.q.correct_answer))<1e-6) ? "correct" : "wrong";
+        const verdict = ans == null ? "unanswered" : isAnsCorrect(r.q, ans) ? "correct" : "wrong";
         return { verdict, bucket: speedBucket(verdict, tm, r.idealSec), level: r.q.difficulty };
       }).filter(Boolean);
       if (!items.length) return `<td style="color:var(--muted)">—</td>`;
@@ -1985,7 +2009,8 @@ $("qUploadBtn").onclick = async () => {
       const optsOk = Array.isArray(q.options) && q.options.length === 4;
       const optImgsOk = optImgs && optImgs.length === 4 && optImgs.every(x => typeof x === "string" && x);
       if (!optsOk && !optImgsOk) return errors.push(`${where_}: MCQ needs 4 "options" (text) or 4 "optionImages"`);
-      if (!["A","B","C","D"].includes(q.correct_answer)) return errors.push(`${where_}: correct_answer must be A/B/C/D`);
+      if (!validMcqKey(q.correct_answer)) return errors.push(`${where_}: correct_answer must be A/B/C/D, or several letters (e.g. "AC") when more than one option is correct`);
+      q.correct_answer = normKey(q.correct_answer);
     } else {
       if (q.correct_answer === undefined || isNaN(parseFloat(q.correct_answer))) return errors.push(`${where_}: numerical correct_answer must be a number string`);
     }
@@ -2044,12 +2069,13 @@ function parseAnswerKey(raw){
   const map = {};
   const txt = String(raw||"").trim();
   if (!txt) return map;
-  const pairRe = /(\d{1,3})\s*[-.):,\]]?\s*([A-Da-d]|-?\d+(?:\.\d+)?)/g;
+  // several letters joined (1-AC, 1-A,C, 1-A/C) = a multi-correct key, stored as sorted letters "AC"
+  const pairRe = /(\d{1,3})\s*[-.):,\]]?\s*\(?([A-Da-d](?:\s*[,/&+]\s*[A-Da-d]|[A-Da-d]){0,3}|-?\d+(?:\.\d+)?)/g;
   let m, pairs = 0;
   while ((m = pairRe.exec(txt))) {
     const n = parseInt(m[1],10);
     let v = m[2];
-    if (/^[A-Da-d]$/.test(v)) v = v.toUpperCase();
+    if (/^[A-Da-d]/.test(v)) v = normKey(v);
     map[n] = v; pairs++;
   }
   if (pairs >= 2) return map;
@@ -2237,7 +2263,7 @@ function renderBiTable(){
     tr.querySelectorAll("[data-bif]").forEach(inp => {
       inp.onchange = () => {
         let v = inp.value.trim();
-        if (inp.dataset.bif === "correct_answer" && /^[a-d]$/.test(v)) v = v.toUpperCase();
+        if (inp.dataset.bif === "correct_answer" && biRows[i].section === "A") { v = normKey(v); inp.value = v; }
         if (inp.dataset.bif === "id") v = safeDocId(v);
         biRows[i][inp.dataset.bif] = v;
         if (inp.dataset.bif === "id") inp.value = v;
@@ -2275,7 +2301,7 @@ function biValidate(){
     seen.add(r.id);
     if (!EXAM_CONFIG[$("biType").value].subjects.includes(r.subject))
       errs.push(`${w}: subject "${r.subject}" is not valid for ${$("biType").value}`);
-    if (r.section === "A") { if (!["A","B","C","D"].includes(r.correct_answer)) errs.push(`${w}: answer must be A/B/C/D`); }
+    if (r.section === "A") { if (!validMcqKey(r.correct_answer)) errs.push(`${w}: answer must be A/B/C/D (or several letters, e.g. AC, if more than one is correct)`); }
     else if (r.correct_answer === "" || isNaN(parseFloat(r.correct_answer))) errs.push(`${w}: numerical answer required`);
   });
   return errs;
@@ -2285,7 +2311,7 @@ function biToQuestions(){
   return biRows.map(r => ({
     id: r.id, examType, subject: r.subject, section: r.section,
     text: "", options: r.section === "A" ? ["","","",""] : [],
-    correct_answer: r.correct_answer, topic: r.topic, difficulty: r.difficulty,
+    correct_answer: r.section === "A" ? normKey(r.correct_answer) : r.correct_answer, topic: r.topic, difficulty: r.difficulty,
     image: r.image
   }));
 }
@@ -2553,7 +2579,7 @@ function initDiagnostic(){
   dgRender();
 }
 function dgNew(){
-  DG = { examDocId: null, rows: [], origIds: [] };
+  DG = { examDocId: null, rows: [], origIds: [] }; dgImgTarget = null;
   $("dgTitle").value = ""; $("dgExisting").value = "";
   $("dgChapter").value = ""; $("dgSubtopic").value = ""; dgAudRender({ mode: "all" });
   $("dgAiFollow").checked = true;
@@ -2584,7 +2610,7 @@ async function dgOpenExam(docId){
   $("dgCustomMarks").style.display = $("dgScoring").value === "custom" ? "" : "none";
   const snaps = await Promise.all((ex.questionIds||[]).map(id => getDoc(doc(db,"questions",id))));
   const missing = snaps.filter(s => !s.exists()).length;
-  DG = { examDocId: docId, origIds: (ex.questionIds||[]).slice(), rows: [] };
+  DG = { examDocId: docId, origIds: (ex.questionIds||[]).slice(), rows: [], aiSolve: ex.aiSolve || null };
   snaps.filter(s => s.exists()).forEach(s => DG.rows.push(dgRowFromQuestion({ docId: s.id, ...s.data() }, ex.idealTimes)));
   const firstTopic = DG.rows.find(r => r.topic)?.topic;
   if (firstTopic) $("dgTopic").value = firstTopic;
@@ -2600,7 +2626,7 @@ function dgRowFromQuestion(q, idealTimes){
     topic: q.topic || "", difficulty: q.difficulty || "Medium",
     correct_answer: String(q.correct_answer ?? ""), createdBy: q.createdBy
   };
-  r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty;
+  r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section;
   r.idealSec = idealTimes?.[q.docId] ?? q.idealTimeSec ?? dgDefaultIdeal(r);
   r.keySrc = q.keySrc || ""; r.idealSrc = q.idealTimeSrc || ""; r.aiKeyNote = q.aiKeyNote || "";
   return r;
@@ -2639,7 +2665,7 @@ const AI_VERDICT = {
 };
 function dgAiPreview(r){
   const a = r.ai, v = AI_VERDICT[a.verdict] || AI_VERDICT.disputed;
-  const opts = r.options.map((o,k) => `<div style="${"ABCD"[k]===r.correct_answer?"font-weight:700;color:#1e7a44":""}">(${"ABCD"[k]}) ${o}</div>`).join("");
+  const opts = r.options.map((o,k) => `<div style="${keyHas(r,"ABCD"[k])?"font-weight:700;color:#1e7a44":""}">(${"ABCD"[k]}) ${o}</div>`).join("");
   return `<div class="dgai"><span class="badge ${v[1]}" title="${esc(v[2])}">${v[0]}</span>
       <span style="font-size:11px;color:var(--muted)">${esc(GROUP_LABEL[a.group]||a.group||"")}${a.reasons?.length?` · student: ${esc(a.reasons.map(x=>REASON_TEXT[x]||x).join(", "))}`:""}</span>
     <div style="font-size:13.5px;margin:4px 0">${r.text}</div><div style="font-size:12.5px">${opts}</div>
@@ -2656,6 +2682,110 @@ const keyBadge = r => r.keySrc === "pending-ai" && !r.correct_answer ? `<div sty
   : r.keySrc === "ai-unsure" && !r.correct_answer ? `<div style="font-size:11px;color:#b3261e" title="${esc(r.aiKeyNote)}">⚠ AI unsure — you set it</div>`
   : r.keySrc === "user" ? `<div style="font-size:11px;color:var(--muted)">set by you</div>` : "";
 const idealBadge = r => r.idealSrc === "pending-ai" ? `<div style="font-size:11px;color:#2563a8">🤖 AI will set</div>` : r.idealSrc === "ai" ? `<div style="font-size:11px;color:#2563a8">🤖 AI</div>` : "";
+// ---- AI solve: after a test is saved, the AI job solves every question and suggests a key + ideal time ----
+// Request: exams/{id}.aiSolve = { status:"queued" }. The job (ai/estimate.mjs → solveRequestedExams) writes
+// aiSolve.results[questionId] = { answer, idealSec, agree, note }. Suggestions only — nothing changes until you
+// press "Use" and Save (a blank key is filled by the job itself when both AI models agree).
+const dgAiResult = r => (!r.isNew && DG.aiSolve?.results?.[r.docId]) || null;
+const dgSameKey = (r, ans) => r.section === "A" ? normKey(r.correct_answer) === normKey(ans)
+  : r.correct_answer !== "" && Math.abs(parseFloat(r.correct_answer) - parseFloat(ans)) <= Math.max(0.01 * Math.abs(parseFloat(ans)), 1e-9);
+function dgAiSolveKeyChip(r){
+  const a = dgAiResult(r);
+  if (!a) return "";
+  if (!a.answer) return `<div style="font-size:11px;color:#b3261e" title="${esc(a.note||"")}">🤖 AI unsure</div>`;
+  const same = dgSameKey(r, a.answer);
+  return `<div style="font-size:11px;color:${same?"#1e7a44":"#b3261e"};font-weight:600" title="${esc(a.note||"")}">🤖 AI: ${esc(a.answer)}${a.agree?"":" (models split)"}${same?" ✓":
+    ` <button class="btn secondary" style="padding:0 5px;font-size:11px" data-dgaiuse="key">Use</button>`}</div>`;
+}
+function dgAiSolveTimeChip(r){
+  const a = dgAiResult(r);
+  if (!a?.idealSec) return "";
+  return `<div style="font-size:11px;color:#2563a8">🤖 AI: ${a.idealSec}s${+r.idealSec === a.idealSec ? " ✓" : ` <button class="btn secondary" style="padding:0 5px;font-size:11px" data-dgaiuse="time">Use</button>`}</div>`;
+}
+function dgAiSolveRender(){
+  const box = $("dgAiSolveBox"), st = DG.aiSolve;
+  $("dgAiSolveBtn").disabled = !DG.examDocId || !!DG.aiDraftId;
+  if (!DG.examDocId || !st?.status) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  const when = t => t ? fmtDate(t) : "";
+  const refresh = `<button class="btn secondary" style="padding:1px 8px;font-size:12px" id="dgAiRefresh">↻ Refresh</button>`;
+  if (st.status === "queued") box.innerHTML = `⏳ <b>AI solve requested</b> ${when(st.requestedAt)} — waiting for the AI job. It runs every hour at :17; to start it now: GitHub → <b>Actions</b> → <b>AI follow-up practice</b> → <b>Run workflow</b>. ${refresh}`;
+  else if (st.status === "processing") box.innerHTML = `🤖 <b>The AI is solving this test…</b> (live progress in <b>AI Settings</b>) ${refresh}`;
+  else if (st.status === "error") box.innerHTML = `⚠ <b>AI solve failed:</b> ${esc(st.error||"unknown error")} — check AI Settings, then ask again. ${refresh}`;
+  else {
+    const rows = DG.rows.filter(r => dgAiResult(r));
+    const withAns = rows.filter(r => dgAiResult(r).answer);
+    const diff = withAns.filter(r => !dgSameKey(r, dgAiResult(r).answer)).length;
+    const unsure = rows.length - withAns.length;
+    box.innerHTML = `✅ <b>AI solved ${rows.length} question(s)</b> ${when(st.doneAt)}: ${withAns.length - diff} match your key, <b style="color:${diff?"#b3261e":"inherit"}">${diff} differ</b>, ${unsure} AI unsure.
+      Suggestions are shown in the Answer and Ideal-time columns. <br>
+      <button class="btn secondary" style="padding:2px 8px;font-size:12px;margin-top:5px" id="dgAiUseKeys" title="Only where both AI models gave the same answer">Use AI keys (where both models agree)</button>
+      <button class="btn secondary" style="padding:2px 8px;font-size:12px;margin-top:5px" id="dgAiUseTimes">Use AI ideal times</button> ${refresh}
+      <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Nothing is changed until you press Save. Always check differing keys yourself — the AI can be wrong.</div>`;
+    $("dgAiUseKeys").onclick = () => {
+      let n = 0;
+      DG.rows.forEach(r => { const a = dgAiResult(r); if (a?.answer && a.agree && !dgSameKey(r, a.answer)) { r.correct_answer = String(a.answer); r.keySrc = "user"; n++; } });
+      setMsg($("dgMsg"), `${n} key(s) taken from the AI — review the highlighted rows, then Save.`, true); dgRender();
+    };
+    $("dgAiUseTimes").onclick = () => {
+      let n = 0;
+      DG.rows.forEach(r => { const a = dgAiResult(r); if (a?.idealSec && +r.idealSec !== a.idealSec) { r.idealSec = a.idealSec; r.idealSrc = "user"; n++; } });
+      setMsg($("dgMsg"), `${n} ideal time(s) taken from the AI — press Save to keep them.`, true); dgRender();
+    };
+  }
+  $("dgAiRefresh").onclick = dgAiSolveRefresh;
+}
+async function dgAiSolveRefresh(){
+  if (!DG.examDocId) return;
+  try {
+    const s = await getDoc(doc(db,"exams",DG.examDocId));
+    DG.aiSolve = s.data()?.aiSolve || null;
+    const ex = examsCache.find(e => e.docId === DG.examDocId); if (ex) ex.aiSolve = DG.aiSolve;
+    // keys the job filled in by itself (blank key + both models agreed)
+    for (const r of DG.rows.filter(r => !r.isNew && r.correct_answer === "" && r.origAnswer === "")) {
+      const q = (await getDoc(doc(db,"questions",r.docId))).data();
+      if (q && String(q.correct_answer ?? "") !== "") { r.correct_answer = r.origAnswer = String(q.correct_answer); r.keySrc = q.keySrc || ""; r.aiKeyNote = q.aiKeyNote || ""; }
+    }
+    dgRender();
+  } catch(e){ setMsg($("dgMsg"), "Could not refresh: " + e.message); }
+}
+$("dgAiSolveBtn").onclick = async () => {
+  if (!DG.examDocId) { setMsg($("dgMsg"), "Save the test first — the AI solves the saved version."); return; }
+  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff || r.section !== r.origSection);
+  if (unsaved) { setMsg($("dgMsg"), "You have unsaved changes — press Save test first, then ask the AI."); return; }
+  if (DG.aiSolve?.status === "queued" || DG.aiSolve?.status === "processing") { setMsg($("dgMsg"), "The AI has already been asked to solve this test — wait for it, then Refresh.", true); return; }
+  if (!confirm(`Ask the AI to solve all ${DG.rows.length} question(s) of this test?\n\nTwo AI models solve each question independently and suggest an answer key and an ideal time. ` +
+    `Your keys and times are NOT changed — you review the suggestions here and choose what to use. A blank key is filled automatically only when both models agree.\n\n` +
+    `Results arrive on the next AI job run (hourly, or Run workflow on GitHub). The AI must be set up in AI Settings.`)) return;
+  try {
+    const aiSolve = { status: "queued", requestedAt: serverTimestamp(), requestedBy: currentUser.name, requestedByUid: currentUser.uid };
+    await updateDoc(doc(db,"exams",DG.examDocId), { aiSolve });
+    DG.aiSolve = { ...aiSolve, requestedAt: Timestamp.now() };
+    const ex = examsCache.find(e => e.docId === DG.examDocId); if (ex) ex.aiSolve = DG.aiSolve;
+    setMsg($("dgMsg"), "Requested — the AI will solve this test on its next run. Come back and press Refresh.", true);
+    dgRender();
+  } catch(e){ setMsg($("dgMsg"), "Could not request: " + (e.code === "permission-denied" ? "only the test's creator or an admin can do this." : e.message)); }
+};
+// ---- replace only the picture of a question (saved or new); key, topic and times are kept ----
+let dgImgTarget = null;
+function dgPickReplaceImage(r){
+  dgImgTarget = r;
+  setMsg($("dgMsg"), `Choose the new image for Q${DG.rows.indexOf(r)+1} — or press Ctrl+V to paste a screenshot.`, true);
+  $("dgImgFile").value = "";
+  $("dgImgFile").click();
+}
+async function dgReplaceImage(file){
+  const r = dgImgTarget; dgImgTarget = null;
+  if (!r || !file || !DG.rows.includes(r)) return;
+  try {
+    r.image = await imageFileToDataUrl(file);
+    r.kb = Math.round(r.image.length/1024);
+    if (!r.isNew) r.imgChanged = true;
+    setMsg($("dgMsg"), `Image replaced for Q${DG.rows.indexOf(r)+1} (${r.kb} KB) — press Save test to store it.`, true);
+  } catch(e){ setMsg($("dgMsg"), "Could not read that image: " + e.message); }
+  dgRender();
+}
+$("dgImgFile").onchange = e => { const f = e.target.files?.[0]; if (f) dgReplaceImage(f); };
 function dgRender(){
   const rows = DG.rows;
   $("dgMode").textContent = DG.examDocId ? "— editing an existing test" : "— new test";
@@ -2668,15 +2798,17 @@ function dgRender(){
     ? `— ${rows.length} questions • total ideal time ${fmtSec(totalIdeal)} • max marks ${maxMarks} • topics: ${topics.join(", ")||"none"}${keyChanges?` • ${keyChanges} key change(s) not saved yet`:""}`
     : "";
   if (!rows.length) { $("dgWrap").innerHTML = `<div style="padding:10px;color:var(--muted)">No questions yet — add images or pick from the bank above.</div>`; return; }
+  // MCQ key: tick one box = single correct; tick several = "one or more correct" (students then get tick boxes too)
   const ansCell = r => r.section === "A"
-    ? `<select data-dgf="correct_answer" style="font-weight:700"><option value="">?</option>${"ABCD".split("").map((L,k)=>
-        `<option value="${L}" ${r.correct_answer===L?"selected":""}>${L} / ${k+1}</option>`).join("")}</select>`
+    ? `<div class="dgKey" title="Tick every correct option. More than one tick = multiple-correct question.">${"ABCD".split("").map((L,k)=>
+        `<label><input type="checkbox" data-dgkey="${L}" ${normKey(r.correct_answer).includes(L)?"checked":""}>${L}<small>/${k+1}</small></label>`).join("")}</div>` +
+      (isMultiKey(r.correct_answer) ? `<div style="font-size:11px;color:#7a4d00;font-weight:600">☑ multiple correct</div>` : "")
     : `<input data-dgf="correct_answer" value="${esc(r.correct_answer)}" style="width:70px;text-align:center;font-weight:700" placeholder="number">`;
   $("dgWrap").innerHTML = `<table class="tbl"><thead><tr>
       <th>#</th><th>Question</th><th>Subject</th><th>Topic</th><th>Level</th><th>Sec</th><th>Answer</th><th>Ideal time (sec)</th><th>Order</th><th></th>
     </tr></thead><tbody>` + rows.map((r,i) => {
       const pendKey = r.keySrc === "pending-ai" && r.correct_answer === "";
-      const missing = !pendKey && (r.section==="A" ? !"ABCD".includes(r.correct_answer||"x") : (r.correct_answer==="" || isNaN(parseFloat(r.correct_answer))));
+      const missing = !pendKey && (r.section==="A" ? !validMcqKey(r.correct_answer) : (r.correct_answer==="" || isNaN(parseFloat(r.correct_answer))));
       const changed = !r.isNew && r.correct_answer !== r.origAnswer;
       const bg = missing ? "background:#fdecea" : (changed || r.ai?.verdict === "disputed") ? "background:#fff6e0" : "";
       const others = r.isNew ? 0 : examsCache.filter(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId)).length;
@@ -2686,13 +2818,13 @@ function dgRender(){
         : `<span style="font-size:12.5px">${esc(String(r.text||"").replace(/<[^>]*>/g,"").slice(0,110))}</span>`;
       return `<tr data-dg="${i}" style="${bg}">
         <td><b>${i+1}</b></td>
-        <td style="max-width:460px">${preview}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||(r.ai?"AI draft":""))} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
+        <td style="max-width:460px">${preview}${r.ai ? "" : `<div><button class="btn secondary" style="padding:1px 7px;font-size:11.5px;margin-top:3px" data-dgimg="${i}" title="Swap in a new picture for this question; key, topic and times stay as they are">🖼 ${r.image?"Replace image":"Add image"}</button>${r.imgChanged?` <span class="badge zero">new image — not saved yet</span>`:""}</div>`}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||(r.ai?"AI draft":""))} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
         <td style="font-size:12.5px">${esc(r.subject)}</td>
         <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px"></td>
         <td><select data-dgf="difficulty">${levelOptions(r.difficulty)}</select></td>
-        <td>${esc(r.section)}</td>
-        <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}</td>
-        <td><input data-dgf="idealSec" type="number" min="5" value="${r.idealSec}" style="width:70px"> <span style="font-size:11px;color:var(--muted)">${fmtSec(r.idealSec)}</span>${idealBadge(r)}</td>
+        <td>${r.ai ? esc(r.section) : `<select data-dgf="section" title="MCQ = student picks option(s); Numerical = student types the answer"><option value="A" ${r.section==="A"?"selected":""}>MCQ</option><option value="B" ${r.section==="B"?"selected":""}>Numerical</option></select>`}</td>
+        <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}${dgAiSolveKeyChip(r)}</td>
+        <td><input data-dgf="idealSec" type="number" min="5" value="${r.idealSec}" style="width:70px"> <span style="font-size:11px;color:var(--muted)">${fmtSec(r.idealSec)}</span>${idealBadge(r)}${dgAiSolveTimeChip(r)}</td>
         <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="-1" ${i===0?"disabled":""}>↑</button>
             <button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="1" ${i===rows.length-1?"disabled":""}>↓</button></td>
         <td><button class="btn danger" style="padding:2px 8px" data-dgrm="${i}" title="Remove from this test (the question stays in the bank)">✕</button></td>
@@ -2708,11 +2840,31 @@ function dgRender(){
       if (/^opt[0-3]$/.test(f)) { r.options[+f[3]] = v; return; }
       if (f === "text" || f === "solution") { r[f] = inp.value; return; }
       r[f] = v;
+      if (f === "section") {   // switching type: an MCQ key means nothing for a typed answer and vice versa
+        const ok = v === "A" ? validMcqKey(r.correct_answer) : (r.correct_answer !== "" && !isNaN(parseFloat(r.correct_answer)) && !/^[A-D]+$/i.test(r.correct_answer));
+        if (!ok) r.correct_answer = "";
+        r.keySrc = "user";
+      }
       if (f === "correct_answer") r.keySrc = "user";
       if (f === "idealSec") r.idealSrc = "user";
       setTimeout(dgRender, 0);   // deferred: a change fired by blur-during-rerender must not re-enter innerHTML
     });
   });
+  $("dgWrap").querySelectorAll("[data-dgkey]").forEach(cb => cb.onchange = () => {
+    const r = DG.rows[+cb.closest("[data-dg]").dataset.dg];
+    r.correct_answer = [...cb.closest(".dgKey").querySelectorAll("input:checked")].map(x => x.dataset.dgkey).sort().join("");
+    r.keySrc = "user";
+    setTimeout(dgRender, 0);
+  });
+  $("dgWrap").querySelectorAll("[data-dgimg]").forEach(b => b.onclick = () => dgPickReplaceImage(DG.rows[+b.dataset.dgimg]));
+  $("dgWrap").querySelectorAll("[data-dgaiuse]").forEach(b => b.onclick = () => {
+    const r = DG.rows[+b.closest("[data-dg]").dataset.dg], a = dgAiResult(r);
+    if (!a) return;
+    if (b.dataset.dgaiuse === "key" && a.answer) { r.correct_answer = String(a.answer); r.keySrc = "user"; }
+    if (b.dataset.dgaiuse === "time" && a.idealSec) { r.idealSec = a.idealSec; r.idealSrc = "user"; }
+    dgRender();
+  });
+  dgAiSolveRender();
   $("dgWrap").querySelectorAll("[data-dgmv]").forEach(b => b.onclick = () => {
     const i = +b.dataset.dgmv, j = i + (+b.dataset.dir);
     [DG.rows[i], DG.rows[j]] = [DG.rows[j], DG.rows[i]];
@@ -2735,7 +2887,7 @@ function dgValidate(){
     const w = `Q${i+1}`;
     if (!subs.includes(r.subject)) errs.push(`${w}: subject "${r.subject}" is not valid for ${$("dgType").value}.`);
     if (r.keySrc === "pending-ai" && r.correct_answer === "") return;   // the AI proposes it; the test cannot be activated until every key is set
-    if (r.section === "A") { if (!"ABCD".includes(r.correct_answer||"x")) errs.push(`${w}: pick the answer (A–D).`); }
+    if (r.section === "A") { if (!validMcqKey(r.correct_answer)) errs.push(`${w}: tick the correct option(s) (A–D).`); }
     else if (r.correct_answer === "" || isNaN(parseFloat(r.correct_answer))) errs.push(`${w}: numerical answer required.`);
   });
   return errs;
@@ -2746,8 +2898,9 @@ async function dgSave(){
   const errs = dgValidate();
   if (errs.length) { setMsg($("dgMsg"), errs.slice(0,6).join("  ") + (errs.length>6?` …and ${errs.length-6} more.`:"")); log.classList.add("hidden"); return; }
   const newRows = DG.rows.filter(r => r.isNew);
-  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff));
-  const keyEdits = edits.filter(r => r.correct_answer !== r.origAnswer);
+  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
+  const imgEdits = edits.filter(r => r.imgChanged);
+  const keyEdits = edits.filter(r => r.correct_answer !== r.origAnswer || r.section !== r.origSection);
   const shared = keyEdits.filter(r => examsCache.some(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId))).length;
   const removed = DG.origIds.filter(id => !DG.rows.some(r => r.docId === id)).length;
   const msg = [`Save "${$("dgTitle").value.trim()}" with ${DG.rows.length} questions?`];
@@ -2755,6 +2908,7 @@ async function dgSave(){
   const disputed = DG.rows.filter(r => r.ai?.verdict === "disputed").length;
   if (disputed) msg.push(`• ⚠ ${disputed} AI question(s) are DISPUTED (the two AIs disagreed) — make sure each key is right`);
   if (keyEdits.length) msg.push(`• ${keyEdits.length} answer key change(s)` + (shared ? ` — ${shared} of these questions are also used in other tests, which will get the new key too` : ""));
+  if (imgEdits.length) msg.push(`• ${imgEdits.length} question image(s) replaced` + (imgEdits.some(r => examsCache.some(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId))) ? " — some of these questions are also used in other tests, which will show the new image too" : ""));
   if (removed) msg.push(`• ${removed} question(s) removed from this test (they stay in the bank)`);
   if (!confirm(msg.join("\n"))) { log.classList.add("hidden"); return; }
   $("dgSaveBtn").disabled = true;
@@ -2780,7 +2934,7 @@ async function dgSave(){
       await batch.commit();
       say(`Uploaded ${Math.min(i+25, newRows.length)}/${newRows.length} new question(s)…`);
     }
-    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; });
+    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; });
     // 2) key / topic / difficulty edits on existing questions (one by one so a permission error names the question)
     let failed = 0, keysSaved = 0;
     for (const r of edits) {
@@ -2788,11 +2942,17 @@ async function dgSave(){
       if (r.correct_answer !== r.origAnswer) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
       if (r.topic !== r.origTopic) upd.topic = r.topic;
       if (r.difficulty !== r.origDiff) upd.difficulty = r.difficulty;
+      if (r.section !== r.origSection) {
+        upd.section = r.section; upd.correct_answer = String(r.correct_answer); upd.keySrc = "user";
+        upd.options = r.section === "A" ? (Array.isArray(r.q?.options) && r.q.options.length === 4 ? r.q.options : ["","","",""]) : [];
+      }
+      // new picture only: key/topic/times stay; the AI's old second opinion was about the old picture, so drop it
+      if (r.imgChanged) { upd.image = r.image; upd.imageUpdatedAt = serverTimestamp(); upd.aiVerify = deleteField(); }
       try {
         await updateDoc(doc(db,"questions",r.docId), upd);
         if (upd.correct_answer !== undefined) keysSaved++;
-        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty;
-        say(`Updated ${r.q?.id||r.docId}: ${Object.entries(upd).map(([k,v])=>`${k} → ${v}`).join(", ")}`);
+        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false;
+        say(`Updated ${r.q?.id||r.docId}: ${Object.entries(upd).filter(([k])=>!["image","imageUpdatedAt","aiVerify"].includes(k)).map(([k,v])=>`${k} → ${v}`).concat(upd.image?["new image"]:[]).join(", ")}`);
       } catch(e) {
         failed++;
         say(`FAILED ${r.q?.id||r.docId}: ${e.code==="permission-denied" ? "you don't own this question — ask an admin to change it" : e.message}`);
@@ -2887,8 +3047,7 @@ async function regradeExam(exam){
         subjectScores[q.subject] = subjectScores[q.subject] || 0;
         maxMarks += m.correct;
         if (r.answer == null) { unansweredQuestions.push(id); return; }
-        const ok = sec === "A" ? r.answer === q.correct_answer
-                 : Math.abs(parseFloat(r.answer) - parseFloat(q.correct_answer)) < 1e-6;
+        const ok = isAnsCorrect(q, r.answer);
         const delta = ok ? m.correct : m.wrong;
         if (!ok) wrongQuestions.push(id);
         score += delta; subjectScores[q.subject] += delta;
@@ -2931,6 +3090,7 @@ window.addEventListener("paste", e => {
   const imgs = Array.from(e.clipboardData?.files || []).filter(f => /^image\//.test(f.type));
   if (!imgs.length) return;
   e.preventDefault();
+  if (dgImgTarget) { dgReplaceImage(imgs[0]); return; }
   const n = DG.rows.length;
   dgAddFiles(imgs.map((f,i) => new File([f], `pasted_${n+i+1}.png`, { type: f.type })));
 });
@@ -2948,8 +3108,8 @@ $("dgApplyKeyBtn").onclick = () => {
   const raw = $("dgKey").value;
   let key = parseAnswerKey(raw);
   // a bare run like "1 3 2 4" (option numbers) — map positionally
-  if (Object.keys(key).length < 2 || Object.keys(key).every(k => !"ABCD".includes(key[k]) && DG.rows.every(r=>r.section==="A"))) {
-    const toks = raw.trim().split(/[\s,;]+/).filter(t => /^[1-4A-Da-d]$/.test(t));
+  if (Object.keys(key).length < 2 || Object.keys(key).every(k => !/^[A-D]+$/.test(key[k]) && DG.rows.every(r=>r.section==="A"))) {
+    const toks = raw.trim().split(/[\s,;]+/).filter(t => /^([1-4]|[A-Da-d]{1,4})$/.test(t));
     if (toks.length >= 2 && toks.length >= Object.keys(key).length) { key = {}; toks.forEach((t,i)=>key[i+1]=t); }
   }
   let hit = 0;
@@ -2957,8 +3117,8 @@ $("dgApplyKeyBtn").onclick = () => {
     let v = key[i+1];
     if (v === undefined) return;
     v = String(v);
-    if (r.section === "A") { v = normAnsToken(v); if (!v) return; }
-    r.correct_answer = v; hit++;
+    if (r.section === "A") { v = normKey(v); if (!validMcqKey(v)) return; }
+    r.correct_answer = v; r.keySrc = "user"; hit++;
   });
   setMsg($("dgMsg"), hit ? `Filled ${hit} of ${DG.rows.length} answers in row order — review the highlighted changes, then Save.` : "Could not read any answers from that key.", !!hit);
   dgRender();
@@ -3080,8 +3240,7 @@ function cpPlan(att, opts){
   Object.keys(att.questionTimeSec || att.responses || {}).forEach(id => {
     const q = qById[id]; if (!q) return;
     const r = (att.responses||{})[id] || {};
-    const verdict = r.answer == null ? "unanswered" : ((q.section||"A")==="A" ? r.answer===q.correct_answer
-      : Math.abs(parseFloat(r.answer)-parseFloat(q.correct_answer))<1e-6) ? "correct" : "wrong";
+    const verdict = r.answer == null ? "unanswered" : isAnsCorrect(q, r.answer) ? "correct" : "wrong";
     const tm = (att.questionTimeSec||{})[id] ?? r.timeSec ?? 0;
     const bucket = speedBucket(verdict, tm, idealSecFor(q, ideal, exam.examType));
     const reason = (att.reasons||{})[id]?.r;
@@ -3386,7 +3545,7 @@ function aiLiveRender(){
     : stale ? `<span style="color:#b03a2e;font-weight:700">● No update for 10+ min</span> — the run may have been cancelled (last step: ${esc(s.phase || "")})`
     : `<span style="color:var(--muted);font-weight:700">○ Idle</span> — last run finished ${s.finishedAt ? ago(s.finishedAt) : "earlier"}. The job starts itself every hour.`;
   const sm = (t, o) => o && !o.error ? `<div style="color:var(--muted)">${t}: ${Object.entries(o).filter(([k,v]) => typeof v === "number").map(([k,v]) => k + " " + v).join(" · ")}</div>` : "";
-  box.innerHTML = `<div>${head}</div>${s.running ? "" : sm("Answer-key review", s.verify) + sm("Key/time proposals", s.estimate) + sm("Follow-up practice", s.summary)}
+  box.innerHTML = `<div>${head}</div>${s.running ? "" : sm("Tests solved on request", s.solve) + sm("Answer-key review", s.verify) + sm("Key/time proposals", s.estimate) + sm("Follow-up practice", s.summary)}
     <pre style="margin-top:8px;background:#0f1720;color:#d6e2ee;padding:10px;border-radius:6px;max-height:260px;overflow:auto;font-size:11.5px;white-space:pre-wrap">${esc((s.progress || []).join("\n") || "(no log lines yet)")}</pre>`;
   const pre = box.querySelector("pre"); if (pre) pre.scrollTop = pre.scrollHeight;
 }
@@ -3555,6 +3714,26 @@ $("qbLoadBtn").onclick = async () => {
   qbList = await fetchQuestions($("qbType").value, $("qbSubject").value);
   renderQbList();
 };
+// Replace only the picture of a saved question (used by every test that contains it).
+let qbImgTarget = null;
+async function replaceQuestionImage(q, file){
+  const image = await imageFileToDataUrl(file);
+  const tests = examsCache.filter(e => (e.questionIds||[]).includes(q.docId)).map(e => e.title);
+  if (!confirm(`Replace the image of ${q.id || q.docId}?` + (tests.length ? `\n\nIt is used in: ${tests.join(", ")} — they will all show the new image.` : "") +
+    `\n\nThe answer key, topic and times stay the same.`)) return false;
+  await updateDoc(doc(db,"questions",q.docId), { image, imageUpdatedAt: serverTimestamp(), aiVerify: deleteField() });
+  q.image = image; delete q.aiVerify;
+  allBankCache = null;
+  return true;
+}
+document.addEventListener("change", async e => {
+  if (e.target?.id !== "qbImgFile" || !qbImgTarget) return;
+  const q = qbImgTarget, f = e.target.files?.[0]; qbImgTarget = null;
+  if (!f) return;
+  try {
+    if (await replaceQuestionImage(q, f)) { setMsg($("qbMsg"), `New image saved for ${q.id || q.docId}.`, true); renderQbList(); previewQuestion(q); }
+  } catch(err){ setMsg($("qbMsg"), "Could not replace the image: " + (err.code === "permission-denied" ? "you don't own this question." : err.message)); }
+});
 function renderQbList(){
   // map question id -> exam titles that use it
   const examsOf = qid => examsCache.filter(e => (e.questionIds||[]).includes(qid))
@@ -3566,9 +3745,13 @@ function renderQbList(){
     <td>${esc(q.correct_answer)}</td><td>${esc(q.topic)}</td>
     <td style="font-size:12px">${fmtDate(q.createdAt)}</td>
     <td style="font-size:12px">${used || '<span style="color:var(--muted)">— not used yet</span>'}</td>
-    <td style="white-space:nowrap"><button class="btn secondary" style="padding:3px 9px" data-prev="${i}">Preview</button>${ownsItem(q)?` <button class="btn danger" style="padding:3px 9px" data-delq="${q.docId}">Delete</button>`:""}</td></tr>`;
+    <td style="white-space:nowrap"><button class="btn secondary" style="padding:3px 9px" data-prev="${i}">Preview</button>${ownsItem(q)?` <button class="btn secondary" style="padding:3px 9px" data-qbimg="${i}" title="Swap in a new picture; answer key, topic and everything else stay the same">🖼 ${q.image?"Replace image":"Add image"}</button> <button class="btn danger" style="padding:3px 9px" data-delq="${q.docId}">Delete</button>`:""}</td></tr>`;
   }).join("") || `<tr><td colspan="8">No questions in this bank.</td></tr>`;
   $("qbRows").querySelectorAll("[data-prev]").forEach(b => b.onclick = () => previewQuestion(qbList[+b.dataset.prev]));
+  $("qbRows").querySelectorAll("[data-qbimg]").forEach(b => b.onclick = () => {
+    qbImgTarget = qbList[+b.dataset.qbimg];
+    $("qbImgFile").value = ""; $("qbImgFile").click();
+  });
   $("qbRows").querySelectorAll("[data-delq]").forEach(b => b.onclick = async () => {
     if (!confirm("Delete this question?")) return;
     await deleteDoc(doc(db,"questions",b.dataset.delq));
@@ -3631,7 +3814,7 @@ function previewQuestion(q){
   const used = examsCache.filter(e => (e.questionIds||[]).includes(q.docId)).map(e=>esc(e.title));
   const order = "ABCD";
   const opts = (q.section||"A")==="A" ? (q.options||[]).map((o,k)=>{
-    const correct = order[k]===q.correct_answer;
+    const correct = keyHas(q, order[k]);
     const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
     return `<div class="opt ${correct?'sel':''}" style="cursor:default"><span><b>${optLabel(q,order[k])}</b> ${String(o).replace(/^\s*[A-D][).]\s*/,"")}${oimg}${correct?' &nbsp;✓':''}</span></div>`;
   }).join("") : `<div style="margin-top:8px"><b>Correct numerical answer:</b> ${esc(q.correct_answer)}</div>`;
@@ -3641,7 +3824,7 @@ function previewQuestion(q){
       Uploaded ${fmtDate(q.createdAt)}${q.createdByName?` by ${esc(q.createdByName)}`:""} &bull; Used in: ${used.length?used.join(", "):"— not added to any test yet"}</div>
     <div style="font-size:15.5px;line-height:1.6;margin-bottom:10px">${q.text||""}${imgHtml(q.image)}</div>
     ${opts}
-    <div style="margin-top:8px;font-size:13px"><b>Correct answer:</b> ${esc(q.correct_answer)}</div>`;
+    <div style="margin-top:8px;font-size:13px"><b>Correct answer:</b> ${esc(q.correct_answer)}${isMultiQ(q)?" (more than one correct)":""}</div>`;
   $("qpvBack").classList.remove("hidden");
   typeset($("qpvBody"));
 }
@@ -3665,7 +3848,7 @@ async function previewExam(docId){
   const order = "ABCD";
   const body = fetched.map((q,i) => {
     const opts = (q.section||"A")==="A" ? (q.options||[]).map((o,k) => {
-      const correct = order[k]===q.correct_answer;
+      const correct = keyHas(q, order[k]);
       const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
       return `<div class="opt ${correct?'sel':''}" style="cursor:default"><span><b>${optLabel(q,order[k])}</b> ${String(o).replace(/^\s*[A-D][).]\s*/,"")}${oimg}${correct?' &nbsp;✓':''}</span></div>`;
     }).join("") : `<div style="margin-top:6px"><b>Answer:</b> ${esc(q.correct_answer)}</div>`;
@@ -4370,8 +4553,8 @@ function captureCurrentInput(){
     const v = $("numInput").value.trim();
     return v === "" ? null : v;
   }
-  const sel = document.querySelector('input[name="optGroup"]:checked');
-  return sel ? sel.value : null;
+  const ticked = [...document.querySelectorAll('input[name="optGroup"]:checked')].map(i => i.value);
+  return ticked.length ? ticked.sort().join("") : null;      // multi-correct answers are stored as sorted letters, e.g. "AC"
 }
 
 function gotoQuestion(i, save=false){
@@ -4407,25 +4590,27 @@ function gotoQuestion(i, save=false){
 
   const m = EX.cfg.marks[q.section||"A"];
   $("qNo").textContent = `Question ${EX.idx+1} of ${EX.questions.length}`;
-  $("qMeta").textContent = `${q.subject} • Section ${q.section||"A"} • ${q.section==="B"?`Numerical (+${m.correct} / ${m.wrong})`:`MCQ (+${m.correct} / ${m.wrong})`}`;
+  const multi = isMultiQ(q);
+  $("qMeta").textContent = `${q.subject} • Section ${q.section||"A"} • ${q.section==="B"?`Numerical (+${m.correct} / ${m.wrong})`:multi?`MCQ — one or more correct (+${m.correct} / ${m.wrong})`:`MCQ (+${m.correct} / ${m.wrong})`}`;
   $("qText").innerHTML = (q.text||"") + imgHtml(q.image);
 
   if ((q.section||"A") === "A") {
     $("numInputWrap").classList.add("hidden");
     const order = q._optOrder || [0,1,2,3];
-    $("qOptions").innerHTML = order.map((origIdx, p) => {
+    const picked = normKey(st.answer);
+    $("qOptions").innerHTML = (multi ? `<div class="multiNote">☑ One or more options are correct — tick <b>all</b> that apply. Marks only if your ticks match the key exactly.</div>` : "") +
+      order.map((origIdx, p) => {
       const dispLetter = "ABCD"[p];            // what the student sees
       const origLetter = "ABCD"[origIdx];      // stored/graded value
       // strip any embedded "A) " / "B. " prefix so our display letter is authoritative (needed when shuffling)
       const optText = String((q.options && q.options[origIdx]) || "").replace(/^\s*[A-D][).]\s*/, "");
       const optImg  = q.optionImages ? imgHtml(q.optionImages[origIdx]) : "";
-      const checked = st.answer === origLetter ? "checked" : "";
-      return `<label class="opt ${checked?'sel':''}"><input type="radio" name="optGroup" value="${origLetter}" ${checked}>
+      const checked = (multi ? picked.includes(origLetter) : st.answer === origLetter) ? "checked" : "";
+      return `<label class="opt ${checked?'sel':''}"><input type="${multi?"checkbox":"radio"}" name="optGroup" value="${origLetter}" ${checked}>
         <span><b>${optLabel(q,dispLetter)}</b> ${optText}${optImg}</span></label>`;
     }).join("");
     $("qOptions").querySelectorAll("input").forEach(r => r.onchange = () => {
-      $("qOptions").querySelectorAll(".opt").forEach(o=>o.classList.remove("sel"));
-      r.closest(".opt").classList.add("sel");
+      $("qOptions").querySelectorAll(".opt").forEach(o => o.classList.toggle("sel", o.querySelector("input").checked));
     });
   } else {
     $("qOptions").innerHTML = "";
@@ -4560,9 +4745,7 @@ async function submitExam(auto, flag={}){
       verdict = "unanswered";
       unansweredQuestions.push(q.docId);
     } else {
-      const correct = sec === "A"
-        ? st.answer === q.correct_answer
-        : Math.abs(parseFloat(st.answer) - parseFloat(q.correct_answer)) < 1e-6;
+      const correct = isAnsCorrect(q, st.answer);
       if (correct) { delta = m.correct; verdict = "correct"; }
       else { delta = m.wrong; verdict = "wrong"; wrongQuestions.push(q.docId); }
     }
@@ -4736,12 +4919,7 @@ function prCommitTime(){
   PR.state[PR.idx].timeSec += (Date.now() - PR.shownAt)/1000;
   PR.shownAt = Date.now();
 }
-function prIsCorrect(q, ans){
-  if (ans == null || ans === "") return false;
-  return (q.section||"A") === "A"
-    ? ans === q.correct_answer
-    : Math.abs(parseFloat(ans) - parseFloat(q.correct_answer)) < 1e-6;
-}
+function prIsCorrect(q, ans){ return isAnsCorrect(q, ans); }
 function prRender(){
   const q = PR.questions[PR.idx], st = PR.state[PR.idx];
   const done = PR.state.filter(s=>s.checked).length;
@@ -4755,20 +4933,21 @@ function prRender(){
   const order = "ABCD";
   if ((q.section||"A") === "A") {
     $("prNumWrap").classList.add("hidden");
-    $("prOptions").innerHTML = (q.options||["","","",""]).map((o,k)=>{
-      const letter = order[k];
+    const multi = isMultiQ(q), picked = normKey(st.answer);
+    $("prOptions").innerHTML = (multi ? `<div class="multiNote">☑ One or more options are correct — tick all that apply.</div>` : "") +
+      (q.options||["","","",""]).map((o,k)=>{
+      const letter = order[k], on = multi ? picked.includes(letter) : st.answer===letter;
       const txt = String(o||"").replace(/^\s*[A-D][).]\s*/,"");
       const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
-      return `<label class="opt ${st.answer===letter?"sel":""}" data-propt="${letter}">
-        <input type="radio" name="prOpt" value="${letter}" ${st.answer===letter?"checked":""} ${st.checked?"disabled":""}>
+      return `<label class="opt ${on?"sel":""}" data-propt="${letter}">
+        <input type="${multi?"checkbox":"radio"}" name="prOpt" value="${letter}" ${on?"checked":""} ${st.checked?"disabled":""}>
         <span><b>${optLabel(q,letter)}</b> ${txt}${oimg}</span></label>`;
     }).join("");
-    $("prOptions").querySelectorAll("[data-propt]").forEach(el => el.onclick = () => {
+    $("prOptions").querySelectorAll("[data-propt]").forEach(el => el.querySelector("input").onchange = () => {
       if (PR.state[PR.idx].checked) return;
-      PR.state[PR.idx].answer = el.dataset.propt;
-      $("prOptions").querySelectorAll(".opt").forEach(o=>o.classList.remove("sel"));
-      el.classList.add("sel");
-      el.querySelector("input").checked = true;
+      const ticked = [...$("prOptions").querySelectorAll("input:checked")].map(i => i.value);
+      PR.state[PR.idx].answer = ticked.length ? ticked.sort().join("") : null;
+      $("prOptions").querySelectorAll("[data-propt]").forEach(o => o.classList.toggle("sel", o.querySelector("input").checked));
     });
   } else {
     $("prOptions").innerHTML = "";
@@ -4788,14 +4967,14 @@ function prShowFeedback(){
   const q = PR.questions[PR.idx], st = PR.state[PR.idx];
   const order = "ABCD";
   const correctTxt = (q.section||"A")==="A"
-    ? `${optLabel(q,q.correct_answer)} ${esc(String((q.options||[])[order.indexOf(q.correct_answer)]||"").replace(/^\s*[A-D][).]\s*/,""))}`
+    ? normKey(q.correct_answer).split("").map(L => `${optLabel(q,L)} ${esc(String((q.options||[])[order.indexOf(L)]||"").replace(/^\s*[A-D][).]\s*/,""))}`).join(" + ")
     : esc(String(q.correct_answer));
   // highlight the right option, and their wrong pick
   $("prOptions").querySelectorAll("[data-propt]").forEach(el => {
     const L = el.dataset.propt;
     el.querySelector("input").disabled = true;
-    if (L === q.correct_answer) el.style.cssText += ";border-color:#1e7a44;background:#e2f5e9";
-    else if (L === st.answer)   el.style.cssText += ";border-color:#b03a2e;background:#fdecea";
+    if (keyHas(q, L)) el.style.cssText += ";border-color:#1e7a44;background:#e2f5e9";
+    else if (normKey(st.answer).includes(L)) el.style.cssText += ";border-color:#b03a2e;background:#fdecea";
   });
   const skipped = st.answer == null || st.answer === "";
   $("prFeedback").innerHTML = `
@@ -4958,8 +5137,7 @@ async function showResult(attempt){
       const sec = q.section || "A", m = cfg.marks[sec];
       let delta = 0, verdict = "unanswered";
       if (r.answer != null) {
-        const correct = sec==="A" ? r.answer===q.correct_answer
-          : Math.abs(parseFloat(r.answer)-parseFloat(q.correct_answer)) < 1e-6;
+        const correct = isAnsCorrect(q, r.answer);
         verdict = correct ? "correct" : "wrong";
         delta = correct ? m.correct : m.wrong;
       }

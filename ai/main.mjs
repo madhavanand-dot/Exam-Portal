@@ -3,7 +3,7 @@
 // variables/secrets, runs the pipeline, and reports back to settings/aiStatus (shown in the portal).
 import { run, makeLlm, resolveConfig } from "./pipeline.mjs";
 import { makeStore } from "./firestore-store.mjs";
-import { estimateQuestions, verifyUserQuestions } from "./estimate.mjs";
+import { estimateQuestions, verifyUserQuestions, solveRequestedExams } from "./estimate.mjs";
 
 const env = process.env;
 if (!env.FIREBASE_SERVICE_ACCOUNT) {
@@ -51,6 +51,10 @@ try {
 // 1) AI-proposed answer keys + ideal times for new image questions (never blocks the follow-up run below)
 let estimate = null;
 let verify = null;
+let solve = null;
+await setPhase("Solving tests teachers asked the AI to solve (key + ideal time)");
+try { solve = await solveRequestedExams({ store, llm, cfg, log }); }
+catch (e) { console.warn("Solving requested tests failed: " + e.message); solve = { error: e.message }; }
 await setPhase("Reviewing the answer keys and ideal times you entered");
 try { verify = await verifyUserQuestions({ store, llm, cfg, log }); }
 catch (e) { console.warn("Verification failed: " + e.message); verify = { error: e.message }; }
@@ -61,7 +65,7 @@ try {
   await setPhase("Writing follow-up practice for students");
   const s = await run({ store, llm, cfg, log });
   await report(!(s.errors && !s.drafted), s.errors ? `Finished with ${s.errors} error(s) — see the queue in Custom Practice.` : "Finished normally.",
-               { summary: s, estimate, verify, ...(available.length ? { availableModels: available.slice(0, 400) } : {}) });
+               { summary: s, estimate, verify, solve, ...(available.length ? { availableModels: available.slice(0, 400) } : {}) });
   if (s.errors && !s.drafted) process.exitCode = 1;
 } catch (e) {
   await report(false, "Job crashed: " + e.message);
