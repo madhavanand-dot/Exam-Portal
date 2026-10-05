@@ -546,7 +546,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
               <input type="file" id="dgFiles" accept="image/*" multiple style="margin-top:8px">
             </div>
             <div class="flexrow" style="margin-top:8px">
-              <div class="field"><label>Section</label><select id="dgSection"><option value="A">A — MCQ</option><option value="B">B — Numerical</option></select></div>
+              <div class="field"><label>Section</label><select id="dgSection"><option value="A">MCQ (tick options)</option><option value="B">Numerical (student types the answer)</option></select></div>
               <div class="field"><label>Level</label><select id="dgDiff"><option value="Easy">Bloom Level</option><option value="Medium" selected>Intermediate Level</option><option value="Hard">Advanced Level</option></select></div>
             </div>
             <p style="font-size:11.5px;color:var(--muted)">Answers are read from filenames where possible (<code>Q12_B.png</code>, <code>Q12(3).jpg</code>). Images are compressed to fit Firestore's 1&nbsp;MB limit.</p>
@@ -2626,7 +2626,7 @@ function dgRowFromQuestion(q, idealTimes){
     topic: q.topic || "", difficulty: q.difficulty || "Medium",
     correct_answer: String(q.correct_answer ?? ""), createdBy: q.createdBy
   };
-  r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty;
+  r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section;
   r.idealSec = idealTimes?.[q.docId] ?? q.idealTimeSec ?? dgDefaultIdeal(r);
   r.keySrc = q.keySrc || ""; r.idealSrc = q.idealTimeSrc || ""; r.aiKeyNote = q.aiKeyNote || "";
   return r;
@@ -2751,7 +2751,7 @@ async function dgAiSolveRefresh(){
 }
 $("dgAiSolveBtn").onclick = async () => {
   if (!DG.examDocId) { setMsg($("dgMsg"), "Save the test first — the AI solves the saved version."); return; }
-  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff);
+  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff || r.section !== r.origSection);
   if (unsaved) { setMsg($("dgMsg"), "You have unsaved changes — press Save test first, then ask the AI."); return; }
   if (DG.aiSolve?.status === "queued" || DG.aiSolve?.status === "processing") { setMsg($("dgMsg"), "The AI has already been asked to solve this test — wait for it, then Refresh.", true); return; }
   if (!confirm(`Ask the AI to solve all ${DG.rows.length} question(s) of this test?\n\nTwo AI models solve each question independently and suggest an answer key and an ideal time. ` +
@@ -2822,7 +2822,7 @@ function dgRender(){
         <td style="font-size:12.5px">${esc(r.subject)}</td>
         <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px"></td>
         <td><select data-dgf="difficulty">${levelOptions(r.difficulty)}</select></td>
-        <td>${esc(r.section)}</td>
+        <td>${r.ai ? esc(r.section) : `<select data-dgf="section" title="MCQ = student picks option(s); Numerical = student types the answer"><option value="A" ${r.section==="A"?"selected":""}>MCQ</option><option value="B" ${r.section==="B"?"selected":""}>Numerical</option></select>`}</td>
         <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}${dgAiSolveKeyChip(r)}</td>
         <td><input data-dgf="idealSec" type="number" min="5" value="${r.idealSec}" style="width:70px"> <span style="font-size:11px;color:var(--muted)">${fmtSec(r.idealSec)}</span>${idealBadge(r)}${dgAiSolveTimeChip(r)}</td>
         <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="-1" ${i===0?"disabled":""}>↑</button>
@@ -2840,6 +2840,11 @@ function dgRender(){
       if (/^opt[0-3]$/.test(f)) { r.options[+f[3]] = v; return; }
       if (f === "text" || f === "solution") { r[f] = inp.value; return; }
       r[f] = v;
+      if (f === "section") {   // switching type: an MCQ key means nothing for a typed answer and vice versa
+        const ok = v === "A" ? validMcqKey(r.correct_answer) : (r.correct_answer !== "" && !isNaN(parseFloat(r.correct_answer)) && !/^[A-D]+$/i.test(r.correct_answer));
+        if (!ok) r.correct_answer = "";
+        r.keySrc = "user";
+      }
       if (f === "correct_answer") r.keySrc = "user";
       if (f === "idealSec") r.idealSrc = "user";
       setTimeout(dgRender, 0);   // deferred: a change fired by blur-during-rerender must not re-enter innerHTML
@@ -2893,9 +2898,9 @@ async function dgSave(){
   const errs = dgValidate();
   if (errs.length) { setMsg($("dgMsg"), errs.slice(0,6).join("  ") + (errs.length>6?` …and ${errs.length-6} more.`:"")); log.classList.add("hidden"); return; }
   const newRows = DG.rows.filter(r => r.isNew);
-  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff || r.imgChanged));
+  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
   const imgEdits = edits.filter(r => r.imgChanged);
-  const keyEdits = edits.filter(r => r.correct_answer !== r.origAnswer);
+  const keyEdits = edits.filter(r => r.correct_answer !== r.origAnswer || r.section !== r.origSection);
   const shared = keyEdits.filter(r => examsCache.some(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId))).length;
   const removed = DG.origIds.filter(id => !DG.rows.some(r => r.docId === id)).length;
   const msg = [`Save "${$("dgTitle").value.trim()}" with ${DG.rows.length} questions?`];
@@ -2929,7 +2934,7 @@ async function dgSave(){
       await batch.commit();
       say(`Uploaded ${Math.min(i+25, newRows.length)}/${newRows.length} new question(s)…`);
     }
-    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; });
+    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; });
     // 2) key / topic / difficulty edits on existing questions (one by one so a permission error names the question)
     let failed = 0, keysSaved = 0;
     for (const r of edits) {
@@ -2937,12 +2942,16 @@ async function dgSave(){
       if (r.correct_answer !== r.origAnswer) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
       if (r.topic !== r.origTopic) upd.topic = r.topic;
       if (r.difficulty !== r.origDiff) upd.difficulty = r.difficulty;
+      if (r.section !== r.origSection) {
+        upd.section = r.section; upd.correct_answer = String(r.correct_answer); upd.keySrc = "user";
+        upd.options = r.section === "A" ? (Array.isArray(r.q?.options) && r.q.options.length === 4 ? r.q.options : ["","","",""]) : [];
+      }
       // new picture only: key/topic/times stay; the AI's old second opinion was about the old picture, so drop it
       if (r.imgChanged) { upd.image = r.image; upd.imageUpdatedAt = serverTimestamp(); upd.aiVerify = deleteField(); }
       try {
         await updateDoc(doc(db,"questions",r.docId), upd);
         if (upd.correct_answer !== undefined) keysSaved++;
-        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.imgChanged = false;
+        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false;
         say(`Updated ${r.q?.id||r.docId}: ${Object.entries(upd).filter(([k])=>!["image","imageUpdatedAt","aiVerify"].includes(k)).map(([k,v])=>`${k} → ${v}`).concat(upd.image?["new image"]:[]).join(", ")}`);
       } catch(e) {
         failed++;
