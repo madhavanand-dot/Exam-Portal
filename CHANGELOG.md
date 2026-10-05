@@ -7,6 +7,17 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-05 (later) — ▶ Run the AI job from the website
+
+- **Diagnostic Builder:** while an AI solve is waiting, the box has a **▶ Solve now** button, so you no longer wait for the hourly run.
+- **AI Settings → ▶ Run the AI job now:** an admin saves a GitHub **fine-grained token** once (this repo only, *Actions: Read and write*, nothing else). After that, any staff member can start the job with one click. Progress shows in **AI job — live progress**.
+- If no token is saved, the button says so and links to the GitHub Actions page instead.
+
+> **After merging — publish the rules:** copy [`firestore.rules`](firestore.rules) into Firebase → Firestore → **default** → Rules → **Publish**
+> (new: staff may read `settings/aiRunner`). Then in **AI Settings**, paste the token and press **Save**, then **▶ Run AI job now** to test.
+
+---
+
 ## 2026-10-05 — Multiple-correct MCQs, replace a question's image, AI solves a saved test
 
 ### Added — multiple correct options
