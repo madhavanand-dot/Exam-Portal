@@ -115,4 +115,46 @@ import { resolveConfig } from "./pipeline.mjs";
      "AI Settings override GitHub; numbers clamped/validated; trailing slash trimmed; switch-off honoured");
 }
 
+// --- multi-correct keys + "AI, solve this test"
+import { normKey, isAnsCorrect } from "./pipeline.mjs";
+import { solveRequestedExams } from "./estimate.mjs";
+{
+  ok(normKey("a, c") === "AC" && normKey("1 3") === "AC" && normKey("CA") === "AC" && normKey("B") === "B" && normKey("2.5") === "2.5", "normKey: letters/numbers → sorted letters; numbers left alone");
+  const mq = { section: "A", correct_answer: "AC" };
+  ok(isAnsCorrect(mq, "CA") && !isAnsCorrect(mq, "A") && !isAnsCorrect(mq, "ACD") && isAnsCorrect({ section: "A", correct_answer: "B" }, "B"), "multi-correct graded all-or-nothing; single unchanged");
+  const nd = studentNeeds({ responses: { M1: { answer: "CA" }, M2: { answer: "A" } }, questionTimeSec: { M1: 5, M2: 5 } },
+    { idealTimes: { M1: 60, M2: 60 }, examType: "medical" }, { M1: { ...Q("M1", "T", "Easy", "AC") }, M2: { ...Q("M2", "T", "Easy", "AC") } });
+  ok(nd.length === 1 && nd[0].q.docId === "M2" && nd[0].verdict === "wrong", "follow-up needs: right multi answer skipped, partial one counted wrong");
+
+  const qs = { S1: Q("S1", "T", "Easy", ""), S2: Q("S2", "T", "Easy", "B"), S3: Q("S3", "T", "Easy", "AC"),
+               S4: Q("S4", "T", "Easy", "", { text: "", image: "data:image/png;base64,AAAA" }) };
+  const examDoc = { docId: "EXS", title: "Solve me", questionIds: ["S1", "S2", "S3", "S4", "GONE"], aiSolve: { status: "queued" } };
+  const patched = {};
+  const sstore = {
+    async listSolveRequests(){ return examDoc.aiSolve.status === "queued" ? [structuredClone(examDoc)] : []; },
+    async getQuestions(ids){ return Object.fromEntries(ids.filter(i => qs[i]).map(i => [i, { ...qs[i] }])); },
+    async patchQuestion(id, fn){ const p = fn(qs[id]); if (p) { Object.assign(qs[id], p); patched[id] = p; } },
+    async patchExamSolve(id, token, p){ if (token && examDoc.aiSolve.token !== token) return; Object.assign(examDoc.aiSolve, p); }
+  };
+  const sllm = { async chat({ model, messages }){
+    const txt = typeof messages[0].content === "string" ? messages[0].content : "";
+    if (model === CONFIG_DEFAULTS.visionModel) return '{"stem":"S4 from image","options":["1","2","3","4"]}';
+    const id = (txt.match(/(S\d)/) || [])[1];
+    const multi = /ONE OR MORE options/.test(txt);
+    const ans = { S1: "C", S2: model === CONFIG_DEFAULTS.genModel ? "D" : "B", S3: multi ? "A and C" : "A", S4: "Answer: D" }[id];
+    return `{"answer":"${ans}","confidence":0.9,"idealSec":${model === CONFIG_DEFAULTS.genModel ? 60 : 80}}`;
+  } };
+  const so = await solveRequestedExams({ store: sstore, llm: sllm, cfg: CONFIG_DEFAULTS, log: () => {} });
+  const R = examDoc.aiSolve.results || {};
+  ok(examDoc.aiSolve.status === "done" && so.exams === 1 && Object.keys(R).length === 4, "requested test solved, results stored per question");
+  ok(R.S1.answer === "C" && R.S1.agree && R.S1.idealSec === 70 && qs.S1.correct_answer === "C" && qs.S1.keySrc === "ai", "blank key filled when both models agree; ideal time = average");
+  ok(R.S2.agree === false && qs.S2.correct_answer === "B" && !patched.S2, "teacher's key never overwritten; split answers flagged");
+  ok(R.S3.answer === "AC" && R.S3.agree, "multi-correct question solved as a set (AI told one or more are correct)");
+  ok(R.S4.answer === "D" && qs.S4.correct_answer === "D", "image question transcribed and solved; wordy reply parsed to its option letter");
+  examDoc.aiSolve = { status: "queued" };
+  const so2 = await solveRequestedExams({ store: { ...sstore, async patchExamSolve(id, token, p){ if (!token) { Object.assign(examDoc.aiSolve, p); examDoc.aiSolve = { status: "queued" }; return; } if (examDoc.aiSolve.token !== token) return; Object.assign(examDoc.aiSolve, p); } },
+    llm: sllm, cfg: CONFIG_DEFAULTS, log: () => {} });
+  ok(so2.exams === 1 && examDoc.aiSolve.status === "queued" && !examDoc.aiSolve.results, "a re-request made while solving is not overwritten by the stale result");
+}
+
 console.log(`\n${passed} passed`);

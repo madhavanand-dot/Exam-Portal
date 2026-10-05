@@ -7,6 +7,27 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-05 — Multiple-correct MCQs, replace a question's image, AI solves a saved test
+
+### Added — multiple correct options
+
+- An MCQ key can now be **several letters** (e.g. `AC`). Diagnostic Builder: the Answer column is four tick boxes (A–D) — tick one for single correct, several for multiple correct. Bulk Import / Answer Key / paste-a-key accept `1-AC`, `1-A,C`, `1-A/C`; JSON upload accepts `"correct_answer": "AC"`; the local question builder has the combinations too.
+- Students see **tick boxes** and a "one or more options are correct — tick all that apply" note on those questions (in tests and in chapter practice); single-key questions keep radio buttons.
+- Marking is **all-or-nothing**: full marks only when the ticked set equals the key exactly; anything else counts as wrong (negative marking applies). Answers are stored as sorted letters (`"AC"`). Reports, item analysis, re-grade, custom practice and the AI follow-up job all grade the same way.
+
+### Added — 🖼 Replace image
+
+- Diagnostic Builder: **Replace image** on every question row (pick a file or paste a screenshot with Ctrl+V), saved with **Save test**. Questions tab: **Replace image** next to Preview saves straight away. Only the picture changes — key, topic, level and times stay. Tests that share the question show the new image (you are told which). The AI's old second opinion on that question is cleared so it is re-checked.
+
+### Added — 🤖 Ask AI to solve this test (key + ideal time)
+
+- Diagnostic Builder, after saving a test: **Ask AI to solve this test**. On its next run the AI job transcribes image questions, solves every question with **two models** independently and stores, per question, its answer (several letters for multi-correct), whether the two models agreed, and an ideal time.
+- The builder shows the AI's answer and time next to yours (green ✓ = same, red = differs, with a **Use** button), plus **Use AI keys (where both models agree)** and **Use AI ideal times**. Nothing changes until you Save. A **blank** key is filled automatically only when both models agree (`keySrc: "ai"`).
+- AI Settings → live progress shows the new "Solving tests teachers asked the AI to solve" step and a summary.
+
+> **After merging:** nothing to publish (no new Firestore rules — the request is a field `aiSolve` on the exam, written by its creator or an admin).
+> Results arrive on the next AI job run (hourly at :17) — or start it right away from GitHub → Actions → **AI follow-up practice** → Run workflow.
+
 ## 2026-10-01 (later) — Assign Tests tab, batch dropdowns, AI answer-key review, live AI progress
 
 ### Added — 📚 Assign Tests tab (admin + faculty)
