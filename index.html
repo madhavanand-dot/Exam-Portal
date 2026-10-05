@@ -685,13 +685,29 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div id="aiMsg"></div>
       </div>
       <div class="card" style="margin-top:14px">
+        <h2 class="sec" style="margin-top:0">▶ Run the AI job now (from this website)</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Lets you (and faculty) start the AI job with one click instead of waiting for the hourly run. Needs a GitHub <b>fine-grained token</b>:
+          GitHub → Settings → Developer settings → Fine-grained tokens → Generate → <i>Repository access: only this repo</i> →
+          <i>Permissions → Actions: Read and write</i> (nothing else). It can only start/see workflow runs of this repo. Stored in Firestore, readable by staff.
+        </p>
+        <div class="flexrow">
+          <div class="field" style="min-width:260px"><label>Repository (owner/name)</label><input id="ghRepo" placeholder="madhavanand-dot/Exam-Portal"></div>
+          <div class="field" style="min-width:300px"><label>GitHub token <span id="ghTokState" style="font-weight:400;color:var(--muted)"></span></label>
+            <input id="ghToken" type="password" autocomplete="off" placeholder="paste github_pat_… (leave blank to keep)"></div>
+          <button class="btn secondary" id="ghSaveBtn" style="margin-bottom:14px">Save</button>
+          <button class="btn green" id="ghRunBtn" style="margin-bottom:14px">▶ Run AI job now</button>
+        </div>
+        <div id="ghMsg"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
         <h2 class="sec" style="margin-top:0">AI job — live progress</h2>
         <div id="aiLiveBox" style="font-size:13px">Connecting…</div>
       </div>
       <div class="card" style="margin-top:14px">
         <h2 class="sec" style="margin-top:0">Last run of the AI job</h2>
         <div id="aiStatusBox" style="font-size:13px">—</div>
-        <p style="font-size:12px;color:var(--muted);margin-top:8px">The job runs every hour. To run it now or see full logs: GitHub repo → Actions → "AI follow-up practice" → Run workflow.
+        <p style="font-size:12px;color:var(--muted);margin-top:8px">The job runs every hour. To run it now use <b>▶ Run AI job now</b> above (or GitHub repo → Actions → "AI follow-up practice" → Run workflow, which also has the full logs).
           After you change the key or a model, the next run reports here whether the key works and lists the provider's available models (suggested in the model boxes above).</p>
       </div>
     </div>
@@ -2709,7 +2725,8 @@ function dgAiSolveRender(){
   box.classList.remove("hidden");
   const when = t => t ? fmtDate(t) : "";
   const refresh = `<button class="btn secondary" style="padding:1px 8px;font-size:12px" id="dgAiRefresh">↻ Refresh</button>`;
-  if (st.status === "queued") box.innerHTML = `⏳ <b>AI solve requested</b> ${when(st.requestedAt)} — waiting for the AI job. It runs every hour at :17; to start it now: GitHub → <b>Actions</b> → <b>AI follow-up practice</b> → <b>Run workflow</b>. ${refresh}`;
+  if (st.status === "queued") box.innerHTML = `⏳ <b>AI solve requested</b> ${when(st.requestedAt)} — waiting for the AI job (it also runs by itself every hour at :17).
+    <button class="btn green" style="padding:2px 10px;font-size:12px" id="dgAiRunNow">▶ Solve now</button> ${refresh}<div id="dgAiRunMsg" style="font-size:12px;margin-top:4px"></div>`;
   else if (st.status === "processing") box.innerHTML = `🤖 <b>The AI is solving this test…</b> (live progress in <b>AI Settings</b>) ${refresh}`;
   else if (st.status === "error") box.innerHTML = `⚠ <b>AI solve failed:</b> ${esc(st.error||"unknown error")} — check AI Settings, then ask again. ${refresh}`;
   else {
@@ -2734,6 +2751,13 @@ function dgAiSolveRender(){
     };
   }
   $("dgAiRefresh").onclick = dgAiSolveRefresh;
+  if ($("dgAiRunNow")) $("dgAiRunNow").onclick = async () => {
+    $("dgAiRunNow").disabled = true;
+    const r = await runAiJobNow();
+    $("dgAiRunMsg").innerHTML = r.ok ? `<span style="color:#1e7a44">✓ ${esc(r.msg)}</span>` : `<span style="color:#b03a2e">${r.msg}</span>`;
+    if (!r.ok) $("dgAiRunNow").disabled = false;
+    else setTimeout(dgAiSolveRefresh, 90000);   // the job marks the test "processing" within a minute or two
+  };
 }
 async function dgAiSolveRefresh(){
   if (!DG.examDocId) return;
@@ -3513,7 +3537,7 @@ const AI_PRESET = { baseUrl: "https://integrate.api.nvidia.com/v1", genModel: "o
 const AI_FIELDS = { aiBaseUrl: "baseUrl", aiGenModel: "genModel", aiVerifyModel: "verifyModel", aiVisionModel: "visionModel",
   aiRpm: "rpm", aiPerNeed: "perNeed", aiMaxPerStudent: "maxPerStudent", aiReasonWait: "reasonWaitMin" };
 async function initAiSettings(){
-  setMsg($("aiMsg"), "");
+  setMsg($("aiMsg"), ""); ghLoad();
   try {
     const [cfg, sec, st] = await Promise.all(["ai","aiSecret","aiStatus"].map(id => getDoc(doc(db,"settings",id))));
     const c = cfg.exists() ? cfg.data() : {};
@@ -3574,6 +3598,48 @@ $("aiSaveBtn").onclick = async () => {
     initAiSettings();
     setMsg($("aiMsg"), `Saved${key ? " (new API key stored)" : ""}. The next hourly run uses these settings and reports back below.`, true);
   } catch(e) { setMsg($("aiMsg"), "Save failed: " + e.message); }
+};
+// Start the AI GitHub Actions workflow from the browser (workflow_dispatch). Token: settings/aiRunner (staff-readable),
+// a fine-grained PAT limited to this repo with Actions read/write only.
+const AI_WORKFLOW = "ai-followup.yml";
+async function runAiJobNow(){
+  let cfg;
+  try { const s = await getDoc(doc(db,"settings","aiRunner")); cfg = s.exists() ? s.data() : null; }
+  catch(e) { return { ok: false, msg: "Could not read the run settings (" + esc(e.message) + ") — has the updated firestore.rules been published?" }; }
+  const repo = (cfg?.repo || "madhavanand-dot/Exam-Portal").trim();
+  const manual = `<a href="https://github.com/${esc(repo)}/actions/workflows/${AI_WORKFLOW}" target="_blank" rel="noopener">open GitHub Actions</a> and press <b>Run workflow</b>`;
+  if (!cfg?.token) return { ok: false, msg: `One-click run isn't set up yet (an admin adds a GitHub token in <b>AI Settings</b>). For now, ${manual}.` };
+  try {
+    const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/${AI_WORKFLOW}/dispatches`, {
+      method: "POST", headers: { "Authorization": `Bearer ${cfg.token}`, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+      body: JSON.stringify({ ref: cfg.ref || "main" }) });
+    if (res.status === 204) return { ok: true, msg: "AI job started — it takes about a minute to begin; progress shows in AI Settings. A long test can take several minutes." };
+    const why = res.status === 401 ? "the GitHub token is invalid or expired" : res.status === 403 || res.status === 404 ? "the token lacks Actions read/write on " + repo : "GitHub said HTTP " + res.status;
+    return { ok: false, msg: `Could not start: ${esc(why)}. Ask an admin to fix it in AI Settings, or ${manual}.` };
+  } catch(e) { return { ok: false, msg: `Could not reach GitHub (${esc(e.message)}). ${manual}.` }; }
+}
+async function ghLoad(){
+  try {
+    const s = await getDoc(doc(db,"settings","aiRunner")); const c = s.exists() ? s.data() : {};
+    $("ghRepo").value = c.repo || ""; $("ghToken").value = "";
+    $("ghTokState").textContent = c.token ? `— stored …${String(c.token).slice(-4)} (set ${fmtDate(c.setAt)} by ${c.setBy || "?"})` : "— none stored";
+  } catch(e) { setMsg($("ghMsg"), "Could not load: " + e.message + " — publish the updated firestore.rules."); }
+}
+$("ghSaveBtn").onclick = async () => {
+  const repo = $("ghRepo").value.trim() || "madhavanand-dot/Exam-Portal", tok = $("ghToken").value.trim();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { setMsg($("ghMsg"), "Repository must look like owner/name."); return; }
+  try {
+    const cur = (await getDoc(doc(db,"settings","aiRunner"))).data() || {};
+    if (!tok && !cur.token) { setMsg($("ghMsg"), "Paste a token first."); return; }
+    await setDoc(doc(db,"settings","aiRunner"), { repo, ref: "main", token: tok || cur.token, setBy: currentUser.name, setAt: serverTimestamp() });
+    setMsg($("ghMsg"), "Saved. Press ▶ Run AI job now to test it.", true); ghLoad();
+  } catch(e) { setMsg($("ghMsg"), "Save failed: " + e.message); }
+};
+$("ghRunBtn").onclick = async () => {
+  $("ghRunBtn").disabled = true;
+  const r = await runAiJobNow();
+  $("ghMsg").innerHTML = `<div class="msg ${r.ok ? "ok" : "err"}">${r.ok ? esc(r.msg) : r.msg}</div>`;
+  $("ghRunBtn").disabled = false;
 };
 $("aiKeyRemove").onclick = async () => {
   if (!confirm("Delete the API key stored here? The AI job will fall back to the GitHub secret AI_API_KEY (if set).")) return;
