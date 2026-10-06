@@ -7,6 +7,30 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-06 — ⏱ "Where did your time go?" on every result
+
+- New card at the top of every result, for students and staff. It splits the test time into:
+  - correct within ideal time
+  - correct but over ideal time
+  - **wrong answers**
+  - **dead time on questions opened but left blank**
+  - moving between questions
+  - time **left unused** at submit
+- Shown as a coloured bar, with totals for productive time vs **dead time** (time that earned no marks).
+- **What this tells you:** plain-language advice drawn from the attempt:
+  - how many more questions the dead time could have paid for
+  - questions you got stuck on for more than twice their ideal time
+  - marks lost to negative marking, and the score you would have had by leaving those blank
+  - questions never opened
+  - questions revisited 3+ times
+  - submitting early with blanks
+- **Biggest time sinks:** the questions that took the longest and earned nothing, with time vs ideal and the number of visits.
+- Attempts now store `examDurationSec`, so unused time is exact. Older attempts take the length from the exam.
+
+> **After merging:** nothing to publish.
+
+---
+
 ## 2026-10-05 (later) — ▶ Run the AI job from the website
 
 - **Diagnostic Builder:** while an AI solve is waiting, the box has a **▶ Solve now** button, so you no longer wait for the hourly run.

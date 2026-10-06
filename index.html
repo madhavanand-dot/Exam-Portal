@@ -137,6 +137,11 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 #modalActions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
 /* result */
 .statRow{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+.tbar{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--border);margin:8px 0 6px}
+.tbar span{display:block;height:100%;min-width:0}
+.tlegend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;margin-bottom:10px}
+.tlegend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.tinsight{margin:4px 0 0 18px;font-size:13.5px;line-height:1.55}.tinsight li{margin-bottom:3px}
 .stat{flex:1;min-width:130px;border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;background:var(--blue-light)}
 .stat .v{font-size:24px;font-weight:800;color:var(--blue)}
 .stat .l{font-size:12px;color:var(--muted);margin-top:3px}
@@ -4834,7 +4839,7 @@ async function submitExam(auto, flag={}){
     responses: buildResponses(),
     score, subjectScores, wrongQuestions, unansweredQuestions,
     // config snapshot so the result renders correctly regardless of exam edits
-    examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks,
+    examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks, examDurationSec: cfg.durationSec,
     idealTimes, quickAnswers, pledgedAt: EX.pledgedAt,
     // queue for the hourly AI follow-up job (ai/ + .github/workflows/ai-followup.yml)
     ...(activeExam?.aiFollowUp ? { aiStatus: "queued", aiTries: 0 } : {}),
@@ -5342,6 +5347,7 @@ async function showResult(attempt){
     </div>
     <button class="btn" id="csvReportBtn">Download Report (CSV)</button>
     <button class="btn secondary" id="pdfReportBtn">Print / Save as PDF</button>
+    <div id="timeCard"></div>
     <div id="integrityCard"></div>
     <div id="whyCard"></div>
     <h2 class="sec">Subject-wise</h2>
@@ -5390,9 +5396,84 @@ async function showResult(attempt){
     downloadCsv("exam_report.csv", rows);
   };
   $("pdfReportBtn").onclick = () => window.print();
+  // test length: snapshot on the attempt (newer attempts), else the exam's setting
+  let durSec = attempt.examDurationSec || (_examForOrder?.durationMin || 0) * 60;
+  if (!durSec && attempt.examId) { try { durSec = ((await getDoc(doc(db,"exams",attempt.examId))).data()?.durationMin || 0) * 60; } catch(e){} }
+  renderTimeSummary(attempt, detail, durSec);
   renderIntegrity(attempt, detail);
   renderWhyCard(attempt, detail);
   typeset($("resultWrap"));
+}
+
+// "Where did your time go?" — splits the test time into productive time and dead time (time spent on questions
+// that were left blank or answered wrong), shows the biggest time sinks and turns it into concrete advice.
+// Shown to students and staff on every result.
+const TIME_SEG = [
+  ["good",    "Correct, within ideal time", "#3cb371"],
+  ["extra",   "Correct, but over ideal time", "#9fd8b4"],
+  ["wrong",   "Wrong answers (marks lost)", "#e25555"],
+  ["blank",   "Dead time — opened but left blank", "#e8a33d"],
+  ["other",   "Moving between questions / reviewing", "#b8c2cc"],
+  ["unused",  "Time left unused at submit", "#e9edf1"]
+];
+function renderTimeSummary(attempt, detail, durSec){
+  const box = $("timeCard"); if (!box) return;
+  const visits = id => (attempt.responses || {})[id]?.visitCount || 0;
+  const seg = { good: 0, extra: 0, wrong: 0, blank: 0, other: 0, unused: 0 };
+  detail.forEach(d => {
+    if (d.verdict === "correct") { const over = Math.max(0, d.timeSec - d.idealSec); seg.good += d.timeSec - over; seg.extra += over; }
+    else if (d.verdict === "wrong") seg.wrong += d.timeSec;
+    else seg.blank += d.timeSec;
+  });
+  const used = Math.max(attempt.totalTimeSec || 0, detail.reduce((a, d) => a + d.timeSec, 0));
+  seg.other = Math.max(0, (attempt.totalTimeSec || 0) - detail.reduce((a, d) => a + d.timeSec, 0));
+  seg.unused = durSec > used ? durSec - used : 0;
+  const whole = Object.values(seg).reduce((a, b) => a + b, 0) || 1;
+  const pc = v => Math.round(100 * v / whole);
+  const dead = seg.blank + seg.wrong;
+  const correct = detail.filter(d => d.verdict === "correct"), wrong = detail.filter(d => d.verdict === "wrong");
+  const blanks = detail.filter(d => d.verdict === "unanswered");
+  const openedBlank = blanks.filter(d => d.timeSec >= 5), neverOpened = blanks.filter(d => d.timeSec < 5);
+  const avgCorrect = correct.length ? (seg.good + seg.extra) / correct.length : 0;
+  const couldSolve = avgCorrect ? Math.floor(dead / avgCorrect) : 0;
+  const lostMarks = -wrong.reduce((a, d) => a + Math.min(0, d.delta), 0);
+  const qNo = d => detail.indexOf(d) + 1;
+  // biggest time sinks: time that earned nothing (blank or wrong), longest first
+  const sinks = detail.filter(d => d.verdict !== "correct" && d.timeSec >= 20).sort((a, b) => b.timeSec - a.timeSec).slice(0, 6);
+  const stuck = detail.filter(d => d.verdict !== "correct" && d.timeSec > 2 * d.idealSec && d.timeSec >= 60);
+  const revisits = detail.filter(d => visits(d.q.docId) >= 3).sort((a, b) => visits(b.q.docId) - visits(a.q.docId));
+  const tips = [];
+  if (dead >= 60) tips.push(`<b>${fmtSec(dead)}</b> (${pc(dead)}% of the test) went on questions that earned nothing — ${fmtSec(seg.blank)} on questions you left blank and ${fmtSec(seg.wrong)} on wrong answers.` +
+    (couldSolve ? ` At your pace on the ones you got right (~${Math.round(avgCorrect)} s each), that was enough time for about <b>${couldSolve} more question(s)</b>.` : ""));
+  if (openedBlank.length) tips.push(`You opened <b>${openedBlank.length}</b> question(s), spent ${fmtSec(seg.blank)} on them, and still left them blank. Decide within your ideal time: if you have no clear method, <b>mark for review and move on</b> — come back only if time is left.`);
+  if (stuck.length) tips.push(`You got stuck on <b>${stuck.length}</b> question(s) for more than twice their ideal time without scoring (Q${stuck.map(qNo).join(", Q")}). Set yourself a limit: at 1.5× the ideal time, let it go.`);
+  if (lostMarks) tips.push(`Wrong answers cost you <b>${lostMarks} mark(s)</b> in negative marking — your score would have been ${attempt.score + lostMarks} if you had left them blank. Guess only when you can rule out at least two options.`);
+  if (seg.extra >= 120) tips.push(`You were right but slow: <b>${fmtSec(seg.extra)}</b> over the ideal time on questions you got correct. Timed practice on these topics will free that time for harder questions.`);
+  if (seg.unused >= 120 && blanks.length) tips.push(`You submitted with <b>${fmtSec(seg.unused)}</b> still on the clock and ${blanks.length} question(s) blank${neverOpened.length ? ` (${neverOpened.length} never even opened)` : ""}. Use the remaining time to attempt the questions you skipped.`);
+  else if (neverOpened.length) tips.push(`<b>${neverOpened.length}</b> question(s) were never really opened — you ran out of time before reaching them. Do a quick first round answering the easy ones, then return to the long ones.`);
+  if (revisits.length) tips.push(`You kept coming back to ${revisits.length} question(s) (3+ visits: Q${revisits.slice(0, 8).map(qNo).join(", Q")}). Going back and forth costs re-reading time — decide once, mark for review if unsure.`);
+  if (seg.other >= 180 && seg.other > 0.1 * (attempt.totalTimeSec || 0)) tips.push(`<b>${fmtSec(seg.other)}</b> passed between questions (navigating, reviewing the palette, the submit screen). Keep moving with <b>Save &amp; Next</b>.`);
+  if (!tips.length) tips.push(`Excellent time management — almost all your time went into questions you got right. 🎯`);
+  const verdictBadge = d => `<span class="badge ${d.verdict === "wrong" ? "neg" : "zero"}">${d.verdict === "wrong" ? `wrong (${d.delta})` : "left blank"}</span>`;
+  box.innerHTML = `<div class="card" style="margin:16px 0">
+    <h3 style="color:var(--blue);margin-bottom:4px">⏱ Where did your time go?</h3>
+    <p style="font-size:12.5px;color:var(--muted)">Total ${fmtSec(whole)}${durSec ? ` (test length ${fmtSec(durSec)})` : ""}. <b>Dead time</b> = time spent on questions that earned no marks.</p>
+    <div class="statRow" style="margin:10px 0 4px">
+      <div class="stat"><div class="v" style="color:#1e7a44">${fmtSec(seg.good + seg.extra)}</div><div class="l">Productive (correct)</div></div>
+      <div class="stat"><div class="v" style="color:#b03a2e">${fmtSec(dead)}</div><div class="l">Dead time (${pc(dead)}%)</div></div>
+      <div class="stat"><div class="v">${fmtSec(seg.blank)}</div><div class="l">On blanks (${openedBlank.length} Qs)</div></div>
+      <div class="stat"><div class="v">${fmtSec(seg.wrong)}</div><div class="l">On wrong (${wrong.length} Qs)</div></div>
+      ${seg.unused ? `<div class="stat"><div class="v">${fmtSec(seg.unused)}</div><div class="l">Left unused</div></div>` : ""}
+    </div>
+    <div class="tbar">${TIME_SEG.filter(([k]) => seg[k] > 0).map(([k, l, c]) => `<span style="width:${100 * seg[k] / whole}%;background:${c}" title="${l}: ${fmtSec(seg[k])} (${pc(seg[k])}%)"></span>`).join("")}</div>
+    <div class="tlegend">${TIME_SEG.filter(([k]) => seg[k] > 0).map(([k, l, c]) => `<span><i style="background:${c};border:1px solid #c9d1d9"></i>${l} — <b>${fmtSec(seg[k])}</b> (${pc(seg[k])}%)</span>`).join("")}</div>
+    <h4 style="margin:8px 0 4px;color:var(--blue)">What this tells you</h4>
+    <ul class="tinsight">${tips.map(t => `<li>${t}</li>`).join("")}</ul>
+    ${sinks.length ? `<h4 style="margin:12px 0 6px;color:var(--blue)">Biggest time sinks (time that earned nothing)</h4>
+    <table class="tbl"><thead><tr><th>Q#</th><th>Subject — Topic</th><th>Level</th><th>Time spent</th><th>Ideal</th><th>Visits</th><th>Result</th></tr></thead><tbody>${
+      sinks.map(d => `<tr><td>${qNo(d)}</td><td>${esc(d.q.subject)} — ${esc(d.q.topic || "General")}</td><td>${esc(levelShort(d.q.difficulty))}</td>
+        <td style="font-weight:600;color:${d.timeSec > d.idealSec ? "#b03a2e" : "inherit"}">${fmtSec(d.timeSec)}</td><td>${fmtSec(d.idealSec)}</td><td>${visits(d.q.docId) || "—"}</td><td>${verdictBadge(d)}</td></tr>`).join("")}</tbody></table>` : ""}
+  </div>`;
 }
 
 // Integrity report: tab switches, tough questions answered too quickly, and the teacher's note. Shown to the
