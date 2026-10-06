@@ -94,6 +94,13 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // ---------- notebooks (student's mistake notebook: cleared flags + own notes) ----------
+    // The student edits their own; staff can read it (Progress tab).
+    match /notebooks/{uid} {
+      allow read: if isSelf(uid) || isStaff();
+      allow write: if isSelf(uid);
+    }
+
     // ---------- sessions (single active device per account) ----------
     match /sessions/{uid} {
       allow read, write: if isSelf(uid);
