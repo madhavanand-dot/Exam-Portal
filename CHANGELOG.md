@@ -7,6 +7,53 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-06 (later) — Mistake notebook, progress across tests, at-risk list, key / copying / quality checks
+
+### Added — 📒 Mistake notebook (students; faculty can view)
+- Every question a student got **wrong or left blank** in a graded test, grouped by **chapter**. It shows:
+  - the test and date, their answer, the time taken, and the "why" reason they gave
+  - **missed 2+ times** marking for repeated mistakes
+- Filters: subject, chapter, open / cleared, wrong / skipped, missed 2+ times.
+- **Show question & answer** loads the question with the correct option highlighted (and the solution if one is saved).
+- Students can add a **note** and tick **Cleared**.
+- **🔁 Retry open mistakes:** untimed practice of up to 40 open mistakes. Each one answered right is **cleared automatically**.
+- A mistake answered correctly in a later test is cleared automatically.
+- **Faculty:** Progress tab → choose the student → their notebook appears below the progress charts (read-only).
+
+### Added — progress across tests (student dashboard + Progress tab)
+- New trend charts: **Accuracy %** and **Dead time %**.
+- The table gains accuracy, dead time and average time per attempted question.
+- **Chapter-wise progress:** % correct per chapter in each of the last 8 tests, weakest first, with the change from the first to the latest test.
+
+### Added — ⚠ At-risk tab (staff)
+- Looks at each student's last 3 tests. Each warning sign adds points:
+  - low scores
+  - a falling trend (−10 points or more)
+  - skipping 40%+ of questions
+  - 40%+ dead time
+  - missed tests
+  - malpractice, tab switches or too-quick answers
+  - no test in 14+ days
+- **4+ points = High risk**, **2–3 = Watch**. Filter by exam type and batch; **Progress** button for each student; CSV export.
+
+### Added — Item Analysis: answer-key check, question quality, copying
+- **🔑 Answer-key check:** flags a question when the top 27% of scorers mostly chose a different answer than the key, or when weak students beat strong ones and one wrong option dominates.
+- **📐 Question quality:** discrimination D = % correct in the top 27% − bottom 27%.
+  - Good ≥ 0.30 · Fair · Poor · Bad < 0
+  - Options nobody picked, plus a suggestion for each weak question
+  - New **Quality (D)** column in the question table, with a 🔑 badge where the key looks wrong
+- **👥 Possible copying:** pairs who chose the **same wrong answers** on 3+ questions (60%+ of the questions both got wrong), or shared 2+ **rare** wrong answers.
+  - Shows the questions, overall match %, how far apart they submitted, tab switches, and **Open** buttons for both results.
+- These checks need at least 6 students to judge a test.
+
+### Changed
+- New attempts store `qMeta` (subject / chapter / level per question), so progress and the notebook need no extra reads. Older attempts use the practice index.
+
+> **After merging — publish the rules:** `firestore.rules` adds `notebooks/{uid}` (the student writes their own; staff can read it).
+> Until they are published, ticking **Cleared**, notes and retry-clearing can't save; everything else works.
+
+---
+
 ## 2026-10-06 — ⏱ "Where did your time go?" on every result
 
 - New card at the top of every result, for students and staff. It splits the test time into:

@@ -253,6 +253,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="itemanalysis">Item Analysis</button>
       <button data-atab="attendance">Attendance</button>
       <button data-atab="progress">Progress</button>
+      <button data-atab="atrisk">⚠ At-risk</button>
       <button data-atab="aisettings" id="tabAiSettings">AI Settings</button>
     </div>
 
@@ -783,6 +784,22 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <button class="btn secondary" id="pgLoadBtn">Show Progress</button>
       </div>
       <div id="pgWrap"></div>
+      <div id="pgNotebook" style="margin-top:18px"></div>
+    </div>
+
+    <div id="atab-atrisk" class="atab hidden">
+      <div class="flexrow" style="margin-bottom:8px;align-items:flex-end">
+        <div class="field"><label>Exam type</label><select id="arType"><option value="">All</option><option value="medical">Medical</option><option value="engineering">Engineering</option></select></div>
+        <div class="field"><label>Batch</label><select id="arBatch"></select></div>
+        <div class="field"><label>Show</label><select id="arShow"><option value="risk">High risk + Watch</option><option value="high">High risk only</option><option value="all">Everyone</option></select></div>
+        <button class="btn" id="arRunBtn">Find at-risk students</button>
+        <button class="btn secondary" id="arCsvBtn">Export CSV</button>
+      </div>
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Looks at each student's recent tests (up to the last 3):
+        low scores, a falling trend, many skipped questions, high dead time, missed tests, integrity problems and no recent test.
+        Each sign adds points: <b>4+ = High risk</b>, <b>2–3 = Watch</b>. Use it to decide who needs a conversation this week.</p>
+      <div id="arMsg"></div>
+      <div id="arWrap" style="overflow:auto"></div>
     </div>
   </div>
 </div>
@@ -826,6 +843,8 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 
     <h2 class="sec">Past Attempts</h2>
     <table class="tbl"><thead><tr><th>Date</th><th>Exam</th><th>Type</th><th>Score</th><th>Rank</th><th>Percentile</th><th></th></tr></thead><tbody id="attemptRows"></tbody></table>
+    <h2 class="sec">📒 My Mistake Notebook</h2>
+    <div id="myNotebook">&hellip;</div>
     <h2 class="sec">My Progress</h2>
     <div id="myProgress">&hellip;</div>
   </div>
@@ -1393,6 +1412,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="topics") initTopics();
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
+    if (b.dataset.atab==="atrisk") initAtRisk();
   };
 }
 
@@ -1683,7 +1703,7 @@ function renderItemAnalysis(){
     ${mini("\u{1F534} Struggled most (lowest % correct)", bySort((a,b)=>a.pctCorrect-b.pctCorrect), r=>`<b>${r.pctCorrect}%</b> correct`)}
     ${mini("⚪ Left blank most", bySort((a,b)=>b.pctBlank-a.pctBlank), r=>`<b>${r.pctBlank}%</b> skipped`)}
     ${mini("⏱ Biggest time sinks", bySort((a,b)=>b.avgTime-a.avgTime), r=>`avg <b>${fmtSec(r.avgTime)}</b>`)}
-  </div>` + iaFastStudents();
+  </div>` + iaFastStudents() + iaInsightsHtml();
 
   // topic / chapter rollup
   const tmap = {};
@@ -1713,7 +1733,7 @@ function renderItemAnalysis(){
   $("iaWrap").innerHTML = `<h2 class="sec">Question-wise analysis</h2>
     <table class="tbl"><thead><tr>
       <th>Q</th><th>Subject</th><th>Topic</th><th>Question</th><th>Key</th>
-      <th>% Correct</th><th>Wrong</th><th>Blank</th><th>Most-picked wrong</th><th>Avg time</th><th title="Average time of the students who got it right">Avg time (correct)</th><th>Ideal</th><th>Avg visits</th><th>Why (students)</th><th>Flags</th>
+      <th>% Correct</th><th>Wrong</th><th>Blank</th><th>Most-picked wrong</th><th>Avg time</th><th title="Average time of the students who got it right">Avg time (correct)</th><th>Ideal</th><th>Avg visits</th><th title="Discrimination: % correct in the top 27% − bottom 27%">Quality (D)</th><th>Why (students)</th><th>Flags</th>
     </tr></thead><tbody>` +
     list.map(r => `<tr>
       <td><b>${r.idx}</b></td><td>${esc(r.q.subject)}</td><td>${esc(r.q.topic||"—")}</td>
@@ -1734,6 +1754,7 @@ function renderItemAnalysis(){
       <td>${r.correct ? fmtSec(r.avgTimeCorrect) : "—"}</td>
       <td>${fmtSec(r.idealSec)}</td>
       <td>${r.avgVisits ? r.avgVisits.toFixed(1) : "—"}</td>
+      <td title="${esc(r.quality?.[2] || "")}">${r.quality ? `<span class="badge ${r.quality[1]}">${r.quality[0]}</span>${r.D != null ? `<br><span style="font-size:11px;color:var(--muted)">D ${r.D.toFixed(2)}</span>` : ""}` : "—"}${r.keyAlert?.strong ? `<br><span class="badge neg">🔑 check key</span>` : ""}</td>
       <td style="font-size:11.5px">${Object.entries(r.why).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${esc(REASON_TEXT[k]||k)} ×${n}`).join("<br>") || "—"}</td>
       <td>${r.flags.map(f=>`<span class="badge ${f[1]}">${f[0]}</span>`).join(" ")}</td>
     </tr>`).join("") + `</tbody></table>`;
@@ -1754,6 +1775,368 @@ $("iaCsvBtn").onclick = () => {
   downloadCsv("item_analysis.csv", rows);
 };
 
+/* ============================================================
+   INSIGHTS ACROSS TESTS — shared helpers, mistake notebook, at-risk list
+   ============================================================ */
+// per-question outcome of one attempt, from the lists saved at submit / re-grade (no answer keys needed)
+function attemptOutcomes(a){
+  const wrong = new Set(a.wrongQuestions || []), blank = new Set(a.unansweredQuestions || []), out = {};
+  Object.keys(a.questionTimeSec || a.responses || {}).forEach(id => {
+    out[id] = wrong.has(id) ? "wrong" : blank.has(id) ? "blank" : ((a.responses || {})[id]?.answer != null ? "correct" : "blank");
+  });
+  return out;
+}
+const atMs = t => t?.toMillis ? t.toMillis() : t?.seconds ? t.seconds * 1000 : (typeof t === "number" ? t : 0);
+// share of the test time spent on questions that earned nothing (wrong or left blank)
+function attemptDeadPct(a){
+  const oc = attemptOutcomes(a), tm = a.questionTimeSec || {};
+  const total = a.totalTimeSec || Object.values(tm).reduce((x, y) => x + y, 0);
+  if (!total) return null;
+  const dead = Object.entries(oc).filter(([, v]) => v !== "correct").reduce((x, [id]) => x + (tm[id] || (a.responses || {})[id]?.timeSec || 0), 0);
+  return Math.min(100, 100 * dead / total);
+}
+// subject / chapter / level per question: saved on newer attempts (qMeta), else the practice index, else the question itself
+const _tiCache = {};
+async function qMetaFor(attempts){
+  const meta = {};
+  attempts.forEach(a => Object.assign(meta, a.qMeta || {}));
+  const need = new Set();
+  attempts.forEach(a => Object.keys(a.questionTimeSec || a.responses || {}).forEach(id => { if (!meta[id]) need.add(id); }));
+  if (!need.size) return meta;
+  const keys = new Set();
+  attempts.forEach(a => ((a.examSubjects && a.examSubjects.length) ? a.examSubjects : (EXAM_CONFIG[a.examType] || EXAM_CONFIG.medical).subjects).forEach(sub => keys.add(`${a.examType}__${sub}`)));
+  for (const k of keys) {
+    if (!(k in _tiCache)) { try { const s = await getDoc(doc(db,"topicIndex",k)); _tiCache[k] = s.exists() ? s.data() : null; } catch(e) { _tiCache[k] = null; } }
+    const sub = k.split("__")[1];
+    (_tiCache[k]?.q || []).forEach(e => { if (need.has(e.i) && !meta[e.i]) meta[e.i] = { s: sub, t: e.t || "", d: e.d || "Medium" }; });
+  }
+  const still = [...need].filter(id => !meta[id]).slice(0, 300);
+  const snaps = await Promise.all(still.map(id => getDoc(doc(db,"questions",id)).catch(() => null)));
+  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty) }; } });
+  return meta;
+}
+
+/* ---------- 📒 Mistake notebook ---------- */
+// Every question a student got wrong or left blank in a graded test, grouped by chapter. The student can add a note,
+// mark it cleared, and retry open mistakes as untimed practice (a correct retry clears it). Staff see it read-only.
+async function openNotebook(box, uid, name, editable){
+  if (!box) return;
+  box.innerHTML = `<div style="color:var(--muted)">Loading the mistake notebook…</div>`;
+  const [qs, nbSnap] = await Promise.all([
+    getDocs(query(collection(db,"attempts"), where("studentUid","==",uid))),
+    getDoc(doc(db,"notebooks",uid)).catch(() => null)
+  ]);
+  const atts = qs.docs.map(d => ({ docId: d.id, ...d.data() })).filter(a => a.submitTime != null).sort((a, b) => atMs(a.submitTime) - atMs(b.submitTime));
+  const saved = nbSnap?.exists?.() ? (nbSnap.data().items || {}) : {};
+  const meta = await qMetaFor(atts);
+  const items = {};
+  atts.forEach(a => {
+    const oc = attemptOutcomes(a);
+    Object.entries(oc).forEach(([id, v]) => {
+      if (v === "correct") { if (items[id]) items[id].laterRight = true; return; }
+      const it = items[id] || (items[id] = { id, misses: [], laterRight: false });
+      it.laterRight = false;
+      it.misses.push({ title: a.examTitle || a.examId, at: atMs(a.submitTime), verdict: v, answer: (a.responses || {})[id]?.answer ?? null,
+        reason: (a.reasons || {})[id]?.r || "", rnote: (a.reasons || {})[id]?.note || "", timeSec: (a.questionTimeSec || {})[id] ?? 0 });
+    });
+  });
+  const list = Object.values(items).map(it => {
+    const m = meta[it.id] || {}, last = it.misses[it.misses.length - 1];
+    return { ...it, subject: m.s || "Other", topic: m.t || "No chapter", level: m.d || "Medium", last,
+             cleared: !!saved[it.id]?.cleared || it.laterRight, clearedHow: saved[it.id]?.cleared ? (saved[it.id].clearedBy === "retry" ? "retry" : "you") : it.laterRight ? "later-test" : "",
+             note: saved[it.id]?.note || "" };
+  });
+  const NB = { box, uid, name, editable, list, f: { subject: "", topic: "", show: "open", kind: "", repeat: false } };
+  box._nb = NB;
+  nbRender(NB);
+}
+function nbFiltered(NB){
+  const f = NB.f;
+  return NB.list.filter(it => (!f.subject || it.subject === f.subject) && (!f.topic || it.topic === f.topic) &&
+    (f.show === "all" || (f.show === "open" ? !it.cleared : it.cleared)) &&
+    (!f.kind || it.last.verdict === f.kind) && (!f.repeat || it.misses.length >= 2));
+}
+function nbRender(NB){
+  const { box, list, f, editable } = NB;
+  if (!list.length) { box.innerHTML = `<div class="card"><p>No mistakes recorded yet${editable ? " — every question you get wrong or leave blank in a test will appear here for revision" : ` for ${esc(NB.name)}`}.</p></div>`; return; }
+  const open = list.filter(i => !i.cleared), rep = list.filter(i => i.misses.length >= 2);
+  const subjects = [...new Set(list.map(i => i.subject))].sort();
+  const topics = [...new Set(list.filter(i => !f.subject || i.subject === f.subject).map(i => i.topic))].sort();
+  const shown = nbFiltered(NB);
+  const groups = {};
+  shown.forEach(it => (groups[it.subject + " — " + it.topic] = groups[it.subject + " — " + it.topic] || []).push(it));
+  const worst = Object.entries(list.filter(i => !i.cleared).reduce((m, i) => { const k = i.subject + " — " + i.topic; m[k] = (m[k] || 0) + 1; return m; }, {}))
+    .sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(label ?? v)}</option>`;
+  const retryN = shown.filter(i => !i.cleared).length;
+  box.innerHTML = `<div class="card">
+    <div class="statRow" style="margin-bottom:10px">
+      <div class="stat"><div class="v">${list.length}</div><div class="l">Mistakes recorded</div></div>
+      <div class="stat"><div class="v" style="color:#b03a2e">${open.length}</div><div class="l">Still open</div></div>
+      <div class="stat"><div class="v" style="color:#1e7a44">${list.length - open.length}</div><div class="l">Cleared</div></div>
+      <div class="stat"><div class="v">${rep.length}</div><div class="l">Missed 2+ times</div></div>
+    </div>
+    ${worst.length ? `<p style="font-size:13px;margin-bottom:8px"><b>Most open mistakes:</b> ${worst.map(([k, n]) => `${esc(k)} <b>(${n})</b>`).join(" · ")}</p>` : ""}
+    <div class="flexrow" style="align-items:flex-end;margin-bottom:6px">
+      <div class="field"><label>Subject</label><select data-nbf="subject">${opt("", f.subject, "All")}${subjects.map(x => opt(x, f.subject)).join("")}</select></div>
+      <div class="field"><label>Chapter</label><select data-nbf="topic">${opt("", f.topic, "All")}${topics.map(x => opt(x, f.topic)).join("")}</select></div>
+      <div class="field"><label>Show</label><select data-nbf="show">${opt("open", f.show, "Open")}${opt("cleared", f.show, "Cleared")}${opt("all", f.show, "All")}</select></div>
+      <div class="field"><label>Type</label><select data-nbf="kind">${opt("", f.kind, "Wrong + skipped")}${opt("wrong", f.kind, "Wrong only")}${opt("blank", f.kind, "Skipped only")}</select></div>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-bottom:14px"><input type="checkbox" data-nbf="repeat" ${f.repeat ? "checked" : ""}> Missed 2+ times</label>
+      ${editable ? `<button class="btn green" data-nbretry style="margin-bottom:14px" ${retryN ? "" : "disabled"}>🔁 Retry ${Math.min(retryN, 40)} open mistake(s)</button>` : ""}
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${shown.length} shown.${editable ? " Retry them untimed — each one you get right is cleared automatically. Or tick “Cleared” when you've revised it." : " Read-only view of the student's notebook."}</div>
+    ${Object.entries(groups).sort((a, b) => b[1].length - a[1].length).map(([g, its], gi) => `
+      <details ${gi === 0 || Object.keys(groups).length <= 3 ? "open" : ""} style="border:1px solid var(--border);border-radius:6px;margin-bottom:8px;padding:6px 10px">
+        <summary style="cursor:pointer;font-weight:700;color:var(--blue)">${esc(g)} <span style="font-weight:400;color:var(--muted)">— ${its.length}</span></summary>
+        ${its.sort((a, b) => b.last.at - a.last.at).map(it => `<div data-nbid="${esc(it.id)}" style="border-top:1px solid #eef1f4;padding:8px 0;${it.cleared ? "opacity:.65" : ""}">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px">
+            <span class="badge ${it.last.verdict === "wrong" ? "neg" : "zero"}">${it.last.verdict === "wrong" ? "wrong" : "skipped"}${it.misses.length > 1 ? ` ×${it.misses.length}` : ""}</span>
+            <span>${esc(levelShort(it.level))}</span>
+            <span style="color:var(--muted)">${esc(it.last.title)} · ${it.last.at ? fmtDate(new Date(it.last.at)) : ""}</span>
+            ${it.last.verdict === "wrong" ? `<span>your answer <b>${esc(String(it.last.answer))}</b></span>` : ""}
+            <span>time ${fmtSec(it.last.timeSec)}</span>
+            ${it.last.reason ? `<span style="color:#7a4d00">why: ${esc(REASON_TEXT[it.last.reason] || it.last.reason)}${it.last.rnote ? ` — “${esc(it.last.rnote)}”` : ""}</span>` : ""}
+            ${it.cleared ? `<span class="badge pos">✓ cleared${it.clearedHow === "retry" ? " on retry" : it.clearedHow === "later-test" ? " — right in a later test" : ""}</span>` : ""}
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:5px">
+            <button class="btn secondary" style="padding:2px 9px;font-size:12px" data-nbshow>Show question &amp; answer</button>
+            ${editable ? `<label style="font-size:12.5px;display:flex;gap:5px;align-items:center"><input type="checkbox" data-nbclear ${it.cleared ? "checked" : ""} ${it.clearedHow === "later-test" ? "disabled" : ""}> Cleared</label>
+              <input data-nbnote value="${esc(it.note)}" maxlength="300" placeholder="my note: what to remember next time" style="flex:1;min-width:200px;font-size:12.5px">`
+              : (it.note ? `<span style="font-size:12.5px">📝 ${esc(it.note)}</span>` : "")}
+          </div>
+          <div data-nbq style="margin-top:6px"></div>
+        </div>`).join("")}
+      </details>`).join("") || `<p style="color:var(--muted)">Nothing matches these filters.</p>`}
+  </div>`;
+  box.querySelectorAll("[data-nbf]").forEach(el => el.onchange = () => {
+    const k = el.dataset.nbf; f[k] = el.type === "checkbox" ? el.checked : el.value;
+    if (k === "subject") f.topic = "";
+    nbRender(NB);
+  });
+  const itemOf = el => NB.list.find(i => i.id === el.closest("[data-nbid]").dataset.nbid);
+  const save = async (id, patch) => {
+    try { await setDoc(doc(db,"notebooks",NB.uid), { items: { [id]: { ...patch, at: Timestamp.now() } } }, { merge: true }); }
+    catch(e) { alert("Could not save to your notebook: " + e.message); }
+  };
+  box.querySelectorAll("[data-nbclear]").forEach(cb => cb.onchange = async () => {
+    const it = itemOf(cb); it.cleared = cb.checked; it.clearedHow = cb.checked ? "you" : "";
+    await save(it.id, { cleared: cb.checked, clearedBy: "student" });
+    nbRender(NB);
+  });
+  box.querySelectorAll("[data-nbnote]").forEach(inp => inp.onchange = () => { const it = itemOf(inp); it.note = inp.value.trim(); save(it.id, { note: it.note }); });
+  box.querySelectorAll("[data-nbshow]").forEach(b => b.onclick = async () => {
+    const it = itemOf(b), out = b.closest("[data-nbid]").querySelector("[data-nbq]");
+    if (out.innerHTML) { out.innerHTML = ""; return; }
+    out.innerHTML = "Loading…";
+    try {
+      const s = await getDoc(doc(db,"questions",it.id));
+      if (!s.exists()) { out.innerHTML = `<i>This question was removed from the bank.</i>`; return; }
+      const q = { docId: s.id, ...s.data() };
+      const opts = (q.section || "A") === "A" ? (q.options || []).map((o, k) => {
+        const L = "ABCD"[k], ok = keyHas(q, L), mine = normKey(it.last.answer).includes(L);
+        const txt = String(o || "").replace(/^\s*[A-D][).]\s*/, "");
+        return (txt || q.optionImages) ? `<div class="opt" style="cursor:default;${ok ? "border-color:#1e7a44;background:#e2f5e9" : mine ? "border-color:#b03a2e;background:#fdecea" : ""}"><span><b>${optLabel(q, L)}</b> ${txt}${q.optionImages ? imgHtml(q.optionImages[k]) : ""}${ok ? " ✓" : mine ? " ✗ your answer" : ""}</span></div>` : "";
+      }).join("") : "";
+      out.innerHTML = `<div style="border:1px solid var(--border);border-radius:6px;padding:10px;background:#fbfcfd">
+        <div style="font-size:15px;line-height:1.55;margin-bottom:6px">${q.text || ""}${imgHtml(q.image)}</div>${opts}
+        <div style="margin-top:6px"><b>Correct answer:</b> ${esc(q.correct_answer)}${isMultiQ(q) ? " (more than one correct)" : ""}${it.last.verdict === "wrong" ? ` &nbsp;·&nbsp; <b>Yours:</b> ${esc(String(it.last.answer))}` : ""}</div>
+        ${q.solution ? `<div style="margin-top:6px;font-size:13px"><b>Solution:</b> ${q.solution}</div>` : ""}</div>`;
+      typeset(out);
+    } catch(e) { out.textContent = "Could not load: " + e.message; }
+  });
+  const rb = box.querySelector("[data-nbretry]");
+  if (rb) rb.onclick = async () => {
+    const pick = nbFiltered(NB).filter(i => !i.cleared).sort((a, b) => b.misses.length - a.misses.length || b.last.at - a.last.at).slice(0, 40);
+    rb.disabled = true; rb.textContent = "Loading…";
+    try {
+      const snaps = await Promise.all(pick.map(i => getDoc(doc(db,"questions",i.id))));
+      const qs = shuffle(snaps.filter(s => s.exists()).map(s => ({ docId: s.id, ...s.data() })));
+      if (!qs.length) { alert("Those questions are no longer in the bank."); nbRender(NB); return; }
+      startPracticeWith(qs, "Mistake notebook", [...new Set(pick.map(i => i.topic))], "notebook");
+    } catch(e) { alert("Could not start: " + e.message); nbRender(NB); }
+  };
+}
+
+/* ---------- ⚠ At-risk students ---------- */
+let arRows = [];
+function initAtRisk(){
+  const cur = $("arBatch").value;
+  $("arBatch").innerHTML = `<option value="">All batches</option>` + batchOptions().map(b => `<option ${b === cur ? "selected" : ""}>${esc(b)}</option>`).join("");
+}
+async function runAtRisk(){
+  setMsg($("arMsg"), "Loading attempts…", true);
+  $("arRunBtn").disabled = true;
+  try {
+    if (!studentCache.length) await loadStudents();
+    const myExams = isSuper() ? examsCache : examsCache.filter(e => e.createdBy === currentUser.uid);
+    const myExamIds = new Set(myExams.map(e => e.docId));
+    const all = (await getDocs(collection(db,"attempts"))).docs.map(d => ({ docId: d.id, ...d.data() }))
+      .filter(a => a.submitTime != null && (isSuper() || myExamIds.has(a.examId)));
+    const takers = {}; all.forEach(a => (takers[a.examId] = takers[a.examId] || new Set()).add(a.studentUid));
+    const now = Date.now(), type = $("arType").value, batch = $("arBatch").value.toLowerCase();
+    const students = studentCache.filter(s => s.role !== "admin" && s.role !== "faculty" && (!type || s.examType === type) && (!batch || (s.batch || "").toLowerCase() === batch));
+    arRows = students.map(s => {
+      const mine = all.filter(a => a.studentUid === s.uid).sort((a, b) => atMs(a.submitTime) - atMs(b.submitTime));
+      const pcts = mine.map(a => 100 * (a.score || 0) / (attemptCfg(a).maxMarks || 1));
+      const last3 = mine.slice(-3);
+      const avg = arr => arr.length ? arr.reduce((x, y) => x + y, 0) / arr.length : null;
+      const recentAvg = avg(pcts.slice(-3));
+      const trend = pcts.length >= 3 ? avg(pcts.slice(-2)) - avg(pcts.slice(Math.max(0, pcts.length - 5), -2)) : null;
+      let qTot = 0, qBlank = 0; last3.forEach(a => { const oc = Object.values(attemptOutcomes(a)); qTot += oc.length; qBlank += oc.filter(v => v === "blank").length; });
+      const skip = qTot ? 100 * qBlank / qTot : null;
+      const dead = avg(last3.map(attemptDeadPct).filter(v => v != null));
+      const recent5 = mine.slice(-5);
+      const switches = recent5.reduce((x, a) => x + (a.violations || []).length, 0), malp = recent5.filter(a => a.malpractice).length;
+      const quick = recent5.reduce((x, a) => x + Object.keys(a.quickAnswers || {}).length, 0);
+      const missed = myExams.filter(e => (takers[e.docId]?.size || 0) > 0 && !(takers[e.docId].has(s.uid)) && assignedStudents(e).some(x => x.uid === s.uid));
+      const lastAt = mine.length ? atMs(mine[mine.length - 1].submitTime) : 0;
+      const idle = lastAt ? Math.floor((now - lastAt) / 86400000) : null;
+      const why = []; let pts = 0;
+      const add = (n, t) => { pts += n; why.push(t); };
+      if (!mine.length) { if (missed.length) add(missed.length >= 2 ? 4 : 2, `has not taken any test (${missed.length} missed)`); }
+      else {
+        if (recentAvg < 35) add(2, `low scores (avg ${recentAvg.toFixed(0)}%)`); else if (recentAvg < 50) add(1, `below 50% (avg ${recentAvg.toFixed(0)}%)`);
+        if (trend != null && trend <= -10) add(2, `falling ${Math.abs(trend).toFixed(0)} points`);
+        if (skip != null && skip >= 40) add(1, `skips ${skip.toFixed(0)}% of questions`);
+        if (dead != null && dead >= 40) add(1, `${dead.toFixed(0)}% dead time`);
+        if (missed.length >= 2) add(2, `missed ${missed.length} tests`); else if (missed.length === 1) add(1, "missed 1 test");
+        if (malp) add(2, `${malp} malpractice flag(s)`); else if (switches >= 5) add(1, `${switches} tab switches`);
+        if (quick >= 5) add(1, `${quick} too-quick answers`);
+        if (idle != null && idle >= 14) add(1, `no test for ${idle} days`);
+      }
+      const level = pts >= 4 ? "high" : pts >= 2 ? "watch" : "ok";
+      return { s, n: mine.length, last: pcts.length ? pcts[pcts.length - 1] : null, recentAvg, trend, skip, dead, switches, malp, quick, missed: missed.length, idle, pts, why, level };
+    }).sort((a, b) => b.pts - a.pts || (a.recentAvg ?? 101) - (b.recentAvg ?? 101));
+    arRender();
+    setMsg($("arMsg"), `${arRows.filter(r => r.level === "high").length} high risk · ${arRows.filter(r => r.level === "watch").length} to watch · ${arRows.length} student(s) checked.`, true);
+  } catch(e) { setMsg($("arMsg"), "Could not analyse: " + e.message); }
+  finally { $("arRunBtn").disabled = false; }
+}
+function arRender(){
+  const show = $("arShow").value;
+  const rows = arRows.filter(r => show === "all" || (show === "high" ? r.level === "high" : r.level !== "ok"));
+  const n = v => v == null ? "—" : v.toFixed(0) + "%";
+  const badge = { high: `<span class="badge neg">High risk</span>`, watch: `<span class="badge zero">Watch</span>`, ok: `<span class="badge pos">On track</span>` };
+  $("arWrap").innerHTML = rows.length ? `<table class="tbl"><thead><tr><th>Student</th><th>Batch</th><th>Risk</th><th>Tests</th><th>Last score</th><th>Avg (last 3)</th><th>Trend</th><th>Skipped</th><th>Dead time</th><th>Missed</th><th>Integrity</th><th>Last test</th><th>Why</th><th></th></tr></thead><tbody>${
+    rows.map((r, i) => `<tr><td><b>${esc(r.s.name || "")}</b></td><td>${esc(r.s.batch || "—")}</td><td>${badge[r.level]} <span style="font-size:11px;color:var(--muted)">${r.pts}</span></td>
+      <td>${r.n}</td><td>${n(r.last)}</td><td>${n(r.recentAvg)}</td>
+      <td>${r.trend == null ? "—" : `<span style="color:${r.trend <= -10 ? "#b03a2e" : r.trend >= 10 ? "#1e7a44" : "inherit"};font-weight:600">${r.trend > 0 ? "▲ +" : r.trend < 0 ? "▼ " : ""}${r.trend.toFixed(0)}</span>`}</td>
+      <td>${n(r.skip)}</td><td>${n(r.dead)}</td><td>${r.missed || "—"}</td>
+      <td style="font-size:12px">${r.malp ? `🚨 ${r.malp} malpractice<br>` : ""}${r.switches ? `${r.switches} switches` : ""}${r.quick ? `<br>${r.quick} too quick` : ""}${!r.malp && !r.switches && !r.quick ? "—" : ""}</td>
+      <td>${r.idle == null ? "never" : r.idle === 0 ? "today" : r.idle + " d ago"}</td>
+      <td style="font-size:12px">${r.why.map(esc).join("; ") || "—"}</td>
+      <td><button class="btn secondary" style="padding:2px 8px;font-size:12px" data-arprog="${esc(r.s.uid)}">Progress</button></td></tr>`).join("")}</tbody></table>`
+    : `<p style="color:var(--muted)">Nobody in this group shows warning signs. 🎉</p>`;
+  $("arWrap").querySelectorAll("[data-arprog]").forEach(b => b.onclick = () => {
+    document.querySelector('[data-atab="progress"]').click();
+    $("pgStudent").value = b.dataset.arprog; $("pgLoadBtn").click();
+  });
+}
+$("arRunBtn").onclick = runAtRisk;
+$("arShow").onchange = () => { if (arRows.length) arRender(); };
+$("arCsvBtn").onclick = () => {
+  if (!arRows.length) { setMsg($("arMsg"), "Run it first."); return; }
+  const f = v => v == null ? "" : Math.round(v);
+  downloadCsv("at_risk_students.csv", [["Student","Batch","Risk","Points","Tests","LastScore%","AvgLast3%","Trend","Skipped%","DeadTime%","Missed","Malpractice","TabSwitches","TooQuick","DaysSinceLastTest","Why"],
+    ...arRows.map(r => [r.s.name, r.s.batch || "", r.level, r.pts, r.n, f(r.last), f(r.recentAvg), f(r.trend), f(r.skip), f(r.dead), r.missed, r.malp, r.switches, r.quick, r.idle ?? "", r.why.join("; ")])]);
+};
+
+/* ---------- Item Analysis extras: question quality, answer-key check, copying ---------- */
+// Upper / lower group = top and bottom 27% of the class by score (the standard item-analysis split).
+// Discrimination D = % correct in the upper group − % correct in the lower group.
+function iaGroups(atts){
+  const sorted = atts.slice().sort((a, b) => (b.score || 0) - (a.score || 0));
+  const g = Math.max(1, Math.round(0.27 * sorted.length));
+  return { upper: sorted.slice(0, g), lower: sorted.slice(-g), enough: sorted.length >= 6 };
+}
+const iaAnsKey = (q, ans) => (q.section || "A") === "A" ? normKey(ans) : String(parseFloat(ans));
+function iaQualityAndKeys(){
+  const { atts } = iaMeta, G = iaGroups(atts);
+  const pctOk = (grp, q) => { const had = grp.filter(a => (a.responses || {})[q.docId] || q.docId in (a.questionTimeSec || {})); return had.length ? had.filter(a => isAnsCorrect(q, (a.responses || {})[q.docId]?.answer)).length / had.length : null; };
+  iaRows.forEach(r => {
+    const pU = pctOk(G.upper, r.q), pL = pctOk(G.lower, r.q);
+    r.D = pU != null && pL != null ? pU - pL : null;
+    r.quality = !G.enough || r.D == null ? ["—", "zero", "needs 6+ students"] : r.D >= 0.3 ? ["Good", "pos", "separates strong from weak students well"] : r.D >= 0.2 ? ["Fair", "zero", "works, could be sharper"]
+      : r.D >= 0 ? ["Poor", "zero", "strong and weak students do about the same — revise or replace"] : ["Bad", "neg", "weak students do better than strong ones — check the key and wording"];
+    // options nobody picked (distractors that don't work)
+    const picks = {}; atts.forEach(a => { const v = (a.responses || {})[r.q.docId]?.answer; if (v != null) normKey(v).split("").forEach(L => picks[L] = (picks[L] || 0) + 1); });
+    r.unusedOpts = (r.q.section || "A") === "A" && atts.length >= 10 ? "ABCD".split("").filter(L => !picks[L] && !keyHas(r.q, L)) : [];
+    // answer-key check: what did the top scorers answer?
+    const up = {}; let upN = 0;
+    G.upper.forEach(a => { const v = (a.responses || {})[r.q.docId]?.answer; if (v != null && v !== "") { const k = iaAnsKey(r.q, v); up[k] = (up[k] || 0) + 1; upN++; } });
+    const keyK = iaAnsKey(r.q, r.q.correct_answer), top = Object.entries(up).sort((a, b) => b[1] - a[1])[0];
+    r.keyAlert = null;
+    if (G.enough && top && top[0] !== keyK && top[1] >= Math.max(2, 0.4 * upN) && top[1] > (up[keyK] || 0))
+      r.keyAlert = { strong: true, pick: top[0], n: top[1], of: upN, keyN: up[keyK] || 0 };
+    else if (r.D != null && r.D < 0 && r.topWrong && r.topWrong[1] >= 0.4 * r.n)
+      r.keyAlert = { strong: false, pick: r.topWrong[0], n: r.topWrong[1], of: r.n, keyN: r.correct };
+  });
+  return G;
+}
+function iaInsightsHtml(){
+  const G = iaQualityAndKeys(), n = iaMeta.atts.length;
+  const keys = iaRows.filter(r => r.keyAlert);
+  const cnt = k => iaRows.filter(r => r.quality[0] === k).length;
+  const weak = iaRows.filter(r => r.quality[0] === "Bad" || r.quality[0] === "Poor").sort((a, b) => a.D - b.D);
+  const card = (border, inner) => `<div class="card" style="padding:12px 14px;margin-top:10px;border-color:${border}">${inner}</div>`;
+  const keyCard = card(keys.length ? "#c0392b" : "var(--border)", `<div style="font-weight:700;color:var(--blue);font-size:13px;margin-bottom:4px">🔑 Answer-key check</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Flags a question when the top-scoring 27% of students mostly chose a different answer than the key, or when weaker students beat stronger ones and one wrong option dominates. Usually means a wrong key or an ambiguous question.</div>
+    ${!G.enough ? `<div style="font-size:12.5px;color:var(--muted)">Needs at least 6 students to judge.</div>` : keys.length ? `<table class="tbl"><thead><tr><th>Q</th><th>Subject — Topic</th><th>Key</th><th>What strong students chose</th><th>% correct</th><th></th></tr></thead><tbody>${
+      keys.map(r => `<tr><td><b>${r.idx}</b></td><td>${esc(r.q.subject)} — ${esc(r.q.topic || "—")}</td><td><b>${esc(r.q.correct_answer)}</b></td>
+        <td>${r.keyAlert.strong ? `<b>${esc(r.keyAlert.pick)}</b> — ${r.keyAlert.n} of ${r.keyAlert.of} top scorers (key: ${r.keyAlert.keyN})` : `<b>${esc(r.keyAlert.pick)}</b> — most common answer (${r.keyAlert.n} of ${r.keyAlert.of}); weak students beat strong ones`}</td>
+        <td>${r.pctCorrect}%</td><td><span class="badge ${r.keyAlert.strong ? "neg" : "zero"}">${r.keyAlert.strong ? "Check the key" : "Possible"}</span></td></tr>`).join("")}</tbody></table>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">If a key is wrong: fix it in the <b>Diagnostic Builder</b> (or <b>Answer Key</b> tab) and re-grade.</div>`
+      : `<div style="font-size:12.5px;color:#1e7a44">✅ No signs of a wrong key.</div>`}`);
+  const qualCard = card("var(--border)", `<div style="font-weight:700;color:var(--blue);font-size:13px;margin-bottom:4px">📐 Question quality (discrimination)</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">D = % correct among the top 27% − % correct among the bottom 27% of scorers. Good ≥ 0.30 · Fair 0.20–0.29 · Poor 0–0.19 · Bad &lt; 0.${G.enough ? "" : " Needs at least 6 students."}</div>
+    ${G.enough ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span class="badge pos">Good ${cnt("Good")}</span><span class="badge zero">Fair ${cnt("Fair")}</span><span class="badge zero">Poor ${cnt("Poor")}</span><span class="badge neg">Bad ${cnt("Bad")}</span></div>
+    ${weak.length ? `<table class="tbl"><thead><tr><th>Q</th><th>Subject — Topic</th><th>% correct</th><th>D</th><th>Quality</th><th>Options nobody picked</th><th>Suggestion</th></tr></thead><tbody>${
+      weak.slice(0, 15).map(r => `<tr><td><b>${r.idx}</b></td><td>${esc(r.q.subject)} — ${esc(r.q.topic || "—")}</td><td>${r.pctCorrect}%</td><td>${r.D.toFixed(2)}</td>
+        <td><span class="badge ${r.quality[1]}">${r.quality[0]}</span></td><td>${r.unusedOpts.join(", ") || "—"}</td>
+        <td style="font-size:12px">${r.pctCorrect >= 90 ? "Too easy for this class — fine as a warm-up, otherwise replace" : r.pctCorrect <= 15 ? "Too hard / unclear — check wording and key" : esc(r.quality[2])}</td></tr>`).join("")}</tbody></table>` : `<div style="font-size:12.5px;color:#1e7a44">✅ Every question separates strong from weak students.</div>`}` : ""}`);
+  return keyCard + qualCard + iaCopyHtml();
+}
+// Copying: pairs of students who chose the SAME WRONG answers far more often than chance, weighted by how rare that
+// wrong answer was in the class. Same correct answers prove nothing; shared unusual mistakes do.
+let iaCopyPairs = [];
+function iaCopyHtml(){
+  const { atts } = iaMeta, rows = iaRows;
+  const ans = atts.map(a => rows.map(r => { const v = (a.responses || {})[r.q.docId]?.answer; return v == null || v === "" ? null : iaAnsKey(r.q, v); }));
+  const ok = atts.map((a, i) => rows.map((r, j) => ans[i][j] != null && isAnsCorrect(r.q, (a.responses || {})[r.q.docId]?.answer)));
+  const freq = rows.map((r, j) => { const m = {}; let n = 0; atts.forEach((a, i) => { if (ans[i][j] != null && !ok[i][j]) { m[ans[i][j]] = (m[ans[i][j]] || 0) + 1; } if (ans[i][j] != null) n++; }); return { m, n }; });
+  const pairs = [];
+  for (let i = 0; i < atts.length; i++) for (let k = i + 1; k < atts.length; k++) {
+    let sameWrong = 0, bothWrong = 0, rare = 0, both = 0, same = 0; const qs = [];
+    rows.forEach((r, j) => {
+      const x = ans[i][j], y = ans[k][j];
+      if (x == null || y == null) return;
+      both++; if (x === y) same++;
+      if (!ok[i][j] && !ok[k][j]) { bothWrong++; if (x === y) { sameWrong++; qs.push(`Q${r.idx}:${x}`); if ((freq[j].m[x] || 0) / Math.max(1, freq[j].n) <= 0.15) rare++; } }
+    });
+    if ((sameWrong >= 3 && sameWrong / bothWrong >= 0.6) || rare >= 2)
+      pairs.push({ a: atts[i], b: atts[k], sameWrong, bothWrong, rare, simPct: both ? 100 * same / both : 0, qs, score: sameWrong + 2 * rare,
+        gapMin: Math.abs(atMs(atts[i].submitTime) - atMs(atts[k].submitTime)) / 60000 });
+  }
+  pairs.sort((x, y) => y.score - x.score);
+  iaCopyPairs = pairs.slice(0, 25);
+  return `<div class="card" style="padding:12px 14px;margin-top:10px;border-color:${pairs.length ? "#c0392b" : "var(--border)"}">
+    <div style="font-weight:700;color:var(--blue);font-size:13px;margin-bottom:4px">👥 Possible copying — shared wrong answers</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Pairs who picked the <b>same wrong answer</b> on 3+ questions (60%+ of the questions both got wrong), or shared 2+ <b>rare</b> wrong answers (chosen by ≤15% of the class). Getting the same right answers proves nothing; sharing unusual mistakes is the classic sign. Check seating, timing and tab switches before concluding.</div>
+    ${iaCopyPairs.length ? `<table class="tbl"><thead><tr><th>Students</th><th>Batch</th><th>Same wrong answers</th><th>Rare shared</th><th>Overall answer match</th><th>Submitted apart</th><th>Tab switches</th><th></th></tr></thead><tbody>${
+      iaCopyPairs.map((p, i) => `<tr><td><b>${esc(p.a.studentName || "")}</b> &amp; <b>${esc(p.b.studentName || "")}</b></td><td>${esc(p.a._batch || "—")} / ${esc(p.b._batch || "—")}</td>
+        <td><b>${p.sameWrong}</b> of ${p.bothWrong} both wrong<div style="font-size:11px;color:var(--muted)">${esc(p.qs.slice(0, 10).join(" · "))}${p.qs.length > 10 ? " …" : ""}</div></td>
+        <td>${p.rare ? `<span class="badge neg">${p.rare}</span>` : "0"}</td><td>${p.simPct.toFixed(0)}%</td>
+        <td>${p.gapMin < 1 ? "&lt; 1 min" : Math.round(p.gapMin) + " min"}</td><td>${(p.a.violations || []).length} / ${(p.b.violations || []).length}</td>
+        <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 7px;font-size:11.5px" data-iacopy="${i}" data-who="a">Open 1</button> <button class="btn secondary" style="padding:2px 7px;font-size:11.5px" data-iacopy="${i}" data-who="b">Open 2</button></td></tr>`).join("")}</tbody></table>`
+      : `<div style="font-size:12.5px;color:#1e7a44">✅ No suspicious overlap in wrong answers.</div>`}
+  </div>`;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest?.("[data-iacopy]"); if (!b) return;
+  const p = iaCopyPairs[+b.dataset.iacopy]; if (p) showResult({ ...p[b.dataset.who] });
+});
+
 /* ----- student progress (admin view) ----- */
 function initProgress(){
   $("pgStudent").innerHTML = studentCache.map(s=>`<option value="${s.uid}">${esc(s.name)}${s.batch?" ("+esc(s.batch)+")":""}</option>`).join("") || `<option value="">No students</option>`;
@@ -1762,6 +2145,7 @@ $("pgLoadBtn").onclick = async () => {
   const uid = $("pgStudent").value; if (!uid) return;
   const s = studentCache.find(x=>x.uid===uid);
   $("pgWrap").innerHTML = await progressHtml(uid, s?.name||"Student");
+  openNotebook($("pgNotebook"), uid, s?.name||"Student", false).catch(e => { $("pgNotebook").textContent = "Could not load the notebook: " + e.message; });
 };
 
 // shared: build a progress panel (trend charts) for a student uid
@@ -1782,14 +2166,45 @@ async function progressHtml(uid, name){
   const scorePct = att.map(a=>{ const m=attemptCfg(a).maxMarks||1; return 100*a.score/m; });
   const chart1 = lineChart(att.map((a,i)=>({x:i,y:scorePct[i]})), labels, "Score %", "var(--blue)");
   const chart2 = lineChart(pcts.map((p,i)=>({x:i,y:p})), labels, "Percentile", "var(--green)");
-  const rows = att.map((a,i)=>`<tr><td>${i+1}</td><td>${esc(a.examTitle||a.examId)}</td><td>${fmtDate(a.submitTime)}</td>
-     <td>${a.score} / ${attemptCfg(a).maxMarks}</td><td>${scorePct[i].toFixed(1)}%</td><td>${pcts[i].toFixed(1)}</td></tr>`).join("");
+  // accuracy (of attempted), dead time and speed per test
+  const outs = att.map(attemptOutcomes);
+  const accs = outs.map(o => { const v = Object.values(o), c = v.filter(x => x === "correct").length, w = v.filter(x => x === "wrong").length; return c + w ? 100 * c / (c + w) : 0; });
+  const deads = att.map(a => attemptDeadPct(a) ?? 0);
+  const speeds = att.map((a, i) => { const at = Object.entries(outs[i]).filter(([, v]) => v !== "blank"); return at.length ? at.reduce((x, [id]) => x + ((a.questionTimeSec || {})[id] || 0), 0) / at.length : 0; });
+  const chart3 = lineChart(accs.map((y, i) => ({ x: i, y })), labels, "Accuracy %", "#8e44ad");
+  const chart4 = lineChart(deads.map((y, i) => ({ x: i, y })), labels, "Dead time %", "#e25555");
+  // chapter × test accuracy (last 8 tests), weakest chapter first
+  const meta = await qMetaFor(att);
+  const recent = att.slice(-8), recentOuts = outs.slice(-8);
+  const chap = {};
+  recent.forEach((a, ti) => Object.entries(recentOuts[ti]).forEach(([id, v]) => {
+    const m = meta[id]; const k = m ? `${m.s || "?"} — ${m.t || "No chapter"}` : "Unknown chapter";
+    const c = (chap[k] = chap[k] || { k, cells: recent.map(() => ({ n: 0, c: 0 })) });
+    c.cells[ti].n++; if (v === "correct") c.cells[ti].c++;
+  }));
+  const chapRows = Object.values(chap).map(c => {
+    const seen = c.cells.filter(x => x.n);
+    const first = seen[0], last = seen[seen.length - 1];
+    const tot = c.cells.reduce((x, y) => ({ n: x.n + y.n, c: x.c + y.c }), { n: 0, c: 0 });
+    return { ...c, delta: seen.length >= 2 ? 100 * (last.c / last.n - first.c / first.n) : null, lastPct: 100 * last.c / last.n, tot };
+  }).sort((a, b) => a.lastPct - b.lastPct);
+  const cell = x => !x.n ? `<td style="color:#bbb">·</td>` : `<td style="${iaHeat(100 * x.c / x.n)};text-align:center" title="${x.c} of ${x.n} correct">${Math.round(100 * x.c / x.n)}%</td>`;
+  const chapTable = chapRows.length ? `<h4 style="font-size:13px;margin:16px 0 4px;color:var(--blue)">Chapter-wise progress (last ${recent.length} test(s), weakest first)</h4>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:6px">Each cell = % of that chapter's questions answered correctly in that test (hover for counts). Change = first vs latest test that had the chapter.</p>
+    <div style="overflow:auto"><table class="tbl"><thead><tr><th>Subject — Chapter</th>${recent.map((a, i) => `<th title="${esc(a.examTitle || a.examId)}">T${att.length - recent.length + i + 1}</th>`).join("")}<th>Overall</th><th>Change</th></tr></thead><tbody>${
+      chapRows.map(c => `<tr><td>${esc(c.k)}</td>${c.cells.map(cell).join("")}<td><b>${Math.round(100 * c.tot.c / c.tot.n)}%</b> <span style="font-size:11px;color:var(--muted)">(${c.tot.c}/${c.tot.n})</span></td>
+        <td>${c.delta == null ? "—" : `<span style="font-weight:600;color:${c.delta >= 10 ? "#1e7a44" : c.delta <= -10 ? "#b03a2e" : "inherit"}">${c.delta > 0 ? "▲ +" : c.delta < 0 ? "▼ " : ""}${Math.round(c.delta)}</span>`}</td></tr>`).join("")}</tbody></table></div>` : "";
   return `<h3 style="color:var(--blue);margin-bottom:6px">${esc(name)} — ${att.length} test(s)</h3>
     <div style="display:flex;gap:18px;flex-wrap:wrap">
       <div><h4 style="font-size:13px;margin:4px 0">Score % trend</h4>${chart1}</div>
       <div><h4 style="font-size:13px;margin:4px 0">Percentile trend</h4>${chart2}</div>
+      <div><h4 style="font-size:13px;margin:4px 0">Accuracy % (of attempted)</h4>${chart3}</div>
+      <div><h4 style="font-size:13px;margin:4px 0">Dead time % (lower is better)</h4>${chart4}</div>
     </div>
-    <table class="tbl" style="margin-top:12px"><thead><tr><th>#</th><th>Test</th><th>Date</th><th>Score</th><th>Score %</th><th>Percentile</th></tr></thead><tbody>${rows}</tbody></table>`;
+    <table class="tbl" style="margin-top:12px"><thead><tr><th>#</th><th>Test</th><th>Date</th><th>Score</th><th>Score %</th><th>Percentile</th><th>Accuracy</th><th>Dead time</th><th>Avg time / attempted Q</th></tr></thead><tbody>${
+      att.map((a,i)=>`<tr><td>${i+1}</td><td>${esc(a.examTitle||a.examId)}</td><td>${fmtDate(a.submitTime)}</td>
+     <td>${a.score} / ${attemptCfg(a).maxMarks}</td><td>${scorePct[i].toFixed(1)}%</td><td>${pcts[i].toFixed(1)}</td><td>${accs[i].toFixed(0)}%</td><td>${deads[i].toFixed(0)}%</td><td>${Math.round(speeds[i])}s</td></tr>`).join("")}</tbody></table>
+    ${chapTable}`;
 }
 
 // minimal dependency-free SVG line chart; pts: [{x,y}], y in 0..100
@@ -4333,6 +4748,7 @@ async function enterStudent(){
   loadActiveExam(); loadMyAttempts();
   initPractice(); loadPracticeHistory();
   progressHtml(currentUser.uid, currentUser.name).then(h => { const el=$("myProgress"); if(el) el.innerHTML=h; }).catch(()=>{});
+  openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true).catch(e => { $("myNotebook").textContent = "Could not load: " + e.message; });
 }
 
 // does this exam target the current student?
@@ -4877,6 +5293,8 @@ async function submitExam(auto, flag={}){
     score, subjectScores, wrongQuestions, unansweredQuestions,
     // config snapshot so the result renders correctly regardless of exam edits
     examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks, examDurationSec: cfg.durationSec,
+    // subject / chapter / level of each question, so progress and the mistake notebook need no extra reads
+    qMeta: Object.fromEntries(EX.questions.map(q => [q.docId, { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty) }])),
     idealTimes, quickAnswers, pledgedAt: EX.pledgedAt,
     // queue for the hourly AI follow-up job (ai/ + .github/workflows/ai-followup.yml)
     ...(activeExam?.aiFollowUp ? { aiStatus: "queued", aiTries: 0 } : {}),
@@ -4999,14 +5417,21 @@ $("prStartBtn").onclick = async () => {
     const snaps = await Promise.all(picked.map(e => getDoc(doc(db,"questions",e.i))));
     const questions = snaps.filter(s=>s.exists()).map(s=>({ docId:s.id, ...s.data() }));
     if (!questions.length) { setMsg($("prSetupMsg"), "Those questions could not be loaded."); return; }
+    setMsg($("prSetupMsg"), "");
+    startPracticeWith(questions, $("prSubject").value, prSelectedTopics());
+  } catch(e){ setMsg($("prSetupMsg"), "Could not start: " + e.message); }
+  finally { $("prStartBtn").disabled = false; }
+};
+// shared by chapter practice and "Retry my mistakes" (source "notebook": a correct retry clears the notebook entry)
+function startPracticeWith(questions, subject, topics, source){
+  if (PR?.tick) clearInterval(PR.tick);
+  {
     PR = {
-      questions, idx: 0,
+      questions, idx: 0, source: source || "",
       state: questions.map(()=>({ answer:null, timeSec:0, checked:false, correct:null })),
-      subject: $("prSubject").value,
-      topics: prSelectedTopics(),
+      subject, topics,
       startedAt: Date.now(), shownAt: Date.now(), finished: false
     };
-    setMsg($("prSetupMsg"), "");
     $("prWho").textContent = `${currentUser.name} • ${PR.subject}`;
     $("prSummary").classList.add("hidden");
     $("prRunner").classList.remove("hidden");
@@ -5018,9 +5443,8 @@ $("prStartBtn").onclick = async () => {
       const total = Math.round((Date.now()-PR.startedAt)/1000);
       $("prTimer").textContent = `Total ${fmtSec(total)} • this question ${fmtSec((Date.now()-PR.shownAt)/1000 + PR.state[PR.idx].timeSec)}`;
     }, 1000);
-  } catch(e){ setMsg($("prSetupMsg"), "Could not start: " + e.message); }
-  finally { $("prStartBtn").disabled = false; }
-};
+  }
+}
 
 function prCommitTime(){
   if (!PR) return;
@@ -5123,6 +5547,7 @@ $("prExitBtn").onclick = () => {
   PR = null;
   showView("view-student");
   loadPracticeSeen().then(()=>{ renderPracticeChapters(); loadPracticeHistory(); });
+  openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true).catch(()=>{});
 };
 
 async function prFinish(){
@@ -5150,6 +5575,13 @@ async function prFinish(){
     totalTimeSec, startedAt: Timestamp.fromMillis(PR.startedAt), submittedAt: serverTimestamp()
   };
   let saveNote = "";
+  if (PR.source === "notebook") {
+    const fixed = PR.questions.filter((q,i) => PR.state[i].correct === true);
+    if (fixed.length) try {
+      await setDoc(doc(db,"notebooks",currentUser.uid), { items: Object.fromEntries(fixed.map(q => [q.docId, { cleared: true, clearedBy: "retry", clearedAt: Timestamp.now() }])) }, { merge: true });
+      saveNote += `<div class="msg ok" style="margin-top:10px">📒 ${fixed.length} mistake(s) you got right this time were marked as cleared in your notebook.</div>`;
+    } catch(e){ saveNote += `<div class="msg err" style="margin-top:10px">Could not update your notebook (${esc(e.message)}).</div>`; }
+  }
   try { await addDoc(collection(db,"practiceAttempts"), rec); }
   catch(e){ saveNote = `<div class="msg err" style="margin-top:10px">Your summary is below, but it couldn't be saved to your history (${esc(e.message)}).</div>`; }
 

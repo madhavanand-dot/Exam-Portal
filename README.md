@@ -96,6 +96,9 @@ As super-admin, open the **Faculty** tab → *Add Faculty* (name, email, passwor
 - **AI Settings** tab *(admin only)* → API key, base URL, writer / checker / vision models and limits for the AI job; overrides the GitHub
   variables/secrets. The key is stored in Firestore readable only by admins and never shown again (last 4 characters only). The job reports
   each run here: key accepted?, models found?, what it did, and the provider's model list as suggestions.
+- **⚠ At-risk** tab → students showing warning signs over their last 3 tests (low or falling scores, skipping, dead time, missed tests, integrity problems, inactivity), scored **High risk / Watch**, with a link to each student's progress and mistake notebook.
+- **Item Analysis** also runs an **answer-key check** (top scorers disagree with the key), **question quality** (discrimination index, unused options) and a **copying check** (shared wrong answers).
+- **Students** get a **📒 Mistake notebook** (wrong + skipped questions by chapter, notes, cleared flags, untimed retry) and chapter-wise **progress across tests**. Staff see both in the **Progress** tab.
 - **Reports** tab → attempts table (admins see all; faculty see their own exams' attempts), filter by student/type/date, malpractice flag, click a row to open the full result, export CSV.
 - **Leaderboard** tab → ranks for one exam, optional batch filter, subject-wise columns, CSV export.
 - **Item Analysis** tab → **cumulative question-level analysis** across every submitted attempt for a test (optionally one batch). Shows % correct / wrong / blank per question, the **most-picked wrong option** (distractor analysis), average time, average revisits, and auto flags (`Hard`, `Trap → C`, `Often skipped`, `Time sink`, `Easy`), plus a chapter rollup and a drill-down naming which students got each question wrong, left it blank, or were slowest on. **Staff only — never shown to students.** Faculty see only their own exams.

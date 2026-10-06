@@ -8,7 +8,7 @@ Tick each box as you go.
 
 ---
 
-## 1. Publish the Firestore rules (2 min) — needed for the ▶ Solve now button
+## 1. Publish the Firestore rules (2 min) — needed for ▶ Solve now and the mistake notebook
 
 - [ ] Open [`firestore.rules`](firestore.rules) on GitHub → copy everything.
 - [ ] Firebase Console → project **aakash-exam-portal** → **Firestore Database** → database **default** → **Rules** tab →
@@ -31,7 +31,15 @@ Tick each box as you go.
 - [ ] Press **▶ Run AI job now** → it should say **"AI job started"**.
 - [ ] **Check:** within about a minute **AI job — live progress** shows **● RUNNING**.
 
-## 4. Try the new test features
+## 4. Try the new analysis features
+
+- [ ] **Item Analysis** → pick a test with 6+ students → **Analyse**. Check the **🔑 Answer-key check**,
+      **📐 Question quality** and **👥 Possible copying** cards under the summary, and the **Quality (D)** column.
+- [ ] **⚠ At-risk** tab → **Find at-risk students** → open **Progress** for one of them; the mistake notebook appears below.
+- [ ] As a student: dashboard → **📒 My Mistake Notebook** → **Show question & answer**, tick **Cleared**, try **🔁 Retry**.
+- [ ] Open any result: the **⏱ Where did your time go?** card, the class columns, and (as staff) the **🚩 Speed check** card.
+
+## 5. Try the new test features
 
 - [ ] **Diagnostic Builder** → open **Mechanical Properties of Fluids** → press **Ctrl+Shift+R** once so the new version loads.
 - [ ] The **AI solve** box should say **✅ AI solved …** (a run was started on 5 Oct). Check the **🤖 AI:** suggestions in the
@@ -42,13 +50,13 @@ Tick each box as you go.
 - [ ] **🖼 Replace image** on any row → pick the new picture → **Save test**.
 - [ ] Take the test as a student once: the multiple-correct question shows tick boxes; the numerical one shows a typing box.
 
-## 5. Organise and assign your diagnostic tests
+## 6. Organise and assign your diagnostic tests
 
 - [ ] **Diagnostic Builder** → open each test (or use **Edit** in Assign Tests) → fill **Chapter** and **Subtopic** → **Save test**.
 - [ ] **Assign Tests** tab → **Assign** (or **Activate**) → choose all / batch(es) / specific students → **Activate**.
 - [ ] Check each test's **Audience** column shows what you expect.
 
-## 6. Student-side test (needs a human — an AI cannot create accounts or enter passwords)
+## 7. Student-side test (needs a human — an AI cannot create accounts or enter passwords)
 
 - [ ] Create a throwaway student (Students tab), batch e.g. **RM01**, matching exam type.
 - [ ] Assign the **Diagnostic Dummy** test to that batch or student and activate it.
@@ -57,7 +65,7 @@ Tick each box as you go.
 - [ ] As admin, check **● Live Monitor** (alert appeared), the result's **🛡 Integrity report**, and — after the next AI run —
       **Custom Practice → 🤖 AI follow-up drafts**.
 
-## 7. Clean up after testing
+## 8. Clean up after testing
 
 - [ ] Delete the throwaway student and the **Diagnostic Dummy** test.
 - [ ] Delete the downloaded Firebase service-account `.json` from your computer if it is still there.
