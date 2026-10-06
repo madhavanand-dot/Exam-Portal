@@ -1541,7 +1541,7 @@ async function runItemAnalysis(){
       if (!s.exists()) return;
       const q = { docId: s.id, ...s.data() };
       const sec = q.section || "A";
-      let correct=0, wrong=0, blank=0, timeSum=0, timeN=0, visitSum=0, visitN=0;
+      let correct=0, wrong=0, blank=0, timeSum=0, timeN=0, visitSum=0, visitN=0, correctTimeSum=0;
       const wrongPick = {}, wrongStudents = [], blankStudents = [], timeList = [], why = {};
       atts.forEach(a => {
         const r = (a.responses||{})[q.docId] || {};
@@ -1553,7 +1553,7 @@ async function runItemAnalysis(){
         if (rr) why[rr] = (why[rr]||0) + 1;
         if (ans == null) { blank++; blankStudents.push(a.studentName); return; }
         const ok = isAnsCorrect(q, ans);
-        if (ok) correct++;
+        if (ok) { correct++; correctTimeSum += t; }
         else {
           wrong++;
           wrongStudents.push(a.studentName);
@@ -1567,6 +1567,7 @@ async function runItemAnalysis(){
         q, idx: qi+1, n, correct, wrong, blank,
         pctCorrect: iaPct(correct,correct+wrong), pctWrong: iaPct(wrong,n), pctBlank: iaPct(blank,n),
         avgTime: timeN ? timeSum/timeN : 0,
+        avgTimeCorrect: correct ? correctTimeSum/correct : 0,
         avgVisits: visitN ? visitSum/visitN : 0,
         topWrong, wrongStudents, blankStudents, why,
         slowest: timeList.sort((a,b)=>b.t-a.t).slice(0,5),
@@ -1619,6 +1620,41 @@ function iaConceptMatrix(){
     <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">✅ understood · 🟡 understood but slow · 🟠 partly · ❌ not yet — followed by the highest level cleared (Bloom / Intermediate / Advanced). "Reasons" = how many wrong/skipped questions the student explained. Build their follow-up in <b>Custom Practice</b>.</p>
     <div style="overflow:auto"><table class="tbl"><thead><tr><th>Student</th><th>Score</th>${topics.map(t=>`<th style="font-size:12px">${esc(t)}</th>`).join("")}<th>Reasons</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
+// Students whose correct answers came suspiciously fast (see fastReasons) — a list to look into, not a verdict.
+function iaFastStudents(){
+  const { atts } = iaMeta;
+  const st = classStatsFor(atts, iaRows.map(r => r.q));
+  const list = atts.map(a => {
+    const hits = [];
+    let correct = 0;
+    iaRows.forEach(r => {
+      const resp = (a.responses || {})[r.q.docId];
+      if (resp?.answer == null || !isAnsCorrect(r.q, resp.answer)) return;
+      correct++;
+      const t = (a.questionTimeSec || {})[r.q.docId] ?? resp.timeSec ?? 0;
+      const why = fastReasons(r.q, t, r.idealSec, st[r.q.docId], true);
+      if (why.length) hits.push({ r, t, why });
+    });
+    return { a, hits, correct };
+  }).filter(x => x.hits.length).sort((x, y) => y.hits.length / y.correct - x.hits.length / x.correct || y.hits.length - x.hits.length);
+  iaFastList = list;
+  return `<div class="card" style="padding:12px 14px;margin-top:10px;border-color:${list.length ? "#c0392b" : "var(--border)"}">
+    <div style="font-weight:700;color:var(--blue);margin-bottom:4px;font-size:13px">🚩 Suspiciously fast correct answers (possible copying / outside help)</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Correct answers far faster than the ideal time for a tough question, or under ${Math.round(FAST_VS_CLASS*100)}% of the average time of the others who got it right (needs ${FAST_MIN_PEERS}+ of them). A reason to look closer, not proof — check the student's result and tab-switch record.</div>
+    ${list.length ? `<table class="tbl"><thead><tr><th>Student</th><th>Batch</th><th>Score</th><th>Fast correct</th><th>Questions (time vs class avg of correct)</th><th>Tab switches</th><th></th></tr></thead><tbody>${
+      list.map((x, i) => `<tr><td><b>${esc(x.a.studentName || "")}</b></td><td>${esc(x.a._batch || "—")}</td><td>${x.a.score ?? "—"}</td>
+        <td><span class="badge ${x.hits.length / x.correct >= 0.3 ? "neg" : "zero"}">${x.hits.length} of ${x.correct}</span></td>
+        <td style="font-size:12px">${x.hits.slice(0, 8).map(h => `Q${h.r.idx}: <b>${fmtSec(h.t)}</b> vs ${h.r.correct ? fmtSec(h.r.avgTimeCorrect) : "—"}`).join(" · ")}${x.hits.length > 8 ? " …" : ""}</td>
+        <td>${(x.a.violations || []).length || 0}</td>
+        <td><button class="btn secondary" style="padding:2px 8px;font-size:12px" data-iafast="${i}">Open result</button></td></tr>`).join("")}</tbody></table>`
+      : `<div style="font-size:12.5px;color:#1e7a44">✅ No suspiciously fast correct answers in this test${iaMeta.batch ? " / batch" : ""}.</div>`}
+  </div>`;
+}
+let iaFastList = [];
+document.addEventListener("click", e => {
+  const b = e.target.closest?.("[data-iafast]"); if (!b) return;
+  const x = iaFastList[+b.dataset.iafast]; if (x) showResult({ ...x.a });
+});
 function renderItemAnalysis(){
   const { cfg, atts, batch } = iaMeta;
   const n = atts.length;
@@ -1647,7 +1683,7 @@ function renderItemAnalysis(){
     ${mini("\u{1F534} Struggled most (lowest % correct)", bySort((a,b)=>a.pctCorrect-b.pctCorrect), r=>`<b>${r.pctCorrect}%</b> correct`)}
     ${mini("⚪ Left blank most", bySort((a,b)=>b.pctBlank-a.pctBlank), r=>`<b>${r.pctBlank}%</b> skipped`)}
     ${mini("⏱ Biggest time sinks", bySort((a,b)=>b.avgTime-a.avgTime), r=>`avg <b>${fmtSec(r.avgTime)}</b>`)}
-  </div>`;
+  </div>` + iaFastStudents();
 
   // topic / chapter rollup
   const tmap = {};
@@ -1677,7 +1713,7 @@ function renderItemAnalysis(){
   $("iaWrap").innerHTML = `<h2 class="sec">Question-wise analysis</h2>
     <table class="tbl"><thead><tr>
       <th>Q</th><th>Subject</th><th>Topic</th><th>Question</th><th>Key</th>
-      <th>% Correct</th><th>Wrong</th><th>Blank</th><th>Most-picked wrong</th><th>Avg time</th><th>Ideal</th><th>Avg visits</th><th>Why (students)</th><th>Flags</th>
+      <th>% Correct</th><th>Wrong</th><th>Blank</th><th>Most-picked wrong</th><th>Avg time</th><th title="Average time of the students who got it right">Avg time (correct)</th><th>Ideal</th><th>Avg visits</th><th>Why (students)</th><th>Flags</th>
     </tr></thead><tbody>` +
     list.map(r => `<tr>
       <td><b>${r.idx}</b></td><td>${esc(r.q.subject)}</td><td>${esc(r.q.topic||"—")}</td>
@@ -1695,6 +1731,7 @@ function renderItemAnalysis(){
       <td>${r.blank} <span style="font-size:11px;color:var(--muted)">(${r.pctBlank}%)</span></td>
       <td>${r.topWrong ? `<b>${esc(r.topWrong[0])}</b> ×${r.topWrong[1]}` : "—"}</td>
       <td style="${r.avgTime>r.idealSec?'color:#a4610b;font-weight:600':''}">${fmtSec(r.avgTime)}</td>
+      <td>${r.correct ? fmtSec(r.avgTimeCorrect) : "—"}</td>
       <td>${fmtSec(r.idealSec)}</td>
       <td>${r.avgVisits ? r.avgVisits.toFixed(1) : "—"}</td>
       <td style="font-size:11.5px">${Object.entries(r.why).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${esc(REASON_TEXT[k]||k)} ×${n}`).join("<br>") || "—"}</td>
@@ -5233,6 +5270,18 @@ async function showResult(attempt){
     d.bucket = speedBucket(d.verdict, d.timeSec, d.idealSec);
   });
   lastResultDetail = detail; lastResultAttempt = attempt;
+  // everyone who sat this test (for "class" columns and staff speed flags)
+  let cls = null, clsN = 0;
+  if (attempt.examId) try {
+    const as = (await getDocs(query(collection(db,"attempts"), where("examId","==",attempt.examId)))).docs.map(d=>d.data()).filter(a=>a.submitTime!=null);
+    if (!as.some(a => a.studentUid === attempt.studentUid)) as.push(attempt);
+    cls = classStatsFor(as, detail.map(d=>d.q)); clsN = as.length;
+  } catch(e) { /* rules may restrict; class columns show dashes */ }
+  const isStaffView = currentUser && (currentUser.role === "admin" || currentUser.role === "faculty");
+  detail.forEach(d => {
+    d.cls = cls?.[d.q.docId] || null;
+    d.fast = d.verdict === "correct" ? fastReasons(d.q, d.timeSec, d.idealSec, d.cls, true) : [];
+  });
 
   // percentile + rank among all attempts of same examType
   let rank = "-", pct = "-";
@@ -5254,7 +5303,11 @@ async function showResult(attempt){
     <td><span class="badge ${d.delta>0?'pos':d.delta<0?'neg':'zero'}">${d.delta>0?'+':''}${d.delta}</span></td>
     <td style="${d.answer!=null && d.timeSec>d.idealSec?'color:#a4610b;font-weight:600':''}">${fmtSec(d.timeSec)}</td>
     <td>${fmtSec(d.idealSec)}</td>
-    <td><span class="badge ${BUCKET_LABEL[d.bucket][1]}">${BUCKET_LABEL[d.bucket][0]}</span></td>
+    <td style="white-space:nowrap">${d.cls?.n ? `<b>${d.cls.correctN}</b>/${d.cls.n} <span style="font-size:11px;color:var(--muted)">(${Math.round(100*d.cls.correctN/d.cls.n)}%)</span>` : "—"}</td>
+    <td>${d.cls?.n ? fmtSec(d.cls.timeSum/d.cls.n) : "—"}</td>
+    <td>${d.cls?.correctN ? fmtSec(d.cls.correctTimeSum/d.cls.correctN) : "—"}</td>
+    <td>${d.answer==null ? "—" : vsLabel(d.timeSec, d.cls?.correctN ? d.cls.correctTimeSum/d.cls.correctN : (d.cls?.n ? d.cls.timeSum/d.cls.n : 0), d.verdict === "correct")}</td>
+    <td><span class="badge ${BUCKET_LABEL[d.bucket][1]}">${BUCKET_LABEL[d.bucket][0]}</span>${isStaffView && d.fast.length ? ` <span class="badge neg" title="${esc(d.fast.join("; "))}">🚩 fast</span>` : ""}</td>
     <td style="font-size:12px" data-whycell="${esc(d.q.docId)}">${esc(REASON_TEXT[(attempt.reasons||{})[d.q.docId]?.r] || "")}</td></tr>`).join("");
 
   const errRows = kind => detail.filter(d=>d.verdict===kind).map((d,i) => `
@@ -5348,6 +5401,7 @@ async function showResult(attempt){
     <button class="btn" id="csvReportBtn">Download Report (CSV)</button>
     <button class="btn secondary" id="pdfReportBtn">Print / Save as PDF</button>
     <div id="timeCard"></div>
+    <div id="speedCard"></div>
     <div id="integrityCard"></div>
     <div id="whyCard"></div>
     <h2 class="sec">Subject-wise</h2>
@@ -5367,7 +5421,8 @@ async function showResult(attempt){
     <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">A level is <b>cleared</b> at 60% or more correct.</p>
     <table class="tbl"><thead><tr><th>Level</th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy</th><th>Time taken</th><th>Ideal time</th><th></th></tr></thead><tbody>${levelRows}</tbody></table>
     <h2 class="sec">Question-by-question</h2>
-    <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Level</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th><th>Time Taken</th><th>Ideal</th><th>Diagnosis</th><th>Why (student)</th></tr></thead><tbody>${qRows}</tbody></table>
+    <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Level</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th><th>Time Taken</th><th>Ideal</th><th title="Students who got it right / students who had this question">Class correct</th><th title="Average time of everyone who had this question">Class avg time</th><th title="Average time of the students who got it right">Avg time (correct)</th><th title="Your time vs the average of those who got it right">You vs class</th><th>Diagnosis</th><th>Why (student)</th></tr></thead><tbody>${qRows}</tbody></table>
+    <p style="font-size:12px;color:var(--muted);margin-top:4px">Class columns compare you with all ${clsN || "—"} student(s) who took this test.</p>
     <h2 class="sec">Error Log</h2>
     <div class="subTabs">
       <button class="active" data-etab="wrong">Wrong Answers (${detail.filter(d=>d.verdict==="wrong").length})</button>
@@ -5400,10 +5455,62 @@ async function showResult(attempt){
   let durSec = attempt.examDurationSec || (_examForOrder?.durationMin || 0) * 60;
   if (!durSec && attempt.examId) { try { durSec = ((await getDoc(doc(db,"exams",attempt.examId))).data()?.durationMin || 0) * 60; } catch(e){} }
   renderTimeSummary(attempt, detail, durSec);
+  // staff only: correct answers that came suspiciously fast
+  const fastOnes = detail.filter(d => d.fast.length);
+  if (isStaffView) $("speedCard").innerHTML = `<div class="card" style="margin:16px 0;border-color:${fastOnes.length ? "#c0392b" : "#2e8b57"}">
+    <h3 style="color:var(--blue);margin-bottom:4px">🚩 Speed check <span style="font-size:12px;font-weight:400;color:var(--muted)">(staff only — students don't see this card)</span></h3>
+    <p style="font-size:12.5px;color:var(--muted)">Correct answers given far faster than the ideal time for a tough question, or under ${Math.round(FAST_VS_CLASS*100)}% of the average time of the others who got it right. A reason to look closer, not proof.</p>
+    ${fastOnes.length ? `<p style="margin:6px 0"><b>${fastOnes.length}</b> of ${detail.filter(d=>d.verdict==="correct").length} correct answers were suspiciously fast.</p>
+    <table class="tbl"><thead><tr><th>Q#</th><th>Subject — Topic</th><th>Level</th><th>Time</th><th>Class avg (correct)</th><th>Why flagged</th></tr></thead><tbody>${
+      fastOnes.map(d => `<tr><td>${detail.indexOf(d)+1}</td><td>${esc(d.q.subject)} — ${esc(d.q.topic||"General")}</td><td>${esc(levelShort(d.q.difficulty))}</td>
+        <td style="color:#b03a2e;font-weight:600">${fmtSec(d.timeSec)}</td><td>${d.cls?.correctN ? fmtSec(d.cls.correctTimeSum/d.cls.correctN) : "—"}</td><td style="font-size:12.5px">${esc(d.fast.join("; "))}</td></tr>`).join("")}</tbody></table>`
+    : `<p style="color:#1e7a44">✅ No suspiciously fast correct answers.</p>`}</div>`;
   renderIntegrity(attempt, detail);
   renderWhyCard(attempt, detail);
   typeset($("resultWrap"));
 }
+
+// ---- class comparison: how everyone who sat the same test did on each question ----
+// attended = the question was on the student's paper; avg times count only students who attended.
+function classStatsFor(atts, qs){
+  const out = {};
+  qs.forEach(q => {
+    const st = { n: 0, answered: 0, correctN: 0, timeSum: 0, correctTimeSum: 0 };
+    atts.forEach(a => {
+      const tmap = a.questionTimeSec || {}, r = (a.responses || {})[q.docId];
+      if (!(q.docId in tmap) && !r) return;
+      const t = tmap[q.docId] ?? r?.timeSec ?? 0;
+      st.n++; st.timeSum += t;
+      if (r?.answer != null) { st.answered++; if (isAnsCorrect(q, r.answer)) { st.correctN++; st.correctTimeSum += t; } }
+    });
+    out[q.docId] = st;
+  });
+  return out;
+}
+// "Suspiciously fast" correct answer (staff only): far quicker than the ideal time for a tough question (the live
+// Monitor's rule), or under 40% of the average time of the OTHER students who got it right (needs 3+ of them and a
+// gap of 15 s+). A flag is a reason to look, not proof — strong students can be fast.
+const FAST_VS_CLASS = 0.4, FAST_MIN_PEERS = 3;
+function fastReasons(q, timeSec, idealSec, st, selfIsCorrect){
+  const why = [];
+  const thr = quickThreshold(q, idealSec);
+  if (thr && timeSec < thr) why.push(`${fmtSec(timeSec)} on a tough question (${levelShort(q.difficulty)} level, ideal ${fmtSec(idealSec)})`);
+  if (st) {
+    const peers = st.correctN - (selfIsCorrect ? 1 : 0);
+    const peerAvg = peers > 0 ? (st.correctTimeSum - (selfIsCorrect ? timeSec : 0)) / peers : 0;
+    if (peers >= FAST_MIN_PEERS && timeSec < FAST_VS_CLASS * peerAvg && peerAvg - timeSec >= 15)
+      why.push(`${fmtSec(timeSec)} vs ${fmtSec(peerAvg)} average of ${peers} others who got it right (${Math.round(100 * timeSec / peerAvg)}%)`);
+  }
+  return why;
+}
+const vsLabel = (mine, avg, colour = true) => {
+  if (!avg || mine == null) return "—";
+  const r = mine / avg;
+  if (!colour) return r >= 1.25 ? (r >= 2 ? r.toFixed(1) + "× slower" : Math.round(100 * (r - 1)) + "% slower") : r <= 0.8 ? Math.round(100 * (1 - r)) + "% faster" : "≈ same";
+  if (r >= 1.25) return `<span style="color:#b03a2e;font-weight:600">${r >= 2 ? r.toFixed(1) + "× slower" : Math.round(100 * (r - 1)) + "% slower"}</span>`;
+  if (r <= 0.8) return `<span style="color:#1e7a44;font-weight:600">${Math.round(100 * (1 - r))}% faster</span>`;
+  return "≈ same";
+};
 
 // "Where did your time go?" — splits the test time into productive time and dead time (time spent on questions
 // that were left blank or answered wrong), shows the biggest time sinks and turns it into concrete advice.

@@ -27,6 +27,19 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 - **Biggest time sinks:** the questions that took the longest and earned nothing, with time vs ideal and the number of visits.
 - Attempts now store `examDurationSec`, so unused time is exact. Older attempts take the length from the exam.
 
+### Added — compare with the class, and 🚩 suspiciously fast answers
+
+- **Question-by-question** on every result (students and staff) has four new columns:
+  - **Class correct** — how many got it right out of everyone who had the question
+  - **Class avg time**
+  - **Avg time (correct)** — average time of those who got it right
+  - **You vs class** — e.g. "37% faster" or "2.1× slower"
+- **Item Analysis** shows an **Avg time (correct)** column for each question.
+- **🚩 Speed check** (staff only, on each result) and **🚩 Suspiciously fast correct answers** (Item Analysis, whole test or batch) flag a correct answer when either:
+  - it was far quicker than the ideal time on a tough question (same rule as the Live Monitor), or
+  - it took under **40%** of the average time of the *other* students who got it right (needs 3+ of them and a gap of 15 s+).
+- Item Analysis lists the flagged students with the count (e.g. "6 of 10"), each question's time vs the class average, tab switches, and an **Open result** button. A flag is a reason to look closer, not proof.
+
 > **After merging:** nothing to publish.
 
 ---
