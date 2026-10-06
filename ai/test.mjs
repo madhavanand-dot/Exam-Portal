@@ -181,4 +181,43 @@ import { solveRequestedExams } from "./estimate.mjs";
   ok(r.answer === "B" && n === 2, "invalid JSON reply retried once");
 }
 
+{
+  // every model's answer + working is kept; extra comparison models solve too; the judge runs only on disagreement
+  const { solveRequestedExams, buildScorecard } = await import("./estimate.mjs");
+  const Qx = (id, key, extra = {}) => ({ docId: id, id, subject: "Physics", section: "A", topic: "T", difficulty: "Medium", text: `${id} text`, options: ["1","2","3","4"], correct_answer: key, examType: "medical", keySrc: "user", ...extra });
+  const qs = { A1: Qx("A1", "B"), A2: Qx("A2", "C"), A3: Qx("A3", "", { keySrc: "pending-ai" }) };
+  const ex = { docId: "EXC", title: "Compare", questionIds: ["A1", "A2", "A3"], aiSolve: { status: "queued" } };
+  const sols = {}, judged = [];
+  let card = null;
+  const st = {
+    async listSolveRequests(){ return ex.aiSolve.status === "queued" ? [structuredClone(ex)] : []; },
+    async getQuestions(ids){ return Object.fromEntries(ids.map(i => [i, { ...qs[i] }])); },
+    async patchQuestion(id, fn){ const p = fn(qs[id]); if (p) Object.assign(qs[id], p); },
+    async patchExamSolve(id, token, p){ if (token && ex.aiSolve.token !== token) return; Object.assign(ex.aiSolve, p); },
+    async writeSolution(id, d){ sols[id] = d; },
+    async listSolutions(){ return Object.values(sols); },
+    async getQuestionKeys(ids){ return Object.fromEntries(ids.map(i => [i, { correct_answer: qs[i].correct_answer, keySrc: qs[i].keySrc, section: "A" }])); },
+    async writeScorecard(c){ card = c; }
+  };
+  // A1: everyone says B (= key). A2: checker C, writer D, extra C (split). A3 (no key): all say A.
+  const ans = { A1: { c: "B", w: "B", x: "B" }, A2: { c: "C", w: "D", x: "C" }, A3: { c: "A", w: "A", x: "A" } };
+  const cfgX = { ...CONFIG_DEFAULTS, compareModels: ["extra/model-x"] };
+  const llmX = { async chat({ model, messages }){
+    const txt = messages[0].content;
+    if (/senior .* examiner/.test(txt)) { judged.push(txt); return '{"divergence":"Solver 2 used g=10 in step 3","answer":"C","misread":false,"note":""}'; }
+    const id = txt.match(/(A\d) text/)[1], who = model === CONFIG_DEFAULTS.verifyModel ? "c" : model === CONFIG_DEFAULTS.genModel ? "w" : "x";
+    return `{"working":"step 1 for ${id} by ${who}","answer":"${ans[id][who]}","confidence":0.8,"idealSec":40}`;
+  } };
+  await solveRequestedExams({ store: st, llm: llmX, cfg: cfgX, log: () => {} });
+  ok(Object.keys(sols).length === 3 && sols.A2.solvers.length === 3 && sols.A2.solvers.map(v => v.role).join() === "checker,writer,compare", "each question's record keeps all 3 models (checker, writer, extra)");
+  ok(sols.A2.solvers[1].working === "step 1 for A2 by w" && sols.A2.solvers[1].answer === "D", "each model's working and answer stored");
+  ok(judged.length === 1 && sols.A2.judge?.divergence.includes("step 3") && !sols.A1.judge && !sols.A3.judge, "judge called only for the split question, explanation stored");
+  ok(ex.aiSolve.results.A2.judge === "C", "judge's answer shown with the test's results");
+  qs.A2.correct_answer = "C";   // the teacher confirms C
+  await buildScorecard({ store: st, log: () => {} });
+  const by = Object.fromEntries(card.models.map(r => [r.model, r]));
+  ok(card.gradedQuestions === 2 && by[CONFIG_DEFAULTS.verifyModel].accuracy === 100 && by[CONFIG_DEFAULTS.genModel].accuracy === 50 && by["extra/model-x"].accuracy === 100,
+     "scorecard: graded only on teacher keys (A3's AI key skipped); checker 100%, writer 50%, extra 100%");
+}
+
 console.log(`\n${passed} passed`);

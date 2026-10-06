@@ -27,7 +27,8 @@ function solvePrompt(q, tr){
       : multi ? "ONE OR MORE options of this question are correct. Give every correct option letter together, e.g. \"AC\"."
       : "Usually exactly one option is correct: give that letter (A, B, C or D). Only if the question says more than one may be correct, or two or more options are genuinely correct, give all of them together, e.g. \"AC\".") +
     "\nAlso estimate how many seconds a well-prepared student needs to solve it in the exam (reading + working), between 20 and 240.\n" +
-    "Reply with ONLY JSON: {\"answer\":\"" + (numeric ? "number" : "letter(s)") + "\",\"confidence\":0.0-1.0,\"idealSec\":number}" }];
+    "In \"working\" give your solution in at most 8 short steps (formulas with $...$, doubled backslashes for JSON), ending with the answer.\n" +
+    "Reply with ONLY JSON: {\"working\":\"step 1 ... step n\",\"answer\":\"" + (numeric ? "number" : "letter(s)") + "\",\"confidence\":0.0-1.0,\"idealSec\":number}" }];
 }
 
 function normAnswer(a, section){
@@ -61,7 +62,8 @@ export async function chatJson(llm, { model, messages, temperature = 0, maxToken
 async function solveWith(llm, model, q, tr){
   // reasoning models think out loud first: leave room so the JSON at the end isn't cut off
   const r = await chatJson(llm, { model, messages: solvePrompt(q, tr), temperature: 0, maxTokens: 8000 });
-  return { answer: normAnswer(r.answer, q.section), confidence: Number(r.confidence), idealSec: clampSec(r.idealSec) };
+  return { answer: normAnswer(r.answer, q.section), confidence: Number(r.confidence), idealSec: clampSec(r.idealSec),
+           working: String(r.working || r.solution || "").slice(0, 2500) };
 }
 
 export async function estimateQuestions({ store, llm, cfg, log = console.log, max = 40, maxTries = 3, deadline = Infinity, now = Date.now }){
@@ -77,10 +79,8 @@ export async function estimateQuestions({ store, llm, cfg, log = console.log, ma
       const tr = await chatJson(llm, { model: cfg.visionModel, messages: transcribePrompt(q), temperature: 0, maxTokens: 1500 });
       tr.stem = String(tr.stem || "").trim();
       if (!tr.stem) throw new Error("could not read the question text from the image");
-      const [a, b] = await Promise.all([
-        solveWith(llm, cfg.verifyModel, q, tr).catch(e => ({ error: e.message })),
-        solveWith(llm, cfg.genModel, q, tr).catch(e => ({ error: e.message }))
-      ]);
+      const sol = await solveAll(llm, cfg, q, tr), { a, b } = sol;
+      await saveSolution(store, q, null, tr, sol, await judgeIfSplit(llm, cfg, q, tr, sol), cfg.visionModel);
       const agree = !a.error && !b.error && a.answer != null && sameAnswer(a.answer, b.answer, q.section);
       const conf = Math.min(isFinite(a.confidence) ? a.confidence : 0.5, isFinite(b.confidence) ? b.confidence : 0.5);
       const keyOk = agree && conf >= 0.5;
@@ -115,6 +115,50 @@ export async function estimateQuestions({ store, llm, cfg, log = console.log, ma
   return out;
 }
 
+// ---- full record of what every model did, for the teacher to compare (aiSolutions/{questionId}, staff only) ----
+// The checker and the writer decide; compareModels (AI Settings) also solve, only so their answers can be compared.
+export async function solveAll(llm, cfg, q, tr){
+  const roles = [["checker", cfg.verifyModel], ["writer", cfg.genModel], ...(cfg.compareModels || []).filter(m => m !== cfg.verifyModel && m !== cfg.genModel).map(m => ["compare", m])];
+  const t = Date.now();
+  const res = await Promise.all(roles.map(([role, model]) => solveWith(llm, model, q, tr)
+    .then(r => ({ role, model, ...r, ms: Date.now() - t })).catch(e => ({ role, model, error: String(e.message).slice(0, 300), ms: Date.now() - t }))));
+  return { a: res[0], b: res[1], all: res };
+}
+function judgePrompt(q, tr, solvers, teacherKey){
+  const opts = (tr.options || []).map((o, k) => `(${"ABCD"[k]}) ${o}`).join("\n");
+  return [{ role: "user", content: `You are a senior ${q.subject || "Physics"} examiner. Several solvers worked on the same exam question and did not all reach the same answer` +
+    (teacherKey ? `, and/or disagree with the teacher's answer key (${teacherKey})` : "") + `.\n\nQuestion (as read from the image by a vision model):\n${tr.stem}\n${opts}\n\n` +
+    solvers.map((s, i) => `Solver ${i + 1} (${s.model}) answered ${s.answer ?? "nothing"}:\n${s.working || "(no working given)"}`).join("\n\n") +
+    `\n\nFind WHERE the solutions diverge (which step, which formula or reading of the question) and decide which answer is right. ` +
+    `Also say whether the question text itself looks misread, incomplete or ambiguous (a common cause when the image was transcribed).\n` +
+    `Reply with ONLY JSON: {"divergence":"one or two sentences: where and why they differ","answer":"letter(s) or number you believe is correct, or UNSURE","misread":true|false,"note":"anything the teacher should check"}` }];
+}
+// Explain a disagreement (solvers split, or AI disagrees with the teacher's key). One extra call, only when needed.
+export async function judgeIfSplit(llm, cfg, q, tr, sol){
+  const got = sol.all.filter(s => !s.error && s.answer != null);
+  const key = String(q.correct_answer ?? "").trim();
+  const keyN = key ? normAnswer(key, q.section) : null;
+  const split = got.length >= 2 && got.some(s => !sameAnswer(s.answer, got[0].answer, q.section));
+  const vsKey = keyN != null && got.length && got.every(s => !sameAnswer(s.answer, keyN, q.section));
+  if (!split && !vsKey) return null;
+  try {
+    const j = await chatJson(llm, { model: cfg.judgeModel || cfg.genModel, messages: judgePrompt(q, tr, got, key), temperature: 0, maxTokens: 6000 });
+    return { model: cfg.judgeModel || cfg.genModel, why: split ? "solvers disagree" : "AI disagrees with your key",
+             divergence: String(j.divergence || "").slice(0, 1200), answer: String(j.answer ?? "").slice(0, 10), misread: j.misread === true, note: String(j.note || "").slice(0, 600) };
+  } catch (e) { return { model: cfg.judgeModel || cfg.genModel, error: String(e.message).slice(0, 200) }; }
+}
+async function saveSolution(store, q, examId, tr, sol, judge, visionModel){
+  if (!store.writeSolution) return;
+  try {
+    await store.writeSolution(q.docId, { questionId: q.docId, qid: q.id || q.docId, examId: examId || null, subject: q.subject || "", topic: q.topic || "",
+      section: q.section || "A", keyAtSolve: String(q.correct_answer ?? ""), at: Date.now(),
+      transcript: q.image ? { model: visionModel, stem: String(tr.stem || "").slice(0, 3000), options: (tr.options || []).map(o => String(o).slice(0, 400)) } : null,
+      solvers: sol.all.map(s => ({ role: s.role, model: s.model, answer: s.answer == null ? null : String(s.answer), confidence: isFinite(s.confidence) ? s.confidence : null,
+        idealSec: s.idealSec ?? null, working: s.working || "", error: s.error || null, ms: s.ms ?? null })),
+      judge: judge || null });
+  } catch (e) { /* a missing record must never stop the solving */ }
+}
+
 // The record verifyUserQuestions stores on a question (aiVerify), built from two solver results.
 function verifyRecord(q, a, b, stem){
   const mine = normAnswer(q.correct_answer, q.section);
@@ -142,10 +186,8 @@ export async function verifyUserQuestions({ store, llm, cfg, log = console.log, 
       const tr = await chatJson(llm, { model: cfg.visionModel, messages: transcribePrompt(q), temperature: 0, maxTokens: 1500 });
       tr.stem = String(tr.stem || "").trim();
       if (!tr.stem) throw new Error("could not read the image");
-      const [a, b] = await Promise.all([
-        solveWith(llm, cfg.verifyModel, q, tr).catch(e => ({ error: e.message })),
-        solveWith(llm, cfg.genModel, q, tr).catch(e => ({ error: e.message }))
-      ]);
+      const sol = await solveAll(llm, cfg, q, tr), { a, b } = sol;
+      await saveSolution(store, q, null, tr, sol, await judgeIfSplit(llm, cfg, q, tr, sol), cfg.visionModel);
       const rec = verifyRecord(q, a, b, tr.stem);
       const { verdict, timeVerdict, aiIdealSec: aiSec } = rec, my = Number(q.idealTimeSec) || null;
       await store.patchQuestion(q.docId, () => ({ aiVerify: rec }));
@@ -192,10 +234,9 @@ export async function solveRequestedExams({ store, llm, cfg, log = console.log, 
           }
           if (!stem) throw new Error("could not read the question");
           const tr = { stem, options: (q.section || "A") === "A" ? options : [] };
-          const [a, b] = await Promise.all([
-            solveWith(llm, cfg.verifyModel, q, tr).catch(e => ({ error: e.message })),
-            solveWith(llm, cfg.genModel, q, tr).catch(e => ({ error: e.message }))
-          ]);
+          const sol = await solveAll(llm, cfg, q, tr), { a, b } = sol;
+          const judge = await judgeIfSplit(llm, cfg, q, tr, sol);
+          await saveSolution(store, q, ex.docId, tr, sol, judge, cfg.visionModel);
           const agree = !a.error && !b.error && a.answer != null && sameAnswer(a.answer, b.answer, q.section);
           const conf = Math.min(isFinite(a.confidence) ? a.confidence : 0.5, isFinite(b.confidence) ? b.confidence : 0.5);
           const pick = agree ? a.answer : (!a.error && a.answer != null ? a.answer : !b.error && b.answer != null ? b.answer : null);
@@ -203,7 +244,7 @@ export async function solveRequestedExams({ store, llm, cfg, log = console.log, 
           const idealSec = secs.length ? Math.round(secs.reduce((s, v) => s + v, 0) / secs.length) : null;
           const note = `checker ${a.error ? "failed: " + String(a.error).slice(0, 80) : a.answer ?? "?"} / writer ${b.error ? "failed: " + String(b.error).slice(0, 80) : b.answer ?? "?"}`;
           results[id] = { answer: pick == null ? null : String(pick), agree, confidence: Math.round(conf * 100) / 100, idealSec, note,
-                          yourKey: String(q.correct_answer ?? "") };
+                          yourKey: String(q.correct_answer ?? ""), judge: judge?.answer ? judge.answer : null };
           if (agree) out.agree++; else out.unsure++;
           // record on the question what the other two steps would otherwise solve again (they skip these)
           let filled = false;
@@ -244,4 +285,43 @@ export async function solveRequestedExams({ store, llm, cfg, log = console.log, 
     }
   }
   return out;
+}
+
+// ---- model scorecard: how often each model matches the teacher's key, across every saved AI solution ----
+// Only questions whose key the teacher set (not AI-proposed) count, so the AI is never graded against itself.
+export async function buildScorecard({ store, log = console.log }){
+  if (!store.listSolutions) return null;
+  const sols = await store.listSolutions(3000);
+  const keys = await store.getQuestionKeys(sols.map(s => s.questionId));
+  const teacherSet = k => k && !["ai", "pending-ai", "ai-unsure"].includes(k.keySrc) && String(k.correct_answer ?? "").trim() !== "";
+  const m = {};
+  const row = model => (m[model] = m[model] || { model, roles: {}, tried: 0, failed: 0, graded: 0, right: 0, wrong: 0, confRight: 0, nRight: 0, confWrong: 0, nWrong: 0, secSum: 0, secN: 0, msSum: 0, msN: 0, bySubject: {} });
+  let graded = 0;
+  for (const s of sols) {
+    const k = keys[s.questionId];
+    const ok = teacherSet(k);
+    if (ok) graded++;
+    for (const v of s.solvers || []) {
+      const r = row(v.model); r.roles[v.role] = (r.roles[v.role] || 0) + 1; r.tried++;
+      if (v.ms) { r.msSum += v.ms; r.msN++; }
+      if (v.error || v.answer == null) { r.failed++; continue; }
+      if (v.idealSec) { r.secSum += v.idealSec; r.secN++; }
+      if (!ok) continue;
+      const right = sameAnswer(normAnswer(v.answer, k.section), normAnswer(k.correct_answer, k.section), k.section);
+      r.graded++; right ? r.right++ : r.wrong++;
+      if (isFinite(v.confidence)) { if (right) { r.confRight += v.confidence; r.nRight++; } else { r.confWrong += v.confidence; r.nWrong++; } }
+      const sub = s.subject || "Other", b = (r.bySubject[sub] = r.bySubject[sub] || { graded: 0, right: 0 });
+      b.graded++; if (right) b.right++;
+    }
+  }
+  const models = Object.values(m).map(r => ({ model: r.model, roles: r.roles, tried: r.tried, failed: r.failed, graded: r.graded, right: r.right, wrong: r.wrong,
+    accuracy: r.graded ? Math.round(1000 * r.right / r.graded) / 10 : null,
+    failRate: r.tried ? Math.round(1000 * r.failed / r.tried) / 10 : null,
+    confWhenRight: r.nRight ? Math.round(100 * r.confRight / r.nRight) / 100 : null, confWhenWrong: r.nWrong ? Math.round(100 * r.confWrong / r.nWrong) / 100 : null,
+    avgIdealSec: r.secN ? Math.round(r.secSum / r.secN) : null, avgSeconds: r.msN ? Math.round(r.msSum / r.msN / 1000) : null, bySubject: r.bySubject }))
+    .sort((x, y) => (y.accuracy ?? -1) - (x.accuracy ?? -1));
+  const card = { at: Date.now(), questions: sols.length, gradedQuestions: graded, models };
+  await store.writeScorecard(card);
+  log(`Scorecard: ${sols.length} solved question(s), ${graded} with a teacher key — ${models.map(x => `${x.model} ${x.accuracy ?? "—"}%`).join(", ")}`);
+  return card;
 }

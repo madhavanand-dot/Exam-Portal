@@ -86,6 +86,19 @@ export function makeStore({ serviceAccount, databaseId }){
         t.update(ref, p);
       });
     },
+    // full per-model record of one AI solve (staff compare models in the portal)
+    async writeSolution(id, d){ await db.collection("aiSolutions").doc(id).set({ ...d, at: ts(d.at) }); },
+    async listSolutions(limit){ const s = await db.collection("aiSolutions").limit(limit).get(); return s.docs.map(d => d.data()); },
+    // current keys without downloading question images
+    async getQuestionKeys(ids){
+      const out = {}, uniq = [...new Set(ids)];
+      for (let i = 0; i < uniq.length; i += 30) {
+        const s = await db.collection("questions").where(FieldPath.documentId(), "in", uniq.slice(i, i + 30)).select("correct_answer", "keySrc", "section").get();
+        s.docs.forEach(d => { out[d.id] = d.data(); });
+      }
+      return out;
+    },
+    async writeScorecard(card){ await db.collection("settings").doc("aiScorecard").set({ ...card, at: ts(card.at) }); },
     async writeStatus(st){ await db.collection("settings").doc("aiStatus").set({ ...st, lastRunAt: ts(st.lastRunAt) }, { merge: true }); },
     async writeDraft(id, draft){ await db.collection("aiDrafts").doc(id).set({ ...draft, createdAt: ts(draft.createdAt) }); }
   };
