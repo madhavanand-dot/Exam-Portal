@@ -148,13 +148,37 @@ import { solveRequestedExams } from "./estimate.mjs";
   const R = examDoc.aiSolve.results || {};
   ok(examDoc.aiSolve.status === "done" && so.exams === 1 && Object.keys(R).length === 4, "requested test solved, results stored per question");
   ok(R.S1.answer === "C" && R.S1.agree && R.S1.idealSec === 70 && qs.S1.correct_answer === "C" && qs.S1.keySrc === "ai", "blank key filled when both models agree; ideal time = average");
-  ok(R.S2.agree === false && qs.S2.correct_answer === "B" && !patched.S2, "teacher's key never overwritten; split answers flagged");
+  ok(R.S2.agree === false && qs.S2.correct_answer === "B" && !("correct_answer" in (patched.S2 || {})), "teacher's key never overwritten; split answers flagged");
   ok(R.S3.answer === "AC" && R.S3.agree, "multi-correct question solved as a set (AI told one or more are correct)");
   ok(R.S4.answer === "D" && qs.S4.correct_answer === "D", "image question transcribed and solved; wordy reply parsed to its option letter");
   examDoc.aiSolve = { status: "queued" };
   const so2 = await solveRequestedExams({ store: { ...sstore, async patchExamSolve(id, token, p){ if (!token) { Object.assign(examDoc.aiSolve, p); examDoc.aiSolve = { status: "queued" }; return; } if (examDoc.aiSolve.token !== token) return; Object.assign(examDoc.aiSolve, p); } },
     llm: sllm, cfg: CONFIG_DEFAULTS, log: () => {} });
   ok(so2.exams === 1 && examDoc.aiSolve.status === "queued" && !examDoc.aiSolve.results, "a re-request made while solving is not overwritten by the stale result");
+  // long test: the time budget runs out after 2 questions -> progress saved, status back to queued; next run resumes
+  examDoc.aiSolve = { status: "queued" };
+  Object.assign(qs.S1, { correct_answer: "", keySrc: "pending-ai", idealTimeSrc: "pending-ai" });
+  delete qs.S1.aiKeyNote;
+  Object.assign(qs.S4, { correct_answer: "C", keySrc: "user", idealTimeSec: 60 });
+  let clock = 0, calls = 0;
+  const countingLlm = { chat: async (o) => { calls++; clock += 60000; return sllm.chat(o); } };
+  const r1 = await solveRequestedExams({ store: sstore, llm: countingLlm, cfg: CONFIG_DEFAULTS, log: () => {}, budgetMs: 5 * 60000, now: () => clock });
+  const savedAfter1 = Object.keys(examDoc.aiSolve.results || {}).length;
+  ok(r1.unfinished === 1 && examDoc.aiSolve.status === "queued" && examDoc.aiSolve.partial === true && savedAfter1 >= 1 && savedAfter1 < 4, `budget hit: ${savedAfter1} saved, request re-queued`);
+  ok(qs.S1.idealTimeSrc === "ai" && qs.S1.idealTimeSec === 70 && qs.S1.keySrc === "ai", "pending key/time on the question resolved by the solve step (no second pass needed)");
+  const callsBefore = calls; clock = 0;
+  const r2 = await solveRequestedExams({ store: sstore, llm: countingLlm, cfg: CONFIG_DEFAULTS, log: () => {}, budgetMs: 60 * 60000, now: () => clock });
+  ok(examDoc.aiSolve.status === "done" && Object.keys(examDoc.aiSolve.results).length === 4 && r2.questions === 4 - savedAfter1, `next run resumed: solved only the remaining ${r2.questions}`);
+  ok(qs.S4.aiVerify?.forKey === "C" && qs.S4.aiVerify.verdict === "disagrees" && qs.S4.aiVerify.forTime === 60 && qs.S4.correct_answer === "C",
+     "teacher-keyed image question gets the review record (so the review step skips it); key untouched");
+}
+{
+  // a reply that isn't valid JSON is asked for again once
+  const { chatJson } = await import("./estimate.mjs");
+  let n = 0;
+  const flaky = { chat: async () => (++n === 1 ? '{"answer":"B" "confidence":0.9}' : '{"answer":"B","confidence":0.9}') };
+  const r = await chatJson(flaky, { model: "m", messages: [{ role: "user", content: "x" }] });
+  ok(r.answer === "B" && n === 2, "invalid JSON reply retried once");
 }
 
 console.log(`\n${passed} passed`);

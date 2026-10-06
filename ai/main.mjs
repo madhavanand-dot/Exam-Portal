@@ -53,13 +53,15 @@ let estimate = null;
 let verify = null;
 let solve = null;
 await setPhase("Solving tests teachers asked the AI to solve (key + ideal time)");
-try { solve = await solveRequestedExams({ store, llm, cfg, log }); }
+// the GitHub job is stopped at 58 min: every step gets a share and stops cleanly, continuing next run
+const deadline = startedAt + 50 * 60000;
+try { solve = await solveRequestedExams({ store, llm, cfg, log, budgetMs: 30 * 60000 }); }
 catch (e) { console.warn("Solving requested tests failed: " + e.message); solve = { error: e.message }; }
 await setPhase("Reviewing the answer keys and ideal times you entered");
-try { verify = await verifyUserQuestions({ store, llm, cfg, log }); }
+try { verify = await verifyUserQuestions({ store, llm, cfg, log, deadline: startedAt + 40 * 60000 }); }
 catch (e) { console.warn("Verification failed: " + e.message); verify = { error: e.message }; }
 await setPhase("Proposing keys and ideal times for new image questions");
-try { estimate = await estimateQuestions({ store, llm, cfg, log }); }
+try { estimate = await estimateQuestions({ store, llm, cfg, log, deadline }); }
 catch (e) { console.warn("Key/time estimation failed: " + e.message); estimate = { error: e.message }; }
 try {
   await setPhase("Writing follow-up practice for students");
