@@ -86,11 +86,17 @@ service cloud.firestore {
       allow create: if isStaff();
     }
 
+    // ---------- aiSolutions (every AI model's answer + working per question; written by the AI job) ----------
+    match /aiSolutions/{questionId} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+
     // ---------- settings (AI key & models; job status) ----------
     // ai + aiSecret: super-admins only (the API key lives in aiSecret). aiStatus is written by the job.
     match /settings/{id} {
       // aiRunner: GitHub token (Actions-only, this repo) so staff can start the AI job from the portal
-      allow read: if isSuperAdmin() || ((id == "aiStatus" || id == "aiRunner") && isStaff());
+      allow read: if isSuperAdmin() || ((id == "aiStatus" || id == "aiRunner" || id == "aiScorecard") && isStaff());
       allow write: if isSuperAdmin();
     }
 

@@ -3,7 +3,7 @@
 // variables/secrets, runs the pipeline, and reports back to settings/aiStatus (shown in the portal).
 import { run, makeLlm, resolveConfig } from "./pipeline.mjs";
 import { makeStore } from "./firestore-store.mjs";
-import { estimateQuestions, verifyUserQuestions, solveRequestedExams } from "./estimate.mjs";
+import { estimateQuestions, verifyUserQuestions, solveRequestedExams, buildScorecard } from "./estimate.mjs";
 
 const env = process.env;
 if (!env.FIREBASE_SERVICE_ACCOUNT) {
@@ -35,6 +35,8 @@ await setPhase("Checking the API key and models");
 let available = [];
 try {
   available = await llm.listModels();
+  const gone = cfg.compareModels.filter(m => !available.includes(m));
+  if (gone.length) { log("Comparison model(s) not offered by the provider, skipped: " + gone.join(", ")); cfg.compareModels = cfg.compareModels.filter(m => available.includes(m)); }
   const missing = Object.values(models).filter(m => !available.includes(m));
   if (missing.length) {
     await report(false, `Model id(s) not offered by ${cfg.baseUrl}: ${missing.join(", ")}. Pick from the suggestions in AI Settings.`, { availableModels: available.slice(0, 400) });
@@ -53,19 +55,24 @@ let estimate = null;
 let verify = null;
 let solve = null;
 await setPhase("Solving tests teachers asked the AI to solve (key + ideal time)");
-try { solve = await solveRequestedExams({ store, llm, cfg, log }); }
+// the GitHub job is stopped at 58 min: every step gets a share and stops cleanly, continuing next run
+const deadline = startedAt + 50 * 60000;
+try { solve = await solveRequestedExams({ store, llm, cfg, log, budgetMs: 30 * 60000 }); }
 catch (e) { console.warn("Solving requested tests failed: " + e.message); solve = { error: e.message }; }
 await setPhase("Reviewing the answer keys and ideal times you entered");
-try { verify = await verifyUserQuestions({ store, llm, cfg, log }); }
+try { verify = await verifyUserQuestions({ store, llm, cfg, log, deadline: startedAt + 40 * 60000 }); }
 catch (e) { console.warn("Verification failed: " + e.message); verify = { error: e.message }; }
 await setPhase("Proposing keys and ideal times for new image questions");
-try { estimate = await estimateQuestions({ store, llm, cfg, log }); }
+try { estimate = await estimateQuestions({ store, llm, cfg, log, deadline }); }
 catch (e) { console.warn("Key/time estimation failed: " + e.message); estimate = { error: e.message }; }
+let scorecard = null;
+try { await setPhase("Updating the model scorecard"); const c = await buildScorecard({ store, log }); scorecard = c ? { questions: c.questions, graded: c.gradedQuestions } : null; }
+catch (e) { console.warn("Scorecard failed: " + e.message); }
 try {
   await setPhase("Writing follow-up practice for students");
   const s = await run({ store, llm, cfg, log });
   await report(!(s.errors && !s.drafted), s.errors ? `Finished with ${s.errors} error(s) — see the queue in Custom Practice.` : "Finished normally.",
-               { summary: s, estimate, verify, solve, ...(available.length ? { availableModels: available.slice(0, 400) } : {}) });
+               { summary: s, estimate, verify, solve, scorecard, ...(available.length ? { availableModels: available.slice(0, 400) } : {}) });
   if (s.errors && !s.drafted) process.exitCode = 1;
 } catch (e) {
   await report(false, "Job crashed: " + e.message);

@@ -681,6 +681,10 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <datalist id="aiModelList"></datalist>
         </div>
         <div class="flexrow">
+          <div class="field" style="min-width:520px;flex:1"><label>Extra models to compare (optional, up to 3, comma-separated) — they also solve every question, only so you can compare them in the scorecard; they never decide a key</label>
+            <input id="aiCompareModels" list="aiModelList" placeholder="e.g. qwen/qwen3-235b-a22b, deepseek-ai/deepseek-r1"></div>
+        </div>
+        <div class="flexrow">
           <div class="field"><label>Requests / minute</label><input id="aiRpm" type="number" min="1" max="600" style="width:90px"></div>
           <div class="field"><label>New Qs per mistake</label><input id="aiPerNeed" type="number" min="1" max="5" style="width:90px"></div>
           <div class="field"><label>Max Qs per student</label><input id="aiMaxPerStudent" type="number" min="3" max="60" style="width:90px"></div>
@@ -705,6 +709,13 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <button class="btn green" id="ghRunBtn" style="margin-bottom:14px">▶ Run AI job now</button>
         </div>
         <div id="ghMsg"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 class="sec" style="margin-top:0">📊 Model scorecard — which AI to trust</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Every AI solve is kept. Each run of the AI job compares every model's answers with <b>the keys you set yourself</b>
+          (AI-proposed keys don't count, so no model is graded against itself). Use it to pick the writer / checker, and add candidates under
+          <b>Extra models to compare</b>.</p>
+        <div id="aiScoreBox" style="font-size:13px">—</div>
       </div>
       <div class="card" style="margin-top:14px">
         <h2 class="sec" style="margin-top:0">AI job — live progress</h2>
@@ -3182,9 +3193,10 @@ function dgAiSolveRender(){
   box.classList.remove("hidden");
   const when = t => t ? fmtDate(t) : "";
   const refresh = `<button class="btn secondary" style="padding:1px 8px;font-size:12px" id="dgAiRefresh">↻ Refresh</button>`;
-  if (st.status === "queued") box.innerHTML = `⏳ <b>AI solve requested</b> ${when(st.requestedAt)} — waiting for the AI job (it also runs by itself every hour at :17).
+  const sofar = st.total ? ` <b>${st.done || 0} of ${st.total}</b> questions solved so far (their suggestions already show below).` : "";
+  if (st.status === "queued") box.innerHTML = `⏳ <b>AI solve requested</b> ${when(st.requestedAt)} — ${st.partial ? "a long test is solved over several runs;" + sofar + " The next run continues" : "waiting for the AI job"} (it also runs by itself every hour at :17).
     <button class="btn green" style="padding:2px 10px;font-size:12px" id="dgAiRunNow">▶ Solve now</button> ${refresh}<div id="dgAiRunMsg" style="font-size:12px;margin-top:4px"></div>`;
-  else if (st.status === "processing") box.innerHTML = `🤖 <b>The AI is solving this test…</b> (live progress in <b>AI Settings</b>) ${refresh}`;
+  else if (st.status === "processing") box.innerHTML = `🤖 <b>The AI is solving this test…</b>${sofar} About 1–3 minutes per image question (live progress in <b>AI Settings</b>). ${refresh}`;
   else if (st.status === "error") box.innerHTML = `⚠ <b>AI solve failed:</b> ${esc(st.error||"unknown error")} — check AI Settings, then ask again. ${refresh}`;
   else {
     const rows = DG.rows.filter(r => dgAiResult(r));
@@ -3194,13 +3206,16 @@ function dgAiSolveRender(){
     box.innerHTML = `✅ <b>AI solved ${rows.length} question(s)</b> ${when(st.doneAt)}: ${withAns.length - diff} match your key, <b style="color:${diff?"#b3261e":"inherit"}">${diff} differ</b>, ${unsure} AI unsure.
       Suggestions are shown in the Answer and Ideal-time columns. <br>
       <button class="btn secondary" style="padding:2px 8px;font-size:12px;margin-top:5px" id="dgAiUseKeys" title="Only where both AI models gave the same answer">Use AI keys (where both models agree)</button>
-      <button class="btn secondary" style="padding:2px 8px;font-size:12px;margin-top:5px" id="dgAiUseTimes">Use AI ideal times</button> ${refresh}
+      <button class="btn secondary" style="padding:2px 8px;font-size:12px;margin-top:5px" id="dgAiUseTimes">Use AI ideal times</button>
+      <button class="btn secondary" style="padding:2px 8px;font-size:12px;margin-top:5px" id="dgAiCompare">🔍 Compare models on this test</button> ${refresh}
+      <div id="dgAiCompareBox"></div>
       <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Nothing is changed until you press Save. Always check differing keys yourself — the AI can be wrong.</div>`;
     $("dgAiUseKeys").onclick = () => {
       let n = 0;
       DG.rows.forEach(r => { const a = dgAiResult(r); if (a?.answer && a.agree && !dgSameKey(r, a.answer)) { r.correct_answer = String(a.answer); r.keySrc = "user"; n++; } });
       setMsg($("dgMsg"), `${n} key(s) taken from the AI — review the highlighted rows, then Save.`, true); dgRender();
     };
+    $("dgAiCompare").onclick = dgAiCompare;
     $("dgAiUseTimes").onclick = () => {
       let n = 0;
       DG.rows.forEach(r => { const a = dgAiResult(r); if (a?.idealSec && +r.idealSec !== a.idealSec) { r.idealSec = a.idealSec; r.idealSrc = "user"; n++; } });
@@ -3247,6 +3262,96 @@ $("dgAiSolveBtn").onclick = async () => {
     dgRender();
   } catch(e){ setMsg($("dgMsg"), "Could not request: " + (e.code === "permission-denied" ? "only the test's creator or an admin can do this." : e.message)); }
 };
+// ---- what every AI model did on a question (aiSolutions/{questionId}, written by the AI job) ----
+const shortModel = m => String(m || "").split("/").pop();
+const aiSameAns = (section, x, y) => {
+  if (x == null || y == null || x === "" || y === "") return false;
+  if ((section || "A") === "A") return normKey(x) === normKey(y);
+  return Math.abs(parseFloat(x) - parseFloat(y)) <= Math.max(0.01 * Math.abs(parseFloat(y)), 1e-9);
+};
+async function showAiSolution(r, n){
+  $("qpvBody").innerHTML = `<div style="color:var(--muted)">Loading the AI's working…</div>`;
+  $("qpvBack").classList.remove("hidden");
+  let d = null;
+  try { const s = await getDoc(doc(db,"aiSolutions",r.docId)); d = s.exists() ? s.data() : null; }
+  catch(e) { $("qpvBody").innerHTML = `<div class="msg err">Could not load: ${esc(e.message)} — has the updated firestore.rules been published?</div>`; return; }
+  const key = String(r.correct_answer ?? "");
+  const head = `<div style="font-size:13px;margin-bottom:8px"><b>Q${n}</b> · ${esc(r.subject)} · ${esc(r.topic || "—")} · your key <b>${esc(key || "—")}</b></div>
+    <div style="margin-bottom:10px">${r.text || ""}${imgHtml(r.image)}</div>`;
+  if (!d) { $("qpvBody").innerHTML = head + `<p style="color:var(--muted)">No AI working saved for this question yet. Use <b>🤖 Ask AI to solve this test</b> (results from 6 Oct onwards keep every model's working).</p>`; return; }
+  const sec = d.section || r.section;
+  const verdict = v => v.error ? `<span class="badge neg">failed</span>` : v.answer == null ? `<span class="badge zero">no answer</span>`
+    : key ? (aiSameAns(sec, v.answer, key) ? `<span class="badge pos">✓ matches your key</span>` : `<span class="badge neg">✗ differs from your key</span>`) : "";
+  const cols = (d.solvers || []).map(v => `<div style="flex:1;min-width:230px;border:1px solid var(--border);border-radius:8px;padding:10px;background:#fbfcfd">
+      <div style="font-size:12px;color:var(--muted)">${esc(v.role === "compare" ? "comparison model" : v.role)}</div>
+      <div style="font-weight:700;margin-bottom:4px" title="${esc(v.model)}">${esc(shortModel(v.model))}</div>
+      <div style="font-size:20px;font-weight:800;color:var(--blue)">${esc(v.answer ?? "—")}</div>
+      <div style="margin:4px 0">${verdict(v)}</div>
+      <div style="font-size:12px;color:var(--muted)">confidence ${v.confidence != null ? Math.round(v.confidence * 100) + "%" : "—"} · ideal ${v.idealSec ? v.idealSec + "s" : "—"} · took ${v.ms ? Math.round(v.ms / 1000) + "s" : "—"}</div>
+      <div style="font-size:13px;margin-top:6px;white-space:pre-wrap;line-height:1.5">${v.error ? `<span style="color:#b03a2e">${esc(v.error)}</span>` : esc(v.working || "(no working given)")}</div></div>`).join("");
+  const j = d.judge;
+  $("qpvBody").innerHTML = head + `
+    ${d.transcript ? `<details ${j?.misread ? "open" : ""} style="margin-bottom:10px;border:1px solid var(--border);border-radius:6px;padding:6px 10px"><summary style="cursor:pointer"><b>What the vision model read from the image</b> <span style="color:var(--muted);font-size:12px">(${esc(shortModel(d.transcript.model))}) — a misread here is a common reason for wrong AI answers</span></summary>
+      <div style="font-size:13.5px;margin-top:6px;white-space:pre-wrap">${esc(d.transcript.stem)}</div>
+      ${(d.transcript.options || []).some(o => String(o).trim()) ? `<div style="font-size:13px;margin-top:4px">${d.transcript.options.map((o, k) => `(${"ABCD"[k]}) ${esc(o)}`).join("<br>")}</div>` : ""}</details>` : ""}
+    ${j ? `<div style="border:1px solid #f0d49a;background:#fff8e8;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-weight:700;margin-bottom:3px">🔎 Where the difference comes from <span style="font-weight:400;font-size:12px;color:var(--muted)">(${esc(j.why || "")} — explained by ${esc(shortModel(j.model))})</span></div>
+      ${j.error ? `<div style="color:#b03a2e">Could not explain: ${esc(j.error)}</div>` : `<div style="font-size:13.5px">${esc(j.divergence)}</div>
+      <div style="font-size:13px;margin-top:4px">Its verdict: <b>${esc(j.answer || "—")}</b>${j.misread ? ` · <b style="color:#b03a2e">the question looks misread / ambiguous — check the transcription above</b>` : ""}</div>
+      ${j.note ? `<div style="font-size:12.5px;color:var(--muted);margin-top:3px">${esc(j.note)}</div>` : ""}`}</div>` : ""}
+    <div style="display:flex;gap:10px;flex-wrap:wrap">${cols}</div>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px">Solved ${fmtDate(d.at)}${d.keyAtSolve !== key ? ` · your key was <b>${esc(d.keyAtSolve || "—")}</b> at the time` : ""}. The checker and writer decide AI keys; comparison models are only for comparing.</p>`;
+  typeset($("qpvBody"));
+}
+// one test: every model's answer next to your key, plus a per-model summary
+async function dgAiCompare(){
+  const box = $("dgAiCompareBox"); box.innerHTML = `<div style="color:var(--muted);margin-top:6px">Loading…</div>`;
+  const rows = DG.rows.filter(r => !r.isNew);
+  let sols;
+  try { sols = await Promise.all(rows.map(r => getDoc(doc(db,"aiSolutions",r.docId)).then(s => s.exists() ? s.data() : null))); }
+  catch(e) { box.innerHTML = `<div class="msg err">Could not load: ${esc(e.message)} — has the updated firestore.rules been published?</div>`; return; }
+  const models = [...new Set(sols.flatMap(d => (d?.solvers || []).map(v => v.model)))];
+  if (!models.length) { box.innerHTML = `<p style="color:var(--muted);margin-top:6px">No saved AI working for this test yet — ask the AI to solve it again (runs from 6 Oct onwards keep every model's working).</p>`; return; }
+  const sum = Object.fromEntries(models.map(m => [m, { n: 0, right: 0, failed: 0, graded: 0, conf: 0, confN: 0 }]));
+  const lines = rows.map((r, i) => {
+    const d = sols[i], key = String(r.correct_answer ?? "");
+    const cells = models.map(m => {
+      const v = (d?.solvers || []).find(x => x.model === m); const S = sum[m];
+      if (!v) return `<td style="color:#bbb">·</td>`;
+      S.n++; if (v.error || v.answer == null) { S.failed++; return `<td><span class="badge neg" title="${esc(v.error || "")}">failed</span></td>`; }
+      if (v.confidence != null) { S.conf += v.confidence; S.confN++; }
+      const ok = key && aiSameAns(r.section, v.answer, key); if (key) { S.graded++; if (ok) S.right++; }
+      return `<td style="font-weight:700;color:${!key ? "inherit" : ok ? "#1e7a44" : "#b03a2e"}">${esc(v.answer)}</td>`;
+    }).join("");
+    return `<tr><td>${DG.rows.indexOf(r) + 1}</td><td><b>${esc(key || "—")}</b></td>${cells}<td style="font-size:12px;max-width:320px">${d?.judge?.divergence ? esc(d.judge.divergence) : ""}</td>
+      <td><button class="btn secondary" style="padding:0 6px;font-size:11px" data-dgcmpview="${i}">🔍</button></td></tr>`;
+  }).join("");
+  box.innerHTML = `<div style="margin-top:8px;overflow:auto">
+    <table class="tbl"><thead><tr><th>Model</th><th>Matches your key</th><th>Failed</th><th>Avg confidence</th></tr></thead><tbody>${models.map(m => { const S = sum[m];
+      return `<tr><td title="${esc(m)}"><b>${esc(shortModel(m))}</b></td><td>${S.graded ? `<b>${Math.round(100 * S.right / S.graded)}%</b> (${S.right}/${S.graded})` : "—"}</td><td>${S.failed}/${S.n}</td><td>${S.confN ? Math.round(100 * S.conf / S.confN) + "%" : "—"}</td></tr>`; }).join("")}</tbody></table>
+    <table class="tbl" style="margin-top:8px"><thead><tr><th>Q</th><th>Your key</th>${models.map(m => `<th title="${esc(m)}">${esc(shortModel(m))}</th>`).join("")}<th>Where they differ</th><th></th></tr></thead><tbody>${lines}</tbody></table>
+    <p style="font-size:12px;color:var(--muted)">Green = same as your key, red = different. "Matches your key" counts every key in this test, including ones the AI proposed — see AI Settings → Model scorecard for the fair, teacher-keys-only comparison.</p></div>`;
+  box.querySelectorAll("[data-dgcmpview]").forEach(b => b.onclick = () => { const r = rows[+b.dataset.dgcmpview]; showAiSolution(r, DG.rows.indexOf(r) + 1); });
+}
+// AI Settings: the scorecard written by the AI job (settings/aiScorecard)
+async function aiScoreLoad(){
+  const box = $("aiScoreBox"); if (!box) return;
+  try {
+    const s = await getDoc(doc(db,"settings","aiScorecard")); const c = s.exists() ? s.data() : null;
+    if (!c?.models?.length) { box.innerHTML = `<span style="color:var(--muted)">No data yet — it fills in after the AI job has solved some questions you have keyed yourself.</span>`; return; }
+    const subjects = [...new Set(c.models.flatMap(m => Object.keys(m.bySubject || {})))].sort();
+    const best = c.models.filter(m => m.graded >= 10).sort((a, b) => b.accuracy - a.accuracy)[0];
+    box.innerHTML = `<div style="margin-bottom:6px">${c.questions} question(s) solved, <b>${c.gradedQuestions}</b> with a key you set · updated ${fmtDate(c.at)}${best ? ` · most accurate so far: <b>${esc(shortModel(best.model))}</b> (${best.accuracy}%)` : ""}</div>
+      <div style="overflow:auto"><table class="tbl"><thead><tr><th>Model</th><th>Used as</th><th>Accuracy vs your keys</th><th>Failed replies</th><th title="A well-calibrated model is confident when right and unsure when wrong">Confidence when right / wrong</th><th>Avg ideal time it suggests</th><th>Avg reply time</th>${subjects.map(x => `<th>${esc(x)}</th>`).join("")}</tr></thead><tbody>${
+      c.models.map(m => `<tr><td title="${esc(m.model)}"><b>${esc(shortModel(m.model))}</b></td><td style="font-size:12px">${Object.entries(m.roles || {}).map(([k, v]) => `${esc(k)} ×${v}`).join(", ")}</td>
+        <td>${m.accuracy != null ? `<b style="color:${m.accuracy >= 80 ? "#1e7a44" : m.accuracy >= 60 ? "#a4610b" : "#b03a2e"}">${m.accuracy}%</b> <span style="font-size:11px;color:var(--muted)">(${m.right}/${m.graded})</span>` : "—"}</td>
+        <td>${m.failRate != null ? m.failRate + "%" : "—"} <span style="font-size:11px;color:var(--muted)">(${m.failed}/${m.tried})</span></td>
+        <td>${m.confWhenRight != null ? Math.round(m.confWhenRight * 100) + "%" : "—"} / ${m.confWhenWrong != null ? Math.round(m.confWhenWrong * 100) + "%" : "—"}</td>
+        <td>${m.avgIdealSec ? m.avgIdealSec + "s" : "—"}</td><td>${m.avgSeconds ? m.avgSeconds + "s" : "—"}</td>
+        ${subjects.map(x => { const b = (m.bySubject || {})[x]; return `<td>${b?.graded ? Math.round(100 * b.right / b.graded) + "%" : "—"}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>
+      <p style="font-size:12px;color:var(--muted);margin-top:4px">Fewer than ~20 graded questions per model is too few to judge. Failed replies count separately from wrong answers.</p>`;
+  } catch(e) { box.textContent = "Could not load: " + e.message + " — has the updated firestore.rules been published?"; }
+}
 // ---- replace only the picture of a question (saved or new); key, topic and times are kept ----
 let dgImgTarget = null;
 function dgPickReplaceImage(r){
@@ -3304,7 +3409,7 @@ function dgRender(){
         <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px"></td>
         <td><select data-dgf="difficulty">${levelOptions(r.difficulty)}</select></td>
         <td>${r.ai ? esc(r.section) : `<select data-dgf="section" title="MCQ = student picks option(s); Numerical = student types the answer"><option value="A" ${r.section==="A"?"selected":""}>MCQ</option><option value="B" ${r.section==="B"?"selected":""}>Numerical</option></select>`}</td>
-        <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}${dgAiSolveKeyChip(r)}</td>
+        <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}${dgAiSolveKeyChip(r)}${r.isNew ? "" : `<div><button class="btn secondary" style="padding:0 6px;font-size:11px;margin-top:3px" data-dgaiview="${i}" title="What each AI model read, answered and why">🔍 AI working</button></div>`}</td>
         <td><input data-dgf="idealSec" type="number" min="5" value="${r.idealSec}" style="width:70px"> <span style="font-size:11px;color:var(--muted)">${fmtSec(r.idealSec)}</span>${idealBadge(r)}${dgAiSolveTimeChip(r)}</td>
         <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="-1" ${i===0?"disabled":""}>↑</button>
             <button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="1" ${i===rows.length-1?"disabled":""}>↓</button></td>
@@ -3338,6 +3443,7 @@ function dgRender(){
     setTimeout(dgRender, 0);
   });
   $("dgWrap").querySelectorAll("[data-dgimg]").forEach(b => b.onclick = () => dgPickReplaceImage(DG.rows[+b.dataset.dgimg]));
+  $("dgWrap").querySelectorAll("[data-dgaiview]").forEach(b => b.onclick = () => showAiSolution(DG.rows[+b.dataset.dgaiview], DG.rows.indexOf(DG.rows[+b.dataset.dgaiview]) + 1));
   $("dgWrap").querySelectorAll("[data-dgaiuse]").forEach(b => b.onclick = () => {
     const r = DG.rows[+b.closest("[data-dg]").dataset.dg], a = dgAiResult(r);
     if (!a) return;
@@ -3990,11 +4096,11 @@ $("lmRefresh").onclick = initLive;
    ============================================================ */
 const AI_PRESET = { baseUrl: "https://integrate.api.nvidia.com/v1", genModel: "openai/gpt-oss-120b",
   verifyModel: "nvidia/llama-3.3-nemotron-super-49b-v1.5", visionModel: "meta/llama-3.2-90b-vision-instruct",
-  rpm: 30, perNeed: 2, maxPerStudent: 20, reasonWaitMin: 120 };
+  rpm: 30, perNeed: 2, maxPerStudent: 20, reasonWaitMin: 120, compareModels: "" };
 const AI_FIELDS = { aiBaseUrl: "baseUrl", aiGenModel: "genModel", aiVerifyModel: "verifyModel", aiVisionModel: "visionModel",
-  aiRpm: "rpm", aiPerNeed: "perNeed", aiMaxPerStudent: "maxPerStudent", aiReasonWait: "reasonWaitMin" };
+  aiRpm: "rpm", aiPerNeed: "perNeed", aiMaxPerStudent: "maxPerStudent", aiReasonWait: "reasonWaitMin", aiCompareModels: "compareModels" };
 async function initAiSettings(){
-  setMsg($("aiMsg"), ""); ghLoad();
+  setMsg($("aiMsg"), ""); ghLoad(); aiScoreLoad();
   try {
     const [cfg, sec, st] = await Promise.all(["ai","aiSecret","aiStatus"].map(id => getDoc(doc(db,"settings",id))));
     const c = cfg.exists() ? cfg.data() : {};

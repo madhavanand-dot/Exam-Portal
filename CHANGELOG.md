@@ -7,6 +7,40 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-06 (fix) — AI job: never lose solved answers, no duplicate solving, fewer failures; compare models
+
+Found in the GitHub logs: the AI takes 1–3 min per image question. A 25-question "solve this test" run took the whole hour,
+and the job was stopped by GitHub's 58-minute limit. The results survived only because they were written in time.
+
+- **Saved after every question.** A long test is solved over several runs: when the solve step's 30-minute share
+  is used up, the test goes back to the queue with its progress kept. The next run continues where it stopped.
+  The builder shows "**x of y** solved so far", and the suggestions already made show straight away.
+- **No duplicate work.** Solving a test now also sets the AI ideal time / "unsure" mark on questions waiting for one, and stores
+  the key review on teacher-keyed image questions. The review and proposal steps skip those (they were solving the same
+  25 questions twice more, about 45 minutes).
+- **Every step has a time budget** inside the 58-minute limit (solve 30 min, review until 40 min, proposals until 50 min) and
+  stops cleanly instead of being killed.
+- **Fewer failures.** A reply that isn't valid JSON is asked for again once (this is what failed on Q15). Solvers get more room to
+  think, so their answer isn't cut off. A failed solver's error now shows in the log.
+
+### Added — see every AI model's working, and which model to trust
+- Every AI solve now keeps **what each model did**, in a new staff-only `aiSolutions` collection:
+  - what the vision model **read from the image**
+  - each model's **answer, confidence, suggested time, reply time and step-by-step working** (or its error)
+- **🔎 Where the difference comes from:** when the models disagree, or all disagree with your key, one extra call compares their workings. It names the step where they diverge, gives a verdict, and says whether the question looks **misread** from the image.
+- **Diagnostic Builder:**
+  - **🔍 AI working** on each question opens all of the above side by side.
+  - **🔍 Compare models on this test** shows each model's answers next to your key, with % matching for each model.
+- **AI Settings:**
+  - **Extra models to compare** (up to 3): they solve every question too, but never decide a key.
+  - **📊 Model scorecard**, refreshed by every AI run, compares models **against the keys you set yourself**. It shows accuracy, failed replies, confidence when right vs wrong, suggested times, reply speed, and accuracy by subject.
+- Solvers are now asked for their working (at most 8 steps).
+
+> **After merging — publish the rules:** `firestore.rules` adds `aiSolutions` (staff read) and lets staff read `settings/aiScorecard`.
+> Workings are saved from the next AI run on; earlier solves only have the answers.
+
+---
+
 ## 2026-10-06 (later) — Mistake notebook, progress across tests, at-risk list, key / copying / quality checks
 
 ### Added — 📒 Mistake notebook (students; faculty can view)

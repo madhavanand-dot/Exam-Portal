@@ -33,6 +33,8 @@ export function resolveConfig(env = {}, ai = {}, secret = {}){
     genModel: pick(ai.genModel, env.AI_GEN_MODEL, D.genModel),
     verifyModel: pick(ai.verifyModel, env.AI_VERIFY_MODEL, D.verifyModel),
     visionModel: pick(ai.visionModel, env.AI_VISION_MODEL, D.visionModel),
+    // extra models that also solve every question, only to compare them (they never decide a key); max 3
+    compareModels: [...new Set(String(pick(ai.compareModels, env.AI_COMPARE_MODELS, "")).split(/[\s,]+/).map(x => x.trim()).filter(Boolean))].slice(0, 3),
     rpm: num(ai.rpm, env.AI_RPM, D.rpm, 1, 600),
     perNeed: num(ai.perNeed, env.AI_PER_NEED, D.perNeed, 1, 5),
     maxPerStudent: num(ai.maxPerStudent, env.AI_MAX_PER_STUDENT, D.maxPerStudent, 3, 60),
