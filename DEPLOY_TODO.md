@@ -1,6 +1,6 @@
 # Deploy TODO
 
-What is still needed to finish the latest work. PRs #2–#9 are **merged** and the website is live — see [CHANGELOG.md](CHANGELOG.md).
+What is still needed to finish the latest work. PRs #2–#11 are **merged** and the website is live — see [CHANGELOG.md](CHANGELOG.md).
 Tick each box as you go.
 
 > **For a browser agent (e.g. Claude in Chrome):** steps marked 🔐 handle secrets. Pause and let the person do those themselves.
@@ -8,12 +8,15 @@ Tick each box as you go.
 
 ---
 
-## 1. Publish the Firestore rules (2 min) — needed for ▶ Solve now and the mistake notebook
+## 1. Publish the Firestore rules (2 min) — do this first
+
+Needed for: ▶ Solve now, the mistake notebook, 🔍 AI working, Compare models and the Model scorecard.
 
 - [ ] Open [`firestore.rules`](firestore.rules) on GitHub → copy everything.
 - [ ] Firebase Console → project **aakash-exam-portal** → **Firestore Database** → database **default** → **Rules** tab →
       select all, paste → **Publish**.
-- [ ] **Check:** the portal → **AI Settings** loads without "has the updated firestore.rules been published?".
+- [ ] **Check:** the portal → **AI Settings** loads without "has the updated firestore.rules been published?", and the
+      **📊 Model scorecard** card says "No data yet" (not "Could not load").
 
 ## 2. 🔐 Create a GitHub token for one-click AI runs (3 min)
 
@@ -31,7 +34,20 @@ Tick each box as you go.
 - [ ] Press **▶ Run AI job now** → it should say **"AI job started"**.
 - [ ] **Check:** within about a minute **AI job — live progress** shows **● RUNNING**.
 
-## 4. Try the new analysis features
+## 4. Re-solve the Fluids test with the new AI (keeps every model's working)
+
+- [ ] Optional: **AI Settings** → **Extra models to compare** → add 1–2 model ids from the suggestions → **Save settings**.
+- [ ] **Diagnostic Builder** → **Ctrl+Shift+R** → open **Mechanical Properties of Fluids** → **🤖 Ask AI to solve this test**.
+- [ ] Press **▶ Solve now** (or ask Claude to "run the AI job"). Allow 30–60 min; a long test continues on the next run by itself.
+- [ ] **↻ Refresh**, then check the questions where the AI disagreed with your key last time:
+      **Q3** (AI C, yours D), **Q4** (AI D, yours B), **Q25** (AI D, yours B), and Q5, Q9, Q10, Q12, Q21.
+      Open **🔍 AI working** on each: read what the vision model read, each model's steps and **Where the difference comes from**.
+- [ ] Set a key for **Q16** (it has none — the test can't be activated without it) → **Save test**; re-grade if offered.
+- [ ] **🔍 Compare models on this test** → note which model matched your keys most.
+- [ ] After a few tests: **AI Settings → 📊 Model scorecard** → once a model has 20+ graded questions and beats the current
+      writer or checker, put it in that box and **Save settings**.
+
+## 5. Try the new analysis features
 
 - [ ] **Item Analysis** → pick a test with 6+ students → **Analyse**. Check the **🔑 Answer-key check**,
       **📐 Question quality** and **👥 Possible copying** cards under the summary, and the **Quality (D)** column.
@@ -39,24 +55,21 @@ Tick each box as you go.
 - [ ] As a student: dashboard → **📒 My Mistake Notebook** → **Show question & answer**, tick **Cleared**, try **🔁 Retry**.
 - [ ] Open any result: the **⏱ Where did your time go?** card, the class columns, and (as staff) the **🚩 Speed check** card.
 
-## 5. Try the new test features
+## 6. Try the new test features
 
-- [ ] **Diagnostic Builder** → open **Mechanical Properties of Fluids** → press **Ctrl+Shift+R** once so the new version loads.
-- [ ] The **AI solve** box should say **✅ AI solved …** (a run was started on 5 Oct). Check the **🤖 AI:** suggestions in the
-      Answer and Ideal-time columns; use **Use** / **Use AI keys** / **Use AI ideal times** where you agree → **Save test**.
-      (If it still says waiting, press **▶ Solve now**, wait ~10 min, then **↻ Refresh**.)
+- [ ] In the Fluids test, use **Use** / **Use AI keys** / **Use AI ideal times** where you agree with the AI → **Save test**.
 - [ ] Multiple correct: tick two boxes in the **Answer** column for a question → it shows **☑ multiple correct**.
 - [ ] Numerical: change a row's **Sec** dropdown to **Numerical** and type the answer.
 - [ ] **🖼 Replace image** on any row → pick the new picture → **Save test**.
 - [ ] Take the test as a student once: the multiple-correct question shows tick boxes; the numerical one shows a typing box.
 
-## 6. Organise and assign your diagnostic tests
+## 7. Organise and assign your diagnostic tests
 
 - [ ] **Diagnostic Builder** → open each test (or use **Edit** in Assign Tests) → fill **Chapter** and **Subtopic** → **Save test**.
 - [ ] **Assign Tests** tab → **Assign** (or **Activate**) → choose all / batch(es) / specific students → **Activate**.
 - [ ] Check each test's **Audience** column shows what you expect.
 
-## 7. Student-side test (needs a human — an AI cannot create accounts or enter passwords)
+## 8. Student-side test (needs a human — an AI cannot create accounts or enter passwords)
 
 - [ ] Create a throwaway student (Students tab), batch e.g. **RM01**, matching exam type.
 - [ ] Assign the **Diagnostic Dummy** test to that batch or student and activate it.
@@ -65,7 +78,7 @@ Tick each box as you go.
 - [ ] As admin, check **● Live Monitor** (alert appeared), the result's **🛡 Integrity report**, and — after the next AI run —
       **Custom Practice → 🤖 AI follow-up drafts**.
 
-## 8. Clean up after testing
+## 9. Clean up after testing
 
 - [ ] Delete the throwaway student and the **Diagnostic Dummy** test.
 - [ ] Delete the downloaded Firebase service-account `.json` from your computer if it is still there.
@@ -79,5 +92,8 @@ Tick each box as you go.
 - **Live progress says "Could not read status":** republish `firestore.rules` (staff must be able to read `settings/aiStatus`).
 - **Live progress shows "No update for 10+ min":** the run was cancelled or crashed — open the run under Actions for the error.
 - **Stop the AI job:** AI Settings → untick **AI job enabled** → **Save settings**.
+- **AI run cancelled at ~58 min:** nothing is lost any more — solved questions are saved one by one and the next run continues.
+  If a model keeps failing (see 🔍 AI working → "failed", or the scorecard's *Failed replies*), replace it in AI Settings.
+- **AI working / scorecard says "Could not load":** the rules from step 1 aren't published yet.
 
 When everything above is ticked, this file can be deleted.
