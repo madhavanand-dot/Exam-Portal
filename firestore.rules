@@ -11,6 +11,10 @@ service cloud.firestore {
     function isSuperAdmin() { return myRole() == "admin"; }
     function isStaff()      { return myRole() == "admin" || myRole() == "faculty"; }
     function isSelf(uid)    { return signedIn() && request.auth.uid == uid; }
+    // a student the admin temporarily deactivated (users/{uid}.active == false) can't write attempts or practice
+    function isActiveUser() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("active", true) != false;
+    }
 
     // ---------- users ----------
     match /users/{uid} {
@@ -49,10 +53,10 @@ service cloud.firestore {
       // Tighten to own + staff if score privacy matters more than client percentile.
       allow read: if signedIn();
       // a student creates/updates only their own attempt
-      allow create: if signedIn() &&
+      allow create: if signedIn() && isActiveUser() &&
         request.resource.data.studentUid == request.auth.uid;
       allow update: if isStaff() ||
-        (signedIn() && resource.data.studentUid == request.auth.uid
+        (signedIn() && isActiveUser() && resource.data.studentUid == request.auth.uid
                     && request.resource.data.studentUid == request.auth.uid);
       allow delete: if isStaff();
     }
@@ -72,9 +76,9 @@ service cloud.firestore {
       // a student sees only their own; staff can review all
       allow read: if isStaff() ||
         (signedIn() && resource.data.studentUid == request.auth.uid);
-      allow create: if signedIn() &&
+      allow create: if signedIn() && isActiveUser() &&
         request.resource.data.studentUid == request.auth.uid;
-      allow update: if signedIn() && resource.data.studentUid == request.auth.uid
+      allow update: if signedIn() && isActiveUser() && resource.data.studentUid == request.auth.uid
                     && request.resource.data.studentUid == request.auth.uid;
       allow delete: if isStaff();
     }
