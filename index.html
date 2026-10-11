@@ -655,6 +655,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div class="flexrow" style="margin-top:10px">
           <button class="btn green" id="dgSaveBtn">Save test</button>
           <button class="btn secondary" id="dgRegradeBtn" title="Recompute scores of submitted attempts with the current key and question list">Re-grade submitted attempts</button>
+          <button class="btn secondary" id="dgConfirmAllBtn" title="Mark every AI-proposed key in this test as checked by you (then Save test)">✓ Confirm all AI keys</button>
           <button class="btn secondary" id="dgAiSolveBtn" title="After saving: the AI job solves every question of this test and suggests an answer key and an ideal time for each">🤖 Ask AI to solve this test (key + time)</button>
         </div>
         <div id="dgLog" class="hidden" style="max-height:200px;overflow-y:auto;font-size:12.5px;font-family:ui-monospace,monospace;background:#f7f9fb;border:1px solid var(--border);border-radius:4px;padding:8px;margin-top:8px;white-space:pre-wrap"></div>
@@ -2024,7 +2025,7 @@ async function renderMistakenModels(box, NB){
     const mine = new Set(g.items.map(i => i.id));
     const allMine = new Set(open.map(i => i.id));   // never suggest a question the student already got wrong
     const same = entries.filter(e => !allMine.has(e.i) && !mine.has(e.i) && (e.t || "") === g.topic &&
-      (g.model ? (e.m || "") === g.model : true) && lvlIdx(e.d) <= g.R.max)
+      (g.model ? (e.m || "") === g.model : true) && lvlIdx(e.d) <= g.R.max && !e.u)   // only teacher-confirmed keys
       // closest to the preferred level first, teacher-confirmed keys before AI-proposed ones
       .sort((a, b) => Math.abs(lvlIdx(a.d) - g.R.prefer) - Math.abs(lvlIdx(b.d) - g.R.prefer) || (a.u ? 1 : 0) - (b.u ? 1 : 0));
     return { ...g, pool: same, ai: same.filter(e => e.a).length, wrong: g.items.filter(i => i.last.verdict === "wrong").length };
@@ -3514,9 +3515,9 @@ function dgAiPreview(r){
     </details></div>`;
 }
 const keyBadge = r => r.keySrc === "pending-ai" && !r.correct_answer ? `<div style="font-size:11px;color:#2563a8">🤖 AI will propose</div>`
-  : r.keySrc === "ai" ? `<div style="font-size:11px;color:#2563a8" title="${esc(r.aiKeyNote)}">🤖 AI-proposed — check it</div>`
+  : r.keySrc === "ai" ? `<div style="font-size:11px;color:#2563a8" title="${esc(r.aiKeyNote)}">🤖 AI-proposed — check it ${r.correct_answer ? `<button class="btn secondary" style="padding:0 6px;font-size:11px" data-dgconfirm title="I checked this key: mark it teacher-confirmed (students' practice suggestions only use confirmed keys)">✓ Confirm</button>` : ""}</div>`
   : r.keySrc === "ai-unsure" && !r.correct_answer ? `<div style="font-size:11px;color:#b3261e" title="${esc(r.aiKeyNote)}">⚠ AI unsure — you set it</div>`
-  : r.keySrc === "user" ? `<div style="font-size:11px;color:var(--muted)">set by you</div>` : "";
+  : r.keySrc === "user" ? `<div style="font-size:11px;color:var(--muted)">${r.keyConfirmedNow ? "✓ confirmed (save to keep)" : "set by you"}</div>` : "";
 const reusedBadge = r => r.reused ? `<div style="font-size:11px;color:#1e7a44" title="This picture was already in the bank: the same question (and its key) is used here">♻ already in bank</div>` : "";
 const idealBadge = r => r.idealSrc === "pending-ai" ? `<div style="font-size:11px;color:#2563a8">🤖 AI will set</div>` : r.idealSrc === "ai" ? `<div style="font-size:11px;color:#2563a8">🤖 AI</div>` : "";
 // ---- AI solve: after a test is saved, the AI job solves every question and suggests a key + ideal time ----
@@ -3600,7 +3601,7 @@ async function dgAiSolveRefresh(){
 }
 $("dgAiSolveBtn").onclick = async () => {
   if (!DG.examDocId) { setMsg($("dgMsg"), "Save the test first — the AI solves the saved version."); return; }
-  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.section !== r.origSection);
+  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.keyConfirmedNow || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.section !== r.origSection);
   if (unsaved) { setMsg($("dgMsg"), "You have unsaved changes — press Save test first, then ask the AI."); return; }
   if (DG.aiSolve?.status === "queued" || DG.aiSolve?.status === "processing") { setMsg($("dgMsg"), "The AI has already been asked to solve this test — wait for it, then Refresh.", true); return; }
   if (!confirm(`Ask the AI to solve all ${DG.rows.length} question(s) of this test?\n\nTwo AI models solve each question independently and suggest an answer key and an ideal time. ` +
@@ -3804,9 +3805,21 @@ function dgRender(){
   $("dgWrap").querySelectorAll("[data-dgaiuse]").forEach(b => b.onclick = () => {
     const r = DG.rows[+b.closest("[data-dg]").dataset.dg], a = dgAiResult(r);
     if (!a) return;
-    if (b.dataset.dgaiuse === "key" && a.answer) { r.correct_answer = String(a.answer); r.keySrc = "user"; }
+    if (b.dataset.dgaiuse === "key" && a.answer) { r.correct_answer = String(a.answer); r.keySrc = "user"; r.keyConfirmedNow = true; }
     if (b.dataset.dgaiuse === "time" && a.idealSec) { r.idealSec = a.idealSec; r.idealSrc = "user"; }
     dgRender();
+  });
+  // ✓ Confirm: the teacher checked an AI-proposed key — saved as teacher-set even when the letter doesn't change
+  $("dgConfirmAllBtn").onclick = () => {
+    const todo = DG.rows.filter(r => r.keySrc === "ai" && r.correct_answer);
+    if (!todo.length) { setMsg($("dgMsg"), "No AI-proposed keys to confirm in this test."); return; }
+    if (!confirm(`Confirm ${todo.length} AI-proposed key(s) as checked by you? Only do this after checking them.`)) return;
+    todo.forEach(r => { r.keySrc = "user"; r.keyConfirmedNow = true; });
+    dgRender(); setMsg($("dgMsg"), `${todo.length} key(s) marked confirmed — press Save test to keep it.`, true);
+  };
+  $("dgWrap").querySelectorAll("[data-dgconfirm]").forEach(b => b.onclick = () => {
+    const r = DG.rows[+b.closest("[data-dg]").dataset.dg];
+    r.keySrc = "user"; r.keyConfirmedNow = true; dgRender();
   });
   dgAiSolveRender();
   $("dgWrap").querySelectorAll("[data-dgmv]").forEach(b => b.onclick = () => {
@@ -3842,7 +3855,7 @@ async function dgSave(){
   const errs = dgValidate();
   if (errs.length) { setMsg($("dgMsg"), errs.slice(0,6).join("  ") + (errs.length>6?` …and ${errs.length-6} more.`:"")); log.classList.add("hidden"); return; }
   const newRows = DG.rows.filter(r => r.isNew);
-  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
+  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.keyConfirmedNow || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
   const imgEdits = edits.filter(r => r.imgChanged);
   const keyEdits = edits.filter(r => r.correct_answer !== r.origAnswer || r.section !== r.origSection);
   const shared = keyEdits.filter(r => examsCache.some(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId))).length;
@@ -3886,7 +3899,7 @@ async function dgSave(){
     const keyShare = newRows.filter(r => hasKey(r) && (r.imgHash || r.srcHash));   // keys to copy onto the same picture elsewhere
     for (const r of edits) {
       const upd = {};
-      if (r.correct_answer !== r.origAnswer) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
+      if (r.correct_answer !== r.origAnswer || r.keyConfirmedNow) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
       if (r.topic !== r.origTopic) upd.topic = r.topic;
       if ((r.model||"") !== (r.origModel||"")) upd.model = r.model || "";
       if (r.difficulty !== r.origDiff) upd.difficulty = r.difficulty;
@@ -3899,7 +3912,7 @@ async function dgSave(){
                           upd.imgHash = (await imgHashOf(r.image)) || deleteField(); upd.srcHash = deleteField(); }
       try {
         await updateDoc(doc(db,"questions",r.docId), upd);
-        if (upd.correct_answer !== undefined) { keysSaved++; keyShare.push(r); }
+        if (upd.correct_answer !== undefined) { if (r.correct_answer !== r.origAnswer || r.section !== r.origSection) keysSaved++; keyShare.push(r); r.keyConfirmedNow = false; }
         if (r.imgChanged) { r.imgHash = typeof upd.imgHash === "string" ? upd.imgHash : null; r.srcHash = null; }
         r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origModel = r.model || ""; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false;
         say(`Updated ${r.q?.id||r.docId}: ${Object.entries(upd).filter(([k])=>!["image","imageUpdatedAt","aiVerify"].includes(k)).map(([k,v])=>`${k} → ${v}`).concat(upd.image?["new image"]:[]).join(", ")}`);
@@ -4221,7 +4234,7 @@ function cpPlan(att, opts){
     const L = lvlIdx(n.q.difficulty), topic = (n.q.topic||"").trim().toLowerCase();
     let pool = (bank[n.q.subject] || []).filter(e => (e.t||"").trim().toLowerCase() === topic && !examIds.has(e.i) && !picked.has(e.i));
     const R = levelRule(n.group, n.q.difficulty), model = String(n.q.model || "").trim();
-    pool = pool.filter(e => lvlIdx(e.d) <= R.max);   // never harder than the rule allows
+    pool = pool.filter(e => lvlIdx(e.d) <= R.max && !e.u);   // never harder than the rule allows; confirmed keys only
     // closest to the preferred level, then the same question model, then teacher-confirmed keys
     const rank = e => Math.abs(lvlIdx(e.d) - R.prefer) * 4 + (model && (e.m || "") !== model ? 2 : 0) + (e.u ? 1 : 0);
     // shuffle, then a stable sort: random only among equally-suitable questions, so two students
