@@ -7,6 +7,29 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — Model Bank, Safe import, ✓ Confirm keys, solution images, Easy / Moderate / Hard
+
+**After deploying: publish the updated `firestore.rules`** (new `taxonomy`, `bankIndex`, `settings/taxonomyAccess`),
+then **Topics → Rebuild practice index** (builds the bank index the Model Bank counts from).
+
+- **📚 Model Bank** (admin-only tab): upload one question-model taxonomy per chapter as JSON (groups → numbered models
+  with exam level NEET / JEE MAIN / JEE ADV and the failure mechanism). Click a chapter → a table of every model with
+  its **usable questions at Easy / Moderate / Hard** (teacher-confirmed keys, each picture once), AI-proposed / missing
+  keys, red gaps; click a model → its questions in three columns. Questions not linked to any model are listed.
+  **👁 Student view access**: pick students who may view it (read-only, answers behind "Show answer") on their dashboard.
+- **`modelCode`** on questions links them to a taxonomy model (within the chapter); used by the notebook, Mistaken
+  models to practice, Custom Practice and the AI writer. The Diagnostic Builder's model box offers the chapter's
+  models as "code · name".
+- **Safe import** (Questions tab, on by default): fingerprints pictures, checks the bank first, skips unchanged rows
+  and duplicate pictures, never overwrites a teacher-confirmed key (conflict), asks before writing, downloads a report.
+  Bulk Import flags file-name keys that disagree with a teacher-confirmed key of the same picture.
+- **✓ Confirm** AI-proposed keys (per question, or all at once). Post-mistake suggestions use confirmed keys only.
+- **Solution images** (`solutionImage`): attach in the builder or upload in JSON; shown only after the test
+  (notebook, practice feedback, result review, Model Bank).
+- **Levels are shown as Easy / Moderate / Hard** everywhere (stored values unchanged).
+
+---
+
 ## 2026-10-11 — Difficulty ceiling for questions suggested after a mistake
 
 Rule (same in the portal and the AI job): a **concept gap** gets questions one level below the missed one (an Easy
