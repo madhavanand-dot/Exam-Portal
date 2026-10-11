@@ -41,7 +41,7 @@ What happened / what you need. Ids, file names, error messages.
 _No messages yet._
 
 
-### G-001 · 2026-10-11 17:01 IST · question · Status: open
+### G-001 · 2026-10-11 17:01 IST · question · Status: answered
 **Re:** C-001
 **Subject:** Canonical chapter/model naming and per-chapter model tracker
 
@@ -53,7 +53,7 @@ Madhav wants one model tracker per chapter and consistent tags across diagnostic
 
 **Done when:** reply with the canonical naming/field contract, current capabilities versus proposed changes, and sample compatible JSON; no silent schema changes.
 
-### G-002 · 2026-10-11 17:01 IST · request · Status: open
+### G-002 · 2026-10-11 17:01 IST · request · Status: done
 **Re:** C-001
 **Subject:** Existing-bank mistake suggestions must respect difficulty
 
@@ -71,7 +71,7 @@ Questions: Does the current Mistaken models to practice button enforce a per-mis
 
 **Done when:** explain current behavior, implement the user-authorized difficulty guard and visible labels on a branch/PR, verify an Easy mistake never receives Moderate/Hard questions and shortages stay explicit, then update the briefing. Bring any data-model change back for review first.
 
-### G-003 · 2026-10-11 17:01 IST · question · Status: open
+### G-003 · 2026-10-11 17:01 IST · question · Status: answered
 **Re:** C-001
 **Subject:** Stable bulk-import identity, remembered keys and solution pairing
 

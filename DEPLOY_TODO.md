@@ -102,6 +102,18 @@ Do step 1 (publish the rules) first — students now read `settings/portal` (pra
       **Study Packages** tracker shows ◐ then ✅ after submitting.
 - [ ] In the Diagnostic Builder, add a picture you already keyed in another test → it shows **♻ already in bank** with the key.
 
+## 12. Model Bank and the new upload checks (PR #17)
+
+- [ ] Publish `firestore.rules` again (step 1) — adds the Model Bank collections.
+- [ ] **Topics → Rebuild practice index** (builds the bank index).
+- [ ] **Model Bank** tab → upload `Current_Electricity_taxonomy.json` (given to you in the Claude chat) → open the chapter.
+- [ ] **👁 Student view access** → tick the students who may view it → **Save access**. Check as one of them that
+      **📚 Model Bank** appears on their dashboard.
+- [ ] Diagnostic Builder → a Current Electricity question → model box → pick "code · name" from the list → **Save test**;
+      rebuild the index; the Model Bank counts it.
+- [ ] Questions tab → upload a small JSON twice with **Safe import** ticked: the second time everything is "unchanged".
+- [ ] Diagnostic Builder → a question with "🤖 AI-proposed" → **✓ Confirm** → **Save test**.
+
 ## 9. Clean up after testing
 
 - [ ] Delete the throwaway student and the **Diagnostic Dummy** test.

@@ -49,9 +49,9 @@ export function resolveConfig(env = {}, ai = {}, secret = {}){
 }
 
 const LEVELS = [
-  { key: "Easy",   name: "Bloom",        desc: "direct recall or a single-step application of one NCERT idea" },
-  { key: "Medium", name: "Intermediate", desc: "two to three steps, applying the concept in a slightly new situation" },
-  { key: "Hard",   name: "Advanced",     desc: "multi-step or multi-concept analysis, NEET/JEE top-end difficulty" }
+  { key: "Easy",   name: "Easy",     desc: "direct recall or a single-step application of one NCERT idea" },
+  { key: "Medium", name: "Moderate", desc: "two to three steps, applying the concept in a slightly new situation" },
+  { key: "Hard",   name: "Hard",     desc: "multi-step or multi-concept analysis, NEET/JEE top-end difficulty" }
 ];
 const normLevel = v => {
   const t = String(v || "").trim().toLowerCase();
@@ -61,6 +61,13 @@ const normLevel = v => {
 };
 const lvl = k => LEVELS.find(l => l.key === normLevel(k));
 const lvlIdx = k => LEVELS.findIndex(l => l.key === normLevel(k));
+// Difficulty ceiling for new questions after a mistake (same rule as levelRule in index.html):
+// concept gap → one level below the missed question (Easy stays Easy); accuracy slip → same level; speed → same or easier.
+export function levelRule(group, missedLevel){
+  const L = Math.max(0, lvlIdx(missedLevel));
+  if (group === "accuracy" || group === "speed") return { max: L, prefer: L };
+  return { max: Math.max(0, L - 1), prefer: Math.max(0, L - 1) };
+}
 const IDEAL_DEFAULTS = { medical: { Easy: 45, Medium: 60, Hard: 90 }, engineering: { Easy: 90, Medium: 120, Hard: 180 } };
 const defaultIdeal = (q, examType) => {
   const d = IDEAL_DEFAULTS[examType] || IDEAL_DEFAULTS.medical;
@@ -112,9 +119,9 @@ export function studentNeeds(att, exam, qById){
 export function groupNeeds(needs, cfg){
   const m = new Map();
   for (const n of needs) {
-    const model = String(n.q.model || "").trim();
-    const k = [n.q.subject, (n.q.topic || "").trim().toLowerCase(), model.toLowerCase(), normLevel(n.q.difficulty), n.group].join("|");
-    if (!m.has(k)) m.set(k, { subject: n.q.subject, topic: n.q.topic || "General", model, level: normLevel(n.q.difficulty), group: n.group, needs: [] });
+    const model = String(n.q.model || "").trim(), modelCode = String(n.q.modelCode || "").trim();
+    const k = [n.q.subject, (n.q.topic || "").trim().toLowerCase(), (modelCode || model).toLowerCase(), normLevel(n.q.difficulty), n.group].join("|");
+    if (!m.has(k)) m.set(k, { subject: n.q.subject, topic: n.q.topic || "General", model: model || modelCode, modelCode, level: normLevel(n.q.difficulty), group: n.group, needs: [] });
     m.get(k).needs.push(n);
   }
   const order = { concept: 0, accuracy: 1, speed: 2 };
@@ -144,9 +151,9 @@ function qText(q){
   return `${q._text || q.text || "(image question)"}${opts.trim() ? "\nOptions: " + opts : ""}\nCorrect answer: ${q.correct_answer}`;
 }
 export function genPrompt(g, exam, examples){
-  const L = lvl(g.level);
+  const L = lvl(g.level), T = LEVELS[levelRule(g.group, g.level).max];
   const purpose = {
-    concept: `The student has NOT understood this concept. Write questions that rebuild it step by step: start at the Bloom level and climb to the ${L.name} level. Each question must target the specific idea the student missed.`,
+    concept: `The student has NOT understood this concept (they missed a ${L.name}-level question). Write questions that rebuild it step by step at the ${T.name} level${T.key === "Easy" ? "" : " or easier"} — never harder. Each question must target the specific idea the student missed.`,
     accuracy: `The student understands the concept but made an accuracy error. Write questions at the ${L.name} level that contain the same kind of trap (careful reading, multi-step arithmetic, sign/unit handling, close distractors) so they practise precision.`,
     speed: `The student is too slow on this topic. Write questions at the ${L.name} level or easier that a well-prepared student solves within the ideal time using a direct method or shortcut.`
   }[g.group];
@@ -157,7 +164,7 @@ export function genPrompt(g, exam, examples){
     { role: "system", content: `You are an expert ${EXAM_NAME[exam.examType] || "NEET"} ${g.subject} question setter for an Indian coaching institute. You write original, syllabus-accurate (NCERT) single-correct MCQs. You reply with JSON only.` },
     { role: "user", content:
 `Topic: ${g.topic} (${g.subject})${g.model ? `\nQuestion model: ${g.model} — every new question must be of this same model (same type of problem), with new numbers/context` : ""}
-Target level: ${L.name} — ${L.desc}
+Target level: ${T.name} — ${T.desc} (never harder than this)
 Purpose: ${purpose}
 
 ${src}${ex}
@@ -167,11 +174,11 @@ Rules:
 - Exactly 4 options, exactly ONE correct. Distractors must be plausible (common student errors).
 - Different numbers/context from the source questions — never copy them.
 - Self-contained text; no figure or diagram needed. Use $...$ for math and write every LaTeX backslash doubled for JSON (e.g. "$\\\\frac{1}{2}mv^2$"). No line breaks inside strings; use <br> if needed.
-- "level" is one of "Bloom", "Intermediate", "Advanced". "idealSec" = seconds a well-prepared student needs.
+- "level" is one of "Easy", "Moderate", "Hard". "idealSec" = seconds a well-prepared student needs.
 - "solution" = a short worked solution ending with the answer letter.
 
 Reply with ONLY this JSON:
-{"questions":[{"stem":"...","options":["...","...","...","..."],"answer":"A","solution":"...","level":"Intermediate","idealSec":60}]}` }
+{"questions":[{"stem":"...","options":["...","...","...","..."],"answer":"A","solution":"...","level":"Moderate","idealSec":60}]}` }
   ];
 }
 export function verifyPrompt(item, exam){
@@ -205,8 +212,11 @@ function cleanItem(raw, g){
   const ans = String(raw?.answer || "").trim().toUpperCase().replace(/[^A-D]/g, "").slice(0, 1);
   const stem = String(raw?.stem || "").trim();
   if (!stem || opts.length !== 4 || opts.some(o => !o) || new Set(opts.map(o => o.toLowerCase())).size !== 4 || !ans) return null;
-  const level = normLevel(raw.level || g.level);
-  return { subject: g.subject, topic: g.topic, model: g.model || "", level, group: g.group, stem, options: opts, key: ans,
+  // never above the ceiling for this mistake, whatever level the model claims
+  const R = levelRule(g.group, g.level);
+  const claimed = Math.max(0, lvlIdx(raw.level || LEVELS[R.prefer].key));
+  const level = LEVELS[Math.min(claimed, R.max)].key;
+  return { subject: g.subject, topic: g.topic, model: g.model || "", modelCode: g.modelCode || "", level, group: g.group, stem, options: opts, key: ans,
            solution: String(raw.solution || "").trim(),
            idealSec: Math.max(20, Math.min(600, parseInt(raw.idealSec) || 0)) || null };
 }
@@ -278,7 +288,7 @@ export async function run({ store, llm, cfg: cfgIn = {}, log = console.log, now 
         attemptId: id, examId: att.examId, examTitle: exam.title || "", examType: exam.examType,
         studentUid: att.studentUid, studentName: att.studentName || "",
         status: "ready", createdAt: now(), counts, items,
-        needs: needs.map(n => ({ questionId: n.q.docId, topic: n.q.topic || "", model: n.q.model || "", level: normLevel(n.q.difficulty), group: n.group, reason: n.reason, verdict: n.verdict })),
+        needs: needs.map(n => ({ questionId: n.q.docId, topic: n.q.topic || "", model: n.q.model || "", modelCode: n.q.modelCode || "", level: normLevel(n.q.difficulty), group: n.group, reason: n.reason, verdict: n.verdict })),
         models: { gen: cfg.genModel, verify: cfg.verifyModel, vision: cfg.visionModel }
       });
       await store.updateAttempt(id, { aiStatus: "ready", aiDoneAt: now(), aiError: null });

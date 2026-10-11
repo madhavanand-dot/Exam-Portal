@@ -115,6 +115,18 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 .pkItem.doing{border-left-color:#e0a93b}
 .pkItem.done{border-left-color:#2e9e5b;background:#f6fbf8}
 .pkCell{text-align:center;font-size:12px;white-space:nowrap}
+.txGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.txChap{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:8px;background:#fff;padding:10px 12px;cursor:pointer;font:inherit;color:inherit}
+.txChap:hover{box-shadow:0 3px 12px rgba(20,40,70,.12)}
+.txLvl{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:8px;white-space:nowrap}
+.txLvl.neet{background:#e2f5e9;color:#1e7a44}.txLvl.main{background:#e8f1fa;color:#1a5b9c}.txLvl.adv{background:#f3e8fa;color:#6b2c91}
+.txCnt{text-align:center;font-variant-numeric:tabular-nums;min-width:52px}
+.txCnt.gap{background:#fdecea !important;color:#b03a2e}
+.txRow{cursor:pointer}.txRow:hover td{background:#f6f9fc}
+.txCols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.txCols{grid-template-columns:1fr}}
+.txQ{border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px;background:#fff;font-size:13.5px}
+.txQ img{max-width:100%}
 #qIdeal{font-size:12px;font-weight:600;padding:2px 9px;border-radius:10px;background:#e2f5e9;color:#1e7a44;font-variant-numeric:tabular-nums}
 #qIdeal.over{background:#fff1dc;color:#a4610b}
 #qText{font-size:15.5px;line-height:1.65;margin-bottom:18px;user-select:none}
@@ -268,6 +280,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="exams">Exams</button>
       <button data-atab="diagnostic">Diagnostic Builder</button>
       <button data-atab="packages">Study Packages</button>
+      <button data-atab="modelbank" id="tabModelBank">Model Bank</button>
       <button data-atab="assign">Assign Tests</button>
       <button data-atab="custompractice">Custom Practice</button>
       <button data-atab="reports">Reports</button>
@@ -285,7 +298,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div class="flexrow">
           <div class="field"><label>Name</label><input id="stName"></div>
           <div class="field"><label>PS-ID</label><input id="stPsid" inputmode="numeric" placeholder="11-digit PS-ID"></div>
-          <div class="field"><label>Password</label><input id="stPass" type="text" placeholder="min 6 chars"></div>
+          <div class="field"><label>Password</label><input id="stPass" type="text" placeholder="blank = default (e.g. Ly@15456129)"></div>
           <div class="field"><label>Exam Type</label><select id="stType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
           <div class="field"><label>Batch</label><input id="stBatch" placeholder="e.g. TR01"></div>
           <div class="field"><label>Class</label><select id="stClass"><option>XI</option><option>XII</option><option>Repeater</option></select></div>
@@ -302,8 +315,9 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div id="csvLog" class="hidden" style="max-height:200px;overflow:auto;font-size:12.5px;font-family:ui-monospace,monospace;background:#f7f9fb;border:1px solid var(--border);border-radius:4px;padding:8px;margin-top:8px;white-space:pre-wrap"></div>
       </div>
       <div class="flexrow" style="margin:10px 0">
-        <div class="field"><label>Filter by batch</label><input id="stFilterBatch" placeholder="(all)"></div>
-        <button class="btn secondary" id="stFilterBtn" style="align-self:flex-end">Filter</button>
+        <div class="field"><label>Filter by batch</label><select id="stFilterBatch"><option value="">All batches</option></select></div>
+        <button class="btn secondary hidden" id="stFilterBtn" style="align-self:flex-end">Filter</button>
+        <button class="btn secondary" id="stBulkPwBtn" style="align-self:flex-end" title="Set every listed student's password to the default pattern, e.g. Ly@15456129">🔑 Reset passwords to default</button>
       </div>
       <h2 class="sec">Students (<span id="stCount">0</span>) <button class="btn secondary" id="stExportBtn" style="padding:3px 12px;font-size:12px">Export roster CSV</button></h2>
       <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Exam Type</th><th>Batch</th><th>Class</th><th>Password</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
@@ -330,6 +344,8 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <h2 class="sec" style="margin-top:0">Upload Questions (JSON)</h2>
         <input type="file" id="qFile" accept=".json,application/json">
         <button class="btn" id="qUploadBtn" style="margin-left:10px">Upload</button>
+        <label style="font-size:13px;display:inline-flex;gap:6px;align-items:center;margin-left:10px" title="Checks the bank first: skips unchanged and duplicate-picture questions, never overwrites a teacher-confirmed key, and asks before writing">
+          <input type="checkbox" id="qSafe" checked> Safe import (recommended)</label>
         <div id="uploadLog" class="hidden"></div>
       </div>
       <h2 class="sec">Question Bank</h2>
@@ -369,7 +385,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <div class="field"><label>Default subject</label><select id="biSubject"></select></div>
           <div class="field"><label>Default topic</label><input id="biTopic" placeholder="(used when folder gives none)"></div>
           <div class="field"><label>Section</label><select id="biSection"><option value="A">A — MCQ</option><option value="B">B — Numerical</option></select></div>
-          <div class="field"><label>Level</label><select id="biDiff"><option value="Easy">Bloom Level</option><option value="Medium" selected>Intermediate Level</option><option value="Hard">Advanced Level</option></select></div>
+          <div class="field"><label>Level</label><select id="biDiff"><option value="Easy">Easy</option><option value="Medium" selected>Moderate</option><option value="Hard">Hard</option></select></div>
           <div class="field"><label>ID prefix</label><input id="biPrefix" placeholder="e.g. AIATS1_"></div>
         </div>
         <div id="biMsg"></div>
@@ -513,6 +529,27 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       </div>
     </div>
 
+    <div id="atab-modelbank" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">📚 Model Bank — question models per chapter</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          One <b>taxonomy</b> per chapter (subtopic groups → numbered question models, each with its exam level and how students fail).
+          Click a chapter, then a model, to see the bank's questions for it under <b>Easy / Moderate / Hard</b>, with gaps highlighted.
+          Questions are linked by <code>modelCode</code> (or the exact model name / an alias) and their chapter (<code>topic</code>).
+          Only admins see this; you can give <b>view access</b> to specific students. Counts come from the bank index —
+          <b>Topics → Rebuild practice index</b> after uploading questions.</p>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Upload a taxonomy (JSON, one chapter or an array)</label><input type="file" id="txFile" accept=".json,application/json"></div>
+          <button class="btn secondary" id="txUploadBtn">Upload</button>
+          <button class="btn secondary" id="txAccessBtn">👁 Student view access</button>
+          <button class="btn secondary" id="txRefreshBtn">↻ Refresh</button>
+        </div>
+        <div id="txMsg"></div>
+        <div id="txAccess" class="hidden" style="margin-top:10px"></div>
+      </div>
+      <div id="txAdminBox" style="margin-top:12px"></div>
+    </div>
+
     <div id="atab-packages" class="atab hidden">
       <div class="card">
         <h2 class="sec" style="margin-top:0">📘 Study Package Solving &amp; 🚀 Momentum Booster</h2>
@@ -608,7 +645,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <div class="field" id="dgStudentsWrap" style="display:none;max-width:340px"><label>Pick students</label><div id="dgStudentPick" class="checklist" style="max-height:170px"></div></div>
         </div>
         <div class="flexrow">
-          <div class="field"><label>Default ideal time (sec) — Bloom / Intermediate / Advanced</label>
+          <div class="field"><label>Default ideal time (sec) — Easy / Moderate / Hard</label>
             <div style="display:flex;gap:6px"><input id="dgIdE" type="number" min="5" style="width:70px"><input id="dgIdM" type="number" min="5" style="width:70px"><input id="dgIdH" type="number" min="5" style="width:70px">
             <button class="btn secondary" id="dgResetIdealBtn" style="padding:4px 10px;font-size:12px">Apply to all rows</button></div></div>
         </div>
@@ -625,7 +662,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
             </div>
             <div class="flexrow" style="margin-top:8px">
               <div class="field"><label>Section</label><select id="dgSection"><option value="A">MCQ (tick options)</option><option value="B">Numerical (student types the answer)</option></select></div>
-              <div class="field"><label>Level</label><select id="dgDiff"><option value="Easy">Bloom Level</option><option value="Medium" selected>Intermediate Level</option><option value="Hard">Advanced Level</option></select></div>
+              <div class="field"><label>Level</label><select id="dgDiff"><option value="Easy">Easy</option><option value="Medium" selected>Moderate</option><option value="Hard">Hard</option></select></div>
             </div>
             <p style="font-size:11.5px;color:var(--muted)">Answers are read from filenames where possible (<code>Q12_B.png</code>, <code>Q12(3).jpg</code>). Images are compressed to fit Firestore's 1&nbsp;MB limit.</p>
           </div>
@@ -651,10 +688,12 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div id="dgAiSolveBox" class="hidden" style="border:1px solid #c9dcf2;background:#f2f7fd;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:13px"></div>
         <div id="dgWrap" style="overflow:auto;max-height:75vh"></div>
         <input type="file" id="dgImgFile" accept="image/*" class="hidden">
+        <input type="file" id="dgSolFile" accept="image/*" class="hidden">
         <div id="dgMsg"></div>
         <div class="flexrow" style="margin-top:10px">
           <button class="btn green" id="dgSaveBtn">Save test</button>
           <button class="btn secondary" id="dgRegradeBtn" title="Recompute scores of submitted attempts with the current key and question list">Re-grade submitted attempts</button>
+          <button class="btn secondary" id="dgConfirmAllBtn" title="Mark every AI-proposed key in this test as checked by you (then Save test)">✓ Confirm all AI keys</button>
           <button class="btn secondary" id="dgAiSolveBtn" title="After saving: the AI job solves every question of this test and suggests an answer key and an ideal time for each">🤖 Ask AI to solve this test (key + time)</button>
         </div>
         <div id="dgLog" class="hidden" style="max-height:200px;overflow-y:auto;font-size:12.5px;font-family:ui-monospace,monospace;background:#f7f9fb;border:1px solid var(--border);border-radius:4px;padding:8px;margin-top:8px;white-space:pre-wrap"></div>
@@ -678,7 +717,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
           For each student who took a test, builds a follow-up test from the questions they got <b>wrong</b> or <b>skipped</b>, using the
           <b>reason</b> they gave after the test (or their timing, if they gave none):
-          <b>concept gap</b> → same topic from Bloom Level up to the question's level ·
+          <b>concept gap</b> → same topic, one level below the question (Easy stays Easy) ·
           <b>accuracy slip</b> (misread, calculation, silly) → same topic at the same level ·
           <b>speed</b> (ran out of time, too lengthy) → same topic, same or easier level, with ideal time shown.
           Questions come from the bank via the practice index (<b>Topics → Rebuild practice index</b> if new questions are missing). Each test is assigned only to that student.
@@ -902,6 +941,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
   <div class="topbar"><h1>Student Dashboard</h1><span class="who" id="studentWho"></span><button class="btn secondary" id="studentLogout">Logout</button></div>
   <div class="wrap">
     <div id="pkgStudentCard" class="hidden" style="margin-bottom:16px"></div>
+    <div id="txStudentWrap" class="hidden" style="margin-bottom:16px"><h2 class="sec">📚 Model Bank</h2><div id="txStudentBox"></div></div>
     <div id="activeExamCard">
       <h2 class="sec" style="margin-top:0">Available Exams</h2>
       <div id="activeExamInfo">Checking for available exams&hellip;</div>
@@ -917,7 +957,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div class="field"><label>Questions</label><select id="prCount">
           <option>10</option><option selected>25</option><option>50</option><option>75</option></select></div>
         <div class="field"><label>Level</label><select id="prDiff">
-          <option value="">Any</option><option value="Easy">Bloom Level</option><option value="Medium">Intermediate Level</option><option value="Hard">Advanced Level</option></select></div>
+          <option value="">Any</option><option value="Easy">Easy</option><option value="Medium">Moderate</option><option value="Hard">Hard</option></select></div>
         <div class="field" style="align-self:center"><label style="display:flex;gap:6px;align-items:center;cursor:pointer">
           <input type="checkbox" id="prFresh" checked> <span>Skip questions I've already practised</span></label></div>
       </div>
@@ -1197,9 +1237,9 @@ function isAnsCorrect(q, ans){
 // Diagnostic levels. Stored values stay Easy/Medium/Hard (existing questions, JSON files and the practice
 // index all use them); only the names shown to people changed. Rename here if the scheme changes again.
 const LEVELS = [
-  { key: "Easy",   label: "Bloom Level",        short: "Bloom" },
-  { key: "Medium", label: "Intermediate Level", short: "Intermediate" },
-  { key: "Hard",   label: "Advanced Level",     short: "Advanced" }
+  { key: "Easy",   label: "Easy",     short: "Easy" },
+  { key: "Medium", label: "Moderate", short: "Moderate" },
+  { key: "Hard",   label: "Hard",     short: "Hard" }
 ];
 function normLevel(v){
   const t = String(v || "").trim().toLowerCase();
@@ -1211,7 +1251,7 @@ const levelLabel = v => LEVELS.find(l => l.key === normLevel(v)).label;
 const levelShort = v => LEVELS.find(l => l.key === normLevel(v)).short;
 const levelOptions = sel => LEVELS.map(l => `<option value="${l.key}" ${normLevel(sel)===l.key?"selected":""}>${l.label}</option>`).join("");
 // "Too quick" rule: answering a tough question in a small fraction of its ideal time usually means a blind guess
-// or outside help. Advanced: under 25% of ideal (min 8 s); Intermediate: under 15% (min 5 s); Bloom: never flagged.
+// or outside help. Hard: under 25% of ideal (min 8 s); Moderate: under 15% (min 5 s); Easy: never flagged.
 const QUICK_RULE = { Hard: [0.25, 8], Medium: [0.15, 5] };
 function quickThreshold(q, idealSec){
   const r = QUICK_RULE[normLevel(q?.difficulty)];
@@ -1241,7 +1281,7 @@ function speedBucket(verdict, timeSec, idealSec){
   return slow ? "wrongSlow" : "wrongFast";
 }
 // Did the student understand a topic? items: [{verdict, bucket, level}] for that topic's questions.
-// "Level reached" = highest diagnostic level cleared (≥60% correct) climbing up from Bloom without a gap.
+// "Level reached" = highest diagnostic level cleared (≥60% correct) climbing up from Easy without a gap.
 function conceptVerdict(items){
   const tot = items.length, correct = items.filter(i => i.verdict === "correct").length;
   const frac = tot ? correct / tot : 0;
@@ -1253,7 +1293,7 @@ function conceptVerdict(items){
     if (!at.length) continue;
     if (at.filter(i => i.verdict === "correct").length / at.length >= 0.6) reached = L; else break;
   }
-  return { code, frac, reached: reached ? reached.short : "Below Bloom", ...CONCEPT_LABEL[code] };
+  return { code, frac, reached: reached ? reached.short : "Below Easy", ...CONCEPT_LABEL[code] };
 }
 const CONCEPT_LABEL = {
   understood: { label: "✅ Understood",          cls: "pos"  },
@@ -1284,6 +1324,17 @@ const REASON_GROUP = { concept:"concept", formula:"concept", unknown:"concept", 
                        misread:"accuracy", calc:"accuracy", careless:"accuracy",
                        rushed:"speed", lengthy:"speed", time:"speed" };
 const REASON_TEXT = Object.fromEntries([...WHY_REASONS.wrong, ...WHY_REASONS.unanswered]);
+// Difficulty ceiling for NEW questions suggested after a mistake (Madhav's rule; same in ai/pipeline.mjs):
+//   concept gap → one level below the missed question (an Easy miss stays Easy; a Hard miss gets Moderate first, then Easy)
+//   accuracy slip → the same level · speed → the same level or easier.
+// Never above max. Suggestions are ordered by closeness to `prefer`; a shortage is shown, never filled with harder ones.
+function levelRule(group, missedLevel){
+  const L = Math.max(0, LEVELS.findIndex(x => x.key === normLevel(missedLevel)));
+  if (group === "accuracy" || group === "speed") return { max: L, prefer: L };
+  return { max: Math.max(0, L - 1), prefer: Math.max(0, L - 1) };
+}
+const levelRuleText = R => R.max === R.prefer && R.max === 0 ? `${LEVELS[0].short} only`
+  : R.prefer === R.max ? `${LEVELS[R.max].short}, then easier` : `up to ${LEVELS[R.max].short}`;
 const GROUP_LABEL = { concept: "Concept gap", accuracy: "Accuracy slip", speed: "Speed" };
 const BUCKET_LABEL = {
   mastered:    ["Mastered", "pos",  "correct within ideal time"],
@@ -1494,6 +1545,7 @@ function enterAdmin(){
   $("dashTitle").textContent = isSuper() ? "Admin Dashboard" : "Faculty Dashboard";
   // role-based UI: faculty can't manage students or faculty, and can't clear whole banks
   $("tabFaculty").classList.toggle("hidden", !isSuper());
+  $("tabModelBank").classList.toggle("hidden", !isSuper());   // Model Bank: admins only (students can be given view access)
   $("tabAiSettings").classList.toggle("hidden", !isSuper());
   lmStop();
   $("addStudentCard").classList.toggle("hidden", !isSuper());
@@ -1530,6 +1582,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="aisettings") { initAiSettings(); aiLiveStart(); } else aiLiveStop();
     if (b.dataset.atab==="topics") initTopics();
     if (b.dataset.atab==="packages") initPackages();
+    if (b.dataset.atab==="modelbank") txMount($("txAdminBox"), true);
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
     if (b.dataset.atab==="atrisk") initAtRisk();
@@ -1768,7 +1821,7 @@ function iaConceptMatrix(){
       <td style="font-size:12px">${nReasons}/${nBad}</td></tr>`;
   }).join("");
   return `<h2 class="sec">Concept understanding by student</h2>
-    <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">✅ understood · 🟡 understood but slow · 🟠 partly · ❌ not yet — followed by the highest level cleared (Bloom / Intermediate / Advanced). "Reasons" = how many wrong/skipped questions the student explained. Build their follow-up in <b>Custom Practice</b>.</p>
+    <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">✅ understood · 🟡 understood but slow · 🟠 partly · ❌ not yet — followed by the highest level cleared (Easy / Moderate / Hard). "Reasons" = how many wrong/skipped questions the student explained. Build their follow-up in <b>Custom Practice</b>.</p>
     <div style="overflow:auto"><table class="tbl"><thead><tr><th>Student</th><th>Score</th>${topics.map(t=>`<th style="font-size:12px">${esc(t)}</th>`).join("")}<th>Reasons</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 // Students whose correct answers came suspiciously fast (see fastReasons) — a list to look into, not a verdict.
@@ -1940,12 +1993,12 @@ async function qMetaFor(attempts){
     if (!(k in _tiCache)) { try { const s = await getDoc(doc(db,"topicIndex",k)); _tiCache[k] = s.exists() ? s.data() : null; } catch(e) { _tiCache[k] = null; } }
     const sub = k.split("__")[1];
     (_tiCache[k]?.q || []).forEach(e => { if (!need.has(e.i)) return;
-      if (!meta[e.i]) meta[e.i] = { s: sub, t: e.t || "", d: e.d || "Medium", m: e.m || "" };
-      else if (meta[e.i].m === undefined) meta[e.i] = { ...meta[e.i], m: e.m || "" }; });
+      if (!meta[e.i]) meta[e.i] = { s: sub, t: e.t || "", d: e.d || "Medium", m: e.m || "", mc: e.mc || "" };
+      else if (meta[e.i].m === undefined) meta[e.i] = { ...meta[e.i], m: e.m || "", mc: e.mc || "" }; });
   }
   const still = [...need].filter(id => !meta[id]).slice(0, 300);
   const snaps = await Promise.all(still.map(id => getDoc(doc(db,"questions",id)).catch(() => null)));
-  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), m: String(q.model || "").trim() }; } });
+  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), m: String(q.model || "").trim(), mc: String(q.modelCode || "").trim() }; } });
   return meta;
 }
 
@@ -1975,7 +2028,7 @@ async function openNotebook(box, uid, name, editable){
   });
   const list = Object.values(items).map(it => {
     const m = meta[it.id] || {}, last = it.misses[it.misses.length - 1];
-    return { ...it, subject: m.s || "Other", topic: m.t || "No chapter", level: m.d || "Medium", model: m.m || "", last,
+    return { ...it, subject: m.s || "Other", topic: m.t || "No chapter", level: m.d || "Medium", model: m.m || "", modelCode: m.mc || "", last,
              cleared: !!saved[it.id]?.cleared || it.laterRight, clearedHow: saved[it.id]?.cleared ? (saved[it.id].clearedBy === "retry" ? "retry" : "you") : it.laterRight ? "later-test" : "",
              note: saved[it.id]?.note || "" };
   });
@@ -1992,11 +2045,15 @@ async function renderMistakenModels(box, NB){
   if (!(await practiceEnabled())) { $("myModelsWrap").classList.add("hidden"); return; }
   const open = NB.list.filter(i => !i.cleared);
   if (!open.length) { box.innerHTML = `<div class="card"><p style="color:var(--muted)">No open mistakes — nothing to practise here yet.</p></div>`; return; }
+  // one row per chapter + model + allowed level: each mistake brings its own difficulty ceiling (levelRule), so an
+  // Easy mistake never sits in a row that offers harder questions
   const groups = {};
   open.forEach(it => {
-    const k = [it.subject, it.topic, it.model || ""].join("|");
-    const g = groups[k] || (groups[k] = { subject: it.subject, topic: it.topic, model: it.model || "", items: [], maxLvl: 0 });
-    g.items.push(it); g.maxLvl = Math.max(g.maxLvl, lvlIdx(it.level));
+    const grp = it.last.reason ? (REASON_GROUP[it.last.reason] || "concept") : "concept";   // no reason given: the cautious rule
+    const R = levelRule(grp, it.level);
+    const k = [it.subject, it.topic, nrm(it.modelCode) || nrm(it.model), R.max, R.prefer].join("|");
+    const g = groups[k] || (groups[k] = { subject: it.subject, topic: it.topic, model: it.model || it.modelCode || "", mc: it.modelCode || "", R, items: [] });
+    g.items.push(it);
   });
   // similar questions from the practice index (keyed questions only; AI-written ones carry a:1)
   const subs = [...new Set(Object.values(groups).map(g => g.subject))];
@@ -2007,8 +2064,11 @@ async function renderMistakenModels(box, NB){
   const list = Object.values(groups).map(g => {
     const entries = _tiCache[`${currentUser.examType}__${g.subject}`]?.q || [];
     const mine = new Set(g.items.map(i => i.id));
-    const same = entries.filter(e => !mine.has(e.i) && (e.t || "") === g.topic &&
-      (g.model ? (e.m || "") === g.model : lvlIdx(e.d) <= g.maxLvl));   // no model set: same chapter, up to the level missed
+    const allMine = new Set(open.map(i => i.id));   // never suggest a question the student already got wrong
+    const same = entries.filter(e => !allMine.has(e.i) && !mine.has(e.i) && (e.t || "") === g.topic &&
+      (g.mc ? nrm(e.mc) === nrm(g.mc) : g.model ? (e.m || "") === g.model : true) && lvlIdx(e.d) <= g.R.max && !e.u)   // same model (code first); confirmed keys only
+      // closest to the preferred level first, teacher-confirmed keys before AI-proposed ones
+      .sort((a, b) => Math.abs(lvlIdx(a.d) - g.R.prefer) - Math.abs(lvlIdx(b.d) - g.R.prefer) || (a.u ? 1 : 0) - (b.u ? 1 : 0));
     return { ...g, pool: same, ai: same.filter(e => e.a).length, wrong: g.items.filter(i => i.last.verdict === "wrong").length };
   }).sort((a, b) => b.items.length - a.items.length || b.pool.length - a.pool.length);
   const showAll = box._showAll;
@@ -2019,9 +2079,10 @@ async function renderMistakenModels(box, NB){
     <table class="tbl"><thead><tr><th>Subject — Chapter</th><th>Model</th><th>My mistakes</th><th>Similar questions</th><th></th></tr></thead><tbody>
     ${shown.map((g, i) => `<tr>
       <td>${esc(g.subject)} — <b>${esc(g.topic)}</b></td>
-      <td>${g.model ? esc(g.model) : `<span style="color:var(--muted)">${esc(LEVELS[g.maxLvl]?.short || "")} level and below</span>`}</td>
+      <td>${g.model ? esc(g.model) : `<span style="color:var(--muted)">any model</span>`}<br><span class="badge zero" title="New questions are never harder than this">Level: ${esc(levelRuleText(g.R))}</span></td>
       <td><b>${g.items.length}</b> <span style="font-size:11.5px;color:var(--muted)">(${g.wrong} wrong, ${g.items.length - g.wrong} left)</span></td>
-      <td>${g.pool.length ? `${g.pool.length - g.ai} bank${g.ai ? ` + <b style="color:#2563a8">${g.ai} 🤖 AI</b>` : ""}` : `<span style="color:var(--muted)">none yet — ask your teacher</span>`}</td>
+      <td>${g.pool.length ? `${g.pool.length - g.ai} bank${g.ai ? ` + <b style="color:#2563a8">${g.ai} 🤖 AI</b>` : ""}` : `<span style="color:var(--muted)">none yet at this level — ask your teacher</span>`}
+        ${g.pool.length && g.pool.length < 5 ? `<br><span style="font-size:11px;color:#a4610b">⚠ only ${g.pool.length} at this level</span>` : ""}</td>
       <td>${g.pool.length ? `<button class="btn green" style="padding:3px 10px" data-mmprac="${list.indexOf(g)}">Practise ${Math.min(15, g.pool.length)}</button>` : ""}</td></tr>`).join("")}
     </tbody></table>
     ${list.length > 10 ? `<button class="btn secondary" style="margin-top:8px" data-mmall>${showAll ? "Show fewer" : `Show all ${list.length}`}</button>` : ""}</div>`;
@@ -2031,7 +2092,9 @@ async function renderMistakenModels(box, NB){
     const g = list[+b.dataset.mmprac];
     // unseen first; AI-written and bank questions taken in turn
     const fresh = e => !prSeen.has(e.i);
-    const order = arr => [...shuffled(arr.filter(fresh)), ...shuffled(arr.filter(e => !fresh(e)))];
+    // unseen first; within that, closest to the preferred level (the pool is already level-ordered)
+    const dist = e => Math.abs(lvlIdx(e.d) - g.R.prefer);
+    const order = arr => [...shuffled(arr.filter(fresh)).sort((a, b) => dist(a) - dist(b)), ...shuffled(arr.filter(e => !fresh(e))).sort((a, b) => dist(a) - dist(b))];
     const ai = order(g.pool.filter(e => e.a)), bank = order(g.pool.filter(e => !e.a));
     const pick = [];
     while (pick.length < 15 && (ai.length || bank.length)) { if (bank.length) pick.push(bank.shift()); if (ai.length && pick.length < 15) pick.push(ai.shift()); }
@@ -2179,7 +2242,7 @@ function nbRender(NB){
       out.innerHTML = `<div style="border:1px solid var(--border);border-radius:6px;padding:10px;background:#fbfcfd">
         <div style="font-size:15px;line-height:1.55;margin-bottom:6px">${q.text || ""}${imgHtml(q.image)}</div>${opts}
         <div style="margin-top:6px"><b>Correct answer:</b> ${esc(q.correct_answer)}${isMultiQ(q) ? " (more than one correct)" : ""}${it.last.verdict === "wrong" ? ` &nbsp;·&nbsp; <b>Yours:</b> ${esc(String(it.last.answer))}` : ""}</div>
-        ${q.solution ? `<div style="margin-top:6px;font-size:13px"><b>Solution:</b> ${q.solution}</div>` : ""}</div>`;
+        ${solutionHtml(q)}</div>`;
       typeset(out);
     } catch(e) { out.textContent = "Could not load: " + e.message; }
   });
@@ -2503,9 +2566,17 @@ async function loadStaff(){
 }
 
 /* ----- students ----- */
+// Default student password: first two letters of the name ("Ly", first capital, second small) + "@" + the PS-ID
+// without its leading zeros. "Lydia EL Eben", 00015456129 → "Ly@15456129".
+function defaultStudentPassword(name, psid){
+  const letters = String(name || "").replace(/[^A-Za-z]/g, "");
+  const pre = (letters.charAt(0).toUpperCase() + letters.charAt(1).toLowerCase()) || "St";
+  const num = String(psid || "").replace(/\D/g, "").replace(/^0+/, "") || "0";
+  return `${pre}@${num}`;
+}
 $("addStudentBtn").onclick = async () => {
   const name = $("stName").value.trim(),
-        pass = $("stPass").value, examType = $("stType").value, batch = $("stBatch").value.trim(),
+        pass = $("stPass").value || defaultStudentPassword($("stName").value, $("stPsid").value), examType = $("stType").value, batch = $("stBatch").value.trim(),
         klass = $("stClass").value, psid = $("stPsid").value.trim();
   if (!name || !isPsid(psid) || pass.length < 6) { setMsg($("studentMsg"), "Name, an 11-digit PS-ID and a password of 6+ chars are required."); return; }
   $("addStudentBtn").disabled = true;
@@ -2545,9 +2616,21 @@ async function loadStudents(){
   $("rpStudent").innerHTML = `<option value="">All</option>` +
     studentCache.map(s=>`<option value="${s.uid}">${esc(s.name)}${s.batch?" ("+esc(s.batch)+")":""}</option>`).join("");
 }
+function stFillBatchFilter(){
+  const sel = $("stFilterBatch"), cur = sel.value, counts = {};
+  studentCache.forEach(st => { const b = (st.batch || "").trim(); counts[b] = (counts[b] || 0) + 1; });
+  const names = Object.keys(counts).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  sel.innerHTML = `<option value="">All batches (${studentCache.length})</option>` + names.map(b => `<option value="${esc(b)}">${esc(b)} (${counts[b]})</option>`).join("") +
+    (counts[""] ? `<option value="__none">No batch (${counts[""]})</option>` : "");
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : "";
+}
+function stFiltered(){
+  const f = $("stFilterBatch")?.value || "";
+  return !f ? studentCache : f === "__none" ? studentCache.filter(s => !(s.batch || "").trim()) : studentCache.filter(s => (s.batch || "").trim() === f);
+}
 function renderStudents(){
-  const f = ($("stFilterBatch")?.value || "").trim().toLowerCase();
-  const list = f ? studentCache.filter(s=>(s.batch||"").toLowerCase()===f) : studentCache;
+  stFillBatchFilter();
+  const list = stFiltered();
   $("stCount").textContent = list.length;
   $("studentRows").innerHTML = list.map(s => `
     <tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td><td>${esc(s.class||"—")}</td>
@@ -2621,6 +2704,60 @@ async function changeStudentPassword(s){
   } finally { deleteApp(secApp).catch(()=>{}); }
 }
 if ($("stFilterBtn")) $("stFilterBtn").onclick = renderStudents;
+$("stFilterBatch").onchange = renderStudents;
+// Bulk reset to the default password for the students currently listed (filter). Firebase only lets a client change a
+// password while signed in as that user, so each student is signed in on a secondary app with the stored password.
+$("stBulkPwBtn").onclick = async () => {
+  if (!isSuper()) { alert("Only an admin can change passwords."); return; }
+  const list = stFiltered();
+  const todo = list.filter(st => st.password && st.psid && st.password !== defaultStudentPassword(st.name, st.psid));
+  const noPw = list.filter(st => !st.password || !st.psid);
+  const already = list.length - todo.length - noPw.length;
+  if (!todo.length) { alert(`Nothing to change: ${already} already use the default${noPw.length ? `, ${noPw.length} have no stored password (change those one by one)` : ""}.`); return; }
+  const ex = todo[0];
+  if (!confirm(`Reset ${todo.length} student password(s) in "${$("stFilterBatch").selectedOptions[0].textContent}" to the default pattern?
+
+` +
+               `Example: ${ex.name} (${ex.psid}) → ${defaultStudentPassword(ex.name, ex.psid)}
+
+` +
+               `${already} already use it${noPw.length ? `; ${noPw.length} without a stored password will be skipped` : ""}. Students signed in elsewhere keep working until they sign out. This takes about a second per student — keep this tab open.`)) return;
+  const btn = $("stBulkPwBtn"); btn.disabled = true;
+  const secApp = initializeApp(firebaseConfig, "bulkpw-" + Date.now()), secAuth = getAuth(secApp);
+  const failed = []; let done = 0;
+  try {
+    for (const st of todo) {
+      const np = defaultStudentPassword(st.name, st.psid);
+      let tries = 0;
+      while (true) {
+        try {
+          const cred = await signInWithEmailAndPassword(secAuth, st.email || idToEmail(st.psid), st.password);
+          await updatePassword(cred.user, np);
+          await signOut(secAuth);
+          await updateDoc(doc(db,"users",st.uid), { password: np });
+          st.password = np; done++;
+          break;
+        } catch(e) {
+          if (String(e.code).includes("too-many-requests") && tries++ < 4) { await new Promise(r => setTimeout(r, 4000 * tries)); continue; }   // back off
+          failed.push(`${st.name} (${st.psid}): ${friendlyAuthError(e)}`); break;
+        }
+      }
+      btn.textContent = `🔑 ${done + failed.length}/${todo.length}…`;
+      await new Promise(r => setTimeout(r, 250));   // stay under Firebase's sign-in rate limit
+    }
+  } finally {
+    deleteApp(secApp).catch(()=>{});
+    btn.disabled = false; btn.textContent = "🔑 Reset passwords to default";
+    renderStudents();
+  }
+  alert(`Done: ${done} password(s) reset to the default.` + (failed.length ? `
+
+${failed.length} failed (stored password out of date?):
+` + failed.slice(0, 15).join("\n") + (failed.length > 15 ? `\n…and ${failed.length - 15} more` : "") : "") +
+        (noPw.length ? `
+
+Skipped ${noPw.length} without a stored password: change them with "Change PW".` : ""));
+};
 
 /* ----- bulk CSV import ----- */
 function parseCSV(text){
@@ -2660,7 +2797,7 @@ $("csvImportBtn").onclick = async () => {
   for (let r=start; r<rows.length; r++){
     const row = rows[r];
     const name=(row[idx.name]||"").trim(),
-          pass=(row[idx.password]||"").trim(), examType=((row[idx.examType]||"medical").trim().toLowerCase()),
+          pass=((idx.password >= 0 ? row[idx.password] : "") || "").trim() || defaultStudentPassword(row[idx.name], idx.psid >= 0 ? row[idx.psid] : ""), examType=((row[idx.examType]||"medical").trim().toLowerCase()),
           batch=(idx.batch>=0?(row[idx.batch]||"").trim():""), psid=(idx.psid>=0?(row[idx.psid]||"").trim():""),
           klass=(idx.klass>=0?(row[idx.klass]||"").trim():"");
     if (!name||!isPsid(psid)||pass.length<6||!["medical","engineering"].includes(examType)) { say(`Row ${r+1}: SKIP (need name,11-digit psid,6+char password,valid examType) — ${psid||name||"?"}`); fail++; continue; }
@@ -2730,6 +2867,7 @@ $("qUploadBtn").onclick = async () => {
                  options: section==="A" ? (q.options || ["","","",""]) : [],
                  topic: q.topic || "", difficulty: normLevel(q.difficulty) };
     if (hasImg) clean.image = q.image; else delete clean.image;
+    if (q.solutionImage != null && !(typeof q.solutionImage === "string" && /^data:image\//.test(q.solutionImage))) return errors.push(`${where_}: solutionImage must be a data:image/... URI`);
     if (section==="A" && optImgs) clean.optionImages = optImgs; else delete clean.optionImages;
     valid.push(clean);
   });
@@ -2737,13 +2875,14 @@ $("qUploadBtn").onclick = async () => {
   say(`Validated: ${valid.length} ok, ${errors.length} rejected.`);
   if (!valid.length) return;
   // shrink embedded images before they go into Firestore (they are exam download time)
-  const withImgs = valid.filter(q => q.image || q.optionImages);
+  const withImgs = valid.filter(q => q.image || q.optionImages || q.solutionImage);
   if (withImgs.length) {
     let before = 0, after = 0;
     for (let i = 0; i < withImgs.length; i++) {
       const q = withImgs[i];
       try {
         if (q.image) { before += q.image.length; q.image = await compressDataUrl(q.image, "question"); after += q.image.length; }
+        if (q.solutionImage) { before += q.solutionImage.length; q.solutionImage = await compressDataUrl(q.solutionImage, "solution"); after += q.solutionImage.length; }
         if (q.optionImages) for (let k = 0; k < q.optionImages.length; k++) {
           before += q.optionImages[k].length; q.optionImages[k] = await compressDataUrl(q.optionImages[k], "option"); after += q.optionImages[k].length;
         }
@@ -2753,18 +2892,61 @@ $("qUploadBtn").onclick = async () => {
     say(`Images compressed: ${(before/1048576).toFixed(1)} MB → ${(after/1048576).toFixed(1)} MB.`);
   }
 
+  // picture fingerprint of the stored (compressed) image, so the same picture is recognised later
+  for (const q of valid) {
+    if (q.image) q.imgHash = await imgHashOf(q.image); else delete q.imgHash;
+    if (q.srcHash && !/^[0-9a-f]{40}$/.test(String(q.srcHash))) { say(`WARN  ${q.id}: srcHash ignored (must be the first 40 hex chars of the original file's SHA-256)`); delete q.srcHash; }
+  }
+  // ---- Safe import: plan against the bank first ----
+  let toWrite = valid.map(q => ({ q, mode: "new" }));
+  if ($("qSafe").checked) {
+    say("Safe import: checking the bank for these ids and pictures…");
+    const plan = { new: [], update: [], same: [], conflict: [], dup: [] };
+    const sameContent = (a, b) => ["correct_answer", "text", "topic", "difficulty", "section", "model", "modelCode", "solution", "idealTimeSec", "imgHash"]
+      .every(k => String(a[k] ?? "") === String(b[k] ?? "")) && JSON.stringify(a.options || []) === JSON.stringify(b.options || []);
+    for (let i = 0; i < valid.length; i++) {
+      const q = valid[i];
+      const ex = await getDoc(doc(db,"questions",q.id)).then(sn => sn.exists() ? { docId: sn.id, ...sn.data() } : null).catch(() => null);
+      if (ex) {
+        if (sameContent(q, ex)) plan.same.push({ q });
+        else if (keyTrust(ex) >= 3 && String(q.correct_answer) !== String(ex.correct_answer))
+          plan.conflict.push({ q, why: `same id, key ${q.correct_answer} vs teacher-confirmed ${ex.correct_answer}` });
+        else plan.update.push({ q, ex });
+      } else {
+        const copies = (q.imgHash || q.srcHash) ? (await findImageCopies(q.imgHash, q.srcHash)).filter(c => c.docId !== q.id) : [];
+        if (copies.length) {
+          const best = bestKeyedCopy(copies) || copies[0];
+          plan.dup.push({ q, why: `same picture as ${best.id || best.docId}${hasKey(best) ? ` (key ${best.correct_answer}${String(best.correct_answer) !== String(q.correct_answer) ? `, yours ${q.correct_answer}` : ""})` : ""}` });
+        } else plan.new.push({ q });
+      }
+      if (i % 20 === 19) say(`  checked ${i + 1}/${valid.length}…`);
+    }
+    say(`Plan: ${plan.new.length} new · ${plan.update.length} update(s) · ${plan.same.length} unchanged (skipped) · ${plan.dup.length} duplicate picture(s) (skipped) · ${plan.conflict.length} key conflict(s) (skipped).`);
+    [...plan.conflict.map(x => `CONFLICT ${x.q.id}: ${x.why}`), ...plan.dup.map(x => `DUPLICATE ${x.q.id}: ${x.why}`)].slice(0, 60).forEach(say);
+    if (plan.conflict.length || plan.dup.length) {
+      const rows = [["id", "result", "detail"], ...plan.conflict.map(x => [x.q.id, "conflict", x.why]), ...plan.dup.map(x => [x.q.id, "duplicate", x.why])];
+      say("A report of the skipped rows is being downloaded (import_report.csv).");
+      downloadCsv("import_report.csv", rows);
+    }
+    toWrite = [...plan.new.map(x => ({ q: x.q, mode: "new" })), ...plan.update.map(x => ({ q: x.q, mode: "update" }))];
+    if (!toWrite.length) { say("Nothing to write."); return; }
+    if (!confirm(`Write ${plan.new.length} new and update ${plan.update.length} existing question(s)? Skipped: ${plan.same.length} unchanged, ${plan.dup.length} duplicates, ${plan.conflict.length} conflicts.`)) { say("Cancelled — nothing written."); return; }
+  }
   // batch write (Firestore limit 500 ops; image docs are big, so keep image batches small for the 10 MB request cap)
   let written = 0;
   const per = withImgs.length ? 25 : 450;
-  for (let i = 0; i < valid.length; i += per) {
+  for (let i = 0; i < toWrite.length; i += per) {
     const batch = writeBatch(db);
-    for (const q of valid.slice(i, i+per))
-      batch.set(doc(db, "questions", q.id), { ...q, createdBy: currentUser.uid, createdByName: currentUser.name, createdAt: serverTimestamp() });
-    await batch.commit();
-    written += Math.min(per, valid.length - i);
-    say(`Uploaded ${written}/${valid.length}...`);
+    for (const { q, mode } of toWrite.slice(i, i+per))
+      mode === "update"   // keeps the original owner / creation time; replaces the content fields sent
+        ? batch.set(doc(db, "questions", q.id), { ...q, updatedBy: currentUser.uid, updatedByName: currentUser.name, updatedAt: serverTimestamp() }, { merge: true })
+        : batch.set(doc(db, "questions", q.id), { ...q, createdBy: currentUser.uid, createdByName: currentUser.name, createdAt: serverTimestamp() });
+    try { await batch.commit(); }
+    catch(e) { say(`FAILED rows ${i + 1}–${Math.min(i + per, toWrite.length)}: ${e.code === "permission-denied" ? "an update touches a question owned by another teacher (admins can update any)" : e.message}`); continue; }
+    written += Math.min(per, toWrite.length - i);
+    say(`Uploaded ${written}/${toWrite.length}...`);
   }
-  say("Done. " + written + " questions written.");
+  say("Done. " + written + " questions written. Remember: Topics → Rebuild practice index.");
   allBankCache = null;
 };
 
@@ -2838,8 +3020,14 @@ function safeDocId(s){
 // perfectly legible at ~1000px wide, so we cap width and pick the smallest of WebP / PNG / JPEG.
 // WebP decodes in every current browser (Safari 14+); set false if students use very old iPads.
 const IMG_ALLOW_WEBP = true;
-const IMG_BUDGET = { question: 180000, option: 60000 };   // bytes of data-URI text per image
-const IMG_MAX_W  = { question: 1000,   option: 600   };
+const IMG_BUDGET = { question: 180000, option: 60000, solution: 200000 };   // bytes of data-URI text per image
+const IMG_MAX_W  = { question: 1000,   option: 600,   solution: 1000   };
+// Worked solution (text and/or image). Shown only after the test: notebook, practice feedback, result review —
+// never in the exam screen.
+function solutionHtml(q){
+  if (!q?.solution && !q?.solutionImage) return "";
+  return `<div style="margin-top:6px;font-size:13px;border-top:1px dashed var(--border);padding-top:6px"><b>Solution:</b> ${q.solution || ""}${q.solutionImage ? imgHtml(q.solutionImage) : ""}</div>`;
+}
 function loadImage(src){
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -2973,10 +3161,14 @@ async function biIngest(files){
     try {
       const image = await imageFileToDataUrl(f);
       const [imgHash, srcHash] = await Promise.all([imgHashOf(image), fileHashOf(f)]);
-      // picture already in the bank with a key → remember that key
-      const known = guessed ? null : bestKeyedCopy(await findImageCopies(imgHash, srcHash));
+      // picture already in the bank with a key → remember that key; a file-name key that disagrees with a
+      // teacher-confirmed key is a conflict the teacher must resolve (never silently replaced either way)
+      const best = bestKeyedCopy(await findImageCopies(imgHash, srcHash));
+      const known = guessed ? null : best;
+      const conflict = guessed && best && keyTrust(best) >= 3 && normKey(guessed) !== normKey(best.correct_answer)
+        ? { file: guessed, bank: String(best.correct_answer), id: best.id || best.docId } : null;
       rows.push({
-        image, file: f.name, rel, imgHash, srcHash, keyFrom: known ? (known.id || known.docId) : "",
+        image, file: f.name, rel, imgHash, srcHash, keyFrom: known ? (known.id || known.docId) : "", conflict,
         id: prefix + safeDocId(f.name),
         num: numFromName(f.name) ?? (i+1),
         subject: meta.subject, topic: meta.topic,
@@ -3011,8 +3203,9 @@ function renderBiTable(){
   $("biWrap").innerHTML = `<table class="tbl"><thead><tr>
       <th>#</th><th>Preview</th><th>Question ID</th><th>Subject</th><th>Topic</th><th>Sec</th><th>Answer</th><th>Size</th><th></th>
     </tr></thead><tbody>` +
-    biRows.map((r,i) => `<tr data-bi="${i}" ${r.section==="A" && !r.correct_answer ? 'style="background:#fdecea"' : ""}>
-      <td><b>${r.num}</b><br><span style="font-size:11px;color:var(--muted)">${esc(r.file)}</span></td>
+    biRows.map((r,i) => `<tr data-bi="${i}" ${(r.section==="A" && !r.correct_answer) || (r.conflict && !r.conflictResolved) ? 'style="background:#fdecea"' : ""}>
+      <td><b>${r.num}</b><br><span style="font-size:11px;color:var(--muted)">${esc(r.file)}</span>${r.conflict && !r.conflictResolved
+        ? `<br><span style="font-size:11px;color:#b03a2e;font-weight:600">⚠ file says ${esc(r.conflict.file)}, bank (teacher) says ${esc(r.conflict.bank)} — type the right answer</span>` : ""}</td>
       <td>${r.image ? `<img src="${r.image}" style="max-width:190px;max-height:110px;border:1px solid var(--border);border-radius:4px;cursor:zoom-in" data-bizoom="${i}">`
                     : `<span class="badge neg">${esc(r.error||"failed")}</span>`}</td>
       <td><input value="${esc(r.id)}" data-bif="id" style="width:150px"></td>
@@ -3030,6 +3223,7 @@ function renderBiTable(){
       inp.onchange = () => {
         let v = inp.value.trim();
         if (inp.dataset.bif === "correct_answer" && biRows[i].section === "A") { v = normKey(v); inp.value = v; }
+        if (inp.dataset.bif === "correct_answer" && biRows[i].conflict) { biRows[i].conflictResolved = true; setTimeout(renderBiTable); }
         if (inp.dataset.bif === "id") v = safeDocId(v);
         biRows[i][inp.dataset.bif] = v;
         if (inp.dataset.bif === "id") inp.value = v;
@@ -3067,6 +3261,7 @@ function biValidate(){
     seen.add(r.id);
     if (!EXAM_CONFIG[$("biType").value].subjects.includes(r.subject))
       errs.push(`${w}: subject "${r.subject}" is not valid for ${$("biType").value}`);
+    if (r.conflict && !r.conflictResolved) errs.push(`${w}: key conflict — the file name says ${r.conflict.file}, the bank's teacher-confirmed key for this picture (${r.conflict.id}) is ${r.conflict.bank}. Type the correct answer in the row to resolve it.`);
     if (r.section === "A") { if (!validMcqKey(r.correct_answer)) errs.push(`${w}: answer must be A/B/C/D (or several letters, e.g. AC, if more than one is correct)`); }
     else if (r.correct_answer === "" || isNaN(parseFloat(r.correct_answer))) errs.push(`${w}: numerical answer required`);
   });
@@ -3360,6 +3555,7 @@ $("dgLibType").onchange = dgLibRender;
 $("dgLibShow").onchange = dgLibRender;
 
 function initDiagnostic(){
+  if (isSuper() && !TX.list.length) txLoad().then(() => DG.rows.length && dgRender()).catch(() => {});   // Model Bank list for the model picker
   const exams = isSuper() ? examsCache : examsCache.filter(e=>e.createdBy===currentUser.uid);
   const cur = $("dgExisting").value;
   $("dgExisting").innerHTML = `<option value="">— pick a test —</option>` +
@@ -3426,9 +3622,11 @@ function dgRowFromQuestion(q, idealTimes){
   };
   r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section;
   r.model = r.origModel = String(q.model || "").trim();
+  r.modelCode = r.origModelCode = String(q.modelCode || "").trim();
   r.idealSec = idealTimes?.[q.docId] ?? q.idealTimeSec ?? dgDefaultIdeal(r);
   r.keySrc = q.keySrc || ""; r.idealSrc = q.idealTimeSrc || ""; r.aiKeyNote = q.aiKeyNote || "";
   r.imgHash = q.imgHash || null; r.srcHash = q.srcHash || null;
+  r.solutionImage = q.solutionImage || null;
   return r;
 }
 async function dgAddFiles(files){
@@ -3493,9 +3691,9 @@ function dgAiPreview(r){
     </details></div>`;
 }
 const keyBadge = r => r.keySrc === "pending-ai" && !r.correct_answer ? `<div style="font-size:11px;color:#2563a8">🤖 AI will propose</div>`
-  : r.keySrc === "ai" ? `<div style="font-size:11px;color:#2563a8" title="${esc(r.aiKeyNote)}">🤖 AI-proposed — check it</div>`
+  : r.keySrc === "ai" ? `<div style="font-size:11px;color:#2563a8" title="${esc(r.aiKeyNote)}">🤖 AI-proposed — check it ${r.correct_answer ? `<button class="btn secondary" style="padding:0 6px;font-size:11px" data-dgconfirm title="I checked this key: mark it teacher-confirmed (students' practice suggestions only use confirmed keys)">✓ Confirm</button>` : ""}</div>`
   : r.keySrc === "ai-unsure" && !r.correct_answer ? `<div style="font-size:11px;color:#b3261e" title="${esc(r.aiKeyNote)}">⚠ AI unsure — you set it</div>`
-  : r.keySrc === "user" ? `<div style="font-size:11px;color:var(--muted)">set by you</div>` : "";
+  : r.keySrc === "user" ? `<div style="font-size:11px;color:var(--muted)">${r.keyConfirmedNow ? "✓ confirmed (save to keep)" : "set by you"}</div>` : "";
 const reusedBadge = r => r.reused ? `<div style="font-size:11px;color:#1e7a44" title="This picture was already in the bank: the same question (and its key) is used here">♻ already in bank</div>` : "";
 const idealBadge = r => r.idealSrc === "pending-ai" ? `<div style="font-size:11px;color:#2563a8">🤖 AI will set</div>` : r.idealSrc === "ai" ? `<div style="font-size:11px;color:#2563a8">🤖 AI</div>` : "";
 // ---- AI solve: after a test is saved, the AI job solves every question and suggests a key + ideal time ----
@@ -3579,7 +3777,7 @@ async function dgAiSolveRefresh(){
 }
 $("dgAiSolveBtn").onclick = async () => {
   if (!DG.examDocId) { setMsg($("dgMsg"), "Save the test first — the AI solves the saved version."); return; }
-  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.section !== r.origSection);
+  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.keyConfirmedNow || r.solChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || (r.modelCode||"") !== (r.origModelCode||"") || r.difficulty !== r.origDiff || r.section !== r.origSection);
   if (unsaved) { setMsg($("dgMsg"), "You have unsaved changes — press Save test first, then ask the AI."); return; }
   if (DG.aiSolve?.status === "queued" || DG.aiSolve?.status === "processing") { setMsg($("dgMsg"), "The AI has already been asked to solve this test — wait for it, then Refresh.", true); return; }
   if (!confirm(`Ask the AI to solve all ${DG.rows.length} question(s) of this test?\n\nTwo AI models solve each question independently and suggest an answer key and an ideal time. ` +
@@ -3686,6 +3884,18 @@ async function aiScoreLoad(){
 }
 // ---- replace only the picture of a question (saved or new); key, topic and times are kept ----
 let dgImgTarget = null;
+// the Model Bank list for a row's chapter (admins can read taxonomies; for others this is empty)
+function dgTaxModels(r){
+  const t = TX.list.find(x => nrm(x.chapter) === nrm(r.topic) && (!x.examType || x.examType === $("dgType").value));
+  return t ? t.groups.flatMap(g => g.models || []) : [];
+}
+let dgSolTarget = null;
+$("dgSolFile").onchange = async e => {
+  const f = e.target.files[0], r = dgSolTarget; dgSolTarget = null;
+  if (!f || !r) return;
+  try { r.solutionImage = await imageFileToDataUrl(f, "solution"); r.solChanged = !r.isNew; dgRender(); }
+  catch(err) { setMsg($("dgMsg"), "Could not read that image: " + err.message); }
+};
 function dgPickReplaceImage(r){
   dgImgTarget = r;
   setMsg($("dgMsg"), `Choose the new image for Q${DG.rows.indexOf(r)+1} — or press Ctrl+V to paste a screenshot.`, true);
@@ -3739,7 +3949,10 @@ function dgRender(){
         <td style="max-width:460px">${preview}${r.ai ? "" : `<div><button class="btn secondary" style="padding:1px 7px;font-size:11.5px;margin-top:3px" data-dgimg="${i}" title="Swap in a new picture for this question; key, topic and times stay as they are">🖼 ${r.image?"Replace image":"Add image"}</button>${r.imgChanged?` <span class="badge zero">new image — not saved yet</span>`:""}</div>`}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||(r.ai?"AI draft":""))} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
         <td style="font-size:12.5px">${esc(r.subject)}</td>
         <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px">
-            <input data-dgf="model" value="${esc(r.model||"")}" list="dgModelList" placeholder="question model (optional)" style="width:150px;margin-top:3px;font-size:12px"></td>
+            <input data-dgf="model" value="${esc(r.modelCode ? `${r.modelCode} · ${r.model||""}` : (r.model||""))}" list="dgModelList" placeholder="question model (optional)" title="Pick from the chapter's Model Bank list (code · name) or type a name" style="width:150px;margin-top:3px;font-size:12px">
+            <div style="margin-top:3px;font-size:11.5px">${r.solutionImage
+              ? `<span title="Shown to students only after the test">📎 solution image</span> <button class="btn secondary" style="padding:0 5px;font-size:11px" data-dgsolview="${i}">view</button> <button class="btn secondary" style="padding:0 5px;font-size:11px" data-dgsolrm="${i}">✕</button>`
+              : `<button class="btn secondary" style="padding:0 6px;font-size:11px" data-dgsol="${i}" title="Attach a worked-solution image — students see it only after the test">+ solution image</button>`}</div></td>
         <td><select data-dgf="difficulty">${levelOptions(r.difficulty)}</select></td>
         <td>${r.ai ? esc(r.section) : `<select data-dgf="section" title="MCQ = student picks option(s); Numerical = student types the answer"><option value="A" ${r.section==="A"?"selected":""}>MCQ</option><option value="B" ${r.section==="B"?"selected":""}>Numerical</option></select>`}</td>
         <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}${reusedBadge(r)}${dgAiSolveKeyChip(r)}${r.isNew ? "" : `<div><button class="btn secondary" style="padding:0 6px;font-size:11px;margin-top:3px" data-dgaiview="${i}" title="What each AI model read, answered and why">🔍 AI working</button></div>`}</td>
@@ -3750,8 +3963,9 @@ function dgRender(){
       </tr>`;
     }).join("") + `</tbody></table>`;
   // model suggestions: models already used in this test and in the practice index
-  $("dgModelList").innerHTML = [...new Set([...DG.rows.map(r => r.model), ...Object.values(_tiCache).flatMap(x => (x?.q || []).map(e => e.m))].filter(Boolean))]
-    .sort().map(m => `<option value="${esc(m)}">`).join("");
+  const taxOpts = [...new Set(DG.rows.map(r => nrm(r.topic)))].flatMap(t => dgTaxModels({ topic: t }).map(m => `${m.code} · ${m.name}`));
+  $("dgModelList").innerHTML = [...new Set([...taxOpts, ...DG.rows.map(r => r.model), ...Object.values(_tiCache).flatMap(x => (x?.q || []).map(e => e.m))].filter(Boolean))]
+    .map(m => `<option value="${esc(m)}">`).join("");
   $("dgWrap").querySelectorAll("[data-dg]").forEach(tr => {
     const r = DG.rows[+tr.dataset.dg];
     tr.querySelectorAll("[data-dgf]").forEach(inp => inp.onchange = () => {
@@ -3761,6 +3975,11 @@ function dgRender(){
       // wording edits on AI drafts update in place (no re-render, so the edit panel stays open)
       if (/^opt[0-3]$/.test(f)) { r.options[+f[3]] = v; return; }
       if (f === "text" || f === "solution") { r[f] = inp.value; return; }
+      if (f === "model") {   // "code · name" picked from the Model Bank list → both fields; free text → name only
+        const mm = v.match(/^(\S+) · (.+)$/), known = mm && dgTaxModels(r).find(x => nrm(x.code) === nrm(mm[1]));
+        if (known) { r.modelCode = known.code; r.model = known.name; } else { r.modelCode = ""; r.model = v; }
+        dgRender(); return;
+      }
       r[f] = v;
       if (f === "section") {   // switching type: an MCQ key means nothing for a typed answer and vice versa
         const ok = v === "A" ? validMcqKey(r.correct_answer) : (r.correct_answer !== "" && !isNaN(parseFloat(r.correct_answer)) && !/^[A-D]+$/i.test(r.correct_answer));
@@ -3783,9 +4002,24 @@ function dgRender(){
   $("dgWrap").querySelectorAll("[data-dgaiuse]").forEach(b => b.onclick = () => {
     const r = DG.rows[+b.closest("[data-dg]").dataset.dg], a = dgAiResult(r);
     if (!a) return;
-    if (b.dataset.dgaiuse === "key" && a.answer) { r.correct_answer = String(a.answer); r.keySrc = "user"; }
+    if (b.dataset.dgaiuse === "key" && a.answer) { r.correct_answer = String(a.answer); r.keySrc = "user"; r.keyConfirmedNow = true; }
     if (b.dataset.dgaiuse === "time" && a.idealSec) { r.idealSec = a.idealSec; r.idealSrc = "user"; }
     dgRender();
+  });
+  // ✓ Confirm: the teacher checked an AI-proposed key — saved as teacher-set even when the letter doesn't change
+  $("dgWrap").querySelectorAll("[data-dgsol]").forEach(b => b.onclick = () => { dgSolTarget = DG.rows[+b.dataset.dgsol]; $("dgSolFile").value = ""; $("dgSolFile").click(); });
+  $("dgWrap").querySelectorAll("[data-dgsolrm]").forEach(b => b.onclick = () => { const r = DG.rows[+b.dataset.dgsolrm]; r.solutionImage = null; r.solChanged = !r.isNew; dgRender(); });
+  $("dgWrap").querySelectorAll("[data-dgsolview]").forEach(b => b.onclick = () => { $("qpvBody").innerHTML = imgHtml(DG.rows[+b.dataset.dgsolview].solutionImage); $("qpvBack").classList.remove("hidden"); });
+  $("dgConfirmAllBtn").onclick = () => {
+    const todo = DG.rows.filter(r => r.keySrc === "ai" && r.correct_answer);
+    if (!todo.length) { setMsg($("dgMsg"), "No AI-proposed keys to confirm in this test."); return; }
+    if (!confirm(`Confirm ${todo.length} AI-proposed key(s) as checked by you? Only do this after checking them.`)) return;
+    todo.forEach(r => { r.keySrc = "user"; r.keyConfirmedNow = true; });
+    dgRender(); setMsg($("dgMsg"), `${todo.length} key(s) marked confirmed — press Save test to keep it.`, true);
+  };
+  $("dgWrap").querySelectorAll("[data-dgconfirm]").forEach(b => b.onclick = () => {
+    const r = DG.rows[+b.closest("[data-dg]").dataset.dg];
+    r.keySrc = "user"; r.keyConfirmedNow = true; dgRender();
   });
   dgAiSolveRender();
   $("dgWrap").querySelectorAll("[data-dgmv]").forEach(b => b.onclick = () => {
@@ -3821,7 +4055,7 @@ async function dgSave(){
   const errs = dgValidate();
   if (errs.length) { setMsg($("dgMsg"), errs.slice(0,6).join("  ") + (errs.length>6?` …and ${errs.length-6} more.`:"")); log.classList.add("hidden"); return; }
   const newRows = DG.rows.filter(r => r.isNew);
-  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
+  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.keyConfirmedNow || r.solChanged || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || (r.modelCode||"") !== (r.origModelCode||"") || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
   const imgEdits = edits.filter(r => r.imgChanged);
   const keyEdits = edits.filter(r => r.correct_answer !== r.origAnswer || r.section !== r.origSection);
   const shared = keyEdits.filter(r => examsCache.some(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId))).length;
@@ -3847,7 +4081,7 @@ async function dgSave(){
         id: r.docId, examType, subject: r.subject, section: r.section,
         text: r.text || "", options: r.section === "A" ? (r.options || ["","","",""]) : [],
         correct_answer: String(r.correct_answer), topic: r.topic, difficulty: r.difficulty,
-        ...(r.model ? { model: r.model } : {}),
+        ...(r.model ? { model: r.model } : {}), ...(r.modelCode ? { modelCode: r.modelCode } : {}), ...(r.solutionImage ? { solutionImage: r.solutionImage } : {}),
         ...(r.image ? { image: r.image } : {}), idealTimeSec: +r.idealSec,
         ...(r.imgHash ? { imgHash: r.imgHash } : {}), ...(r.srcHash ? { srcHash: r.srcHash } : {}),
         ...(r.keySrc ? { keySrc: r.keySrc } : {}), ...(r.idealSrc ? { idealTimeSrc: r.idealSrc } : {}),
@@ -3859,15 +4093,17 @@ async function dgSave(){
       await batch.commit();
       say(`Uploaded ${Math.min(i+25, newRows.length)}/${newRows.length} new question(s)…`);
     }
-    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.origModel = r.model || ""; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; });
+    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.origModel = r.model || ""; r.origModelCode = r.modelCode || ""; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; });
     // 2) key / topic / difficulty edits on existing questions (one by one so a permission error names the question)
     let failed = 0, keysSaved = 0;
     const keyShare = newRows.filter(r => hasKey(r) && (r.imgHash || r.srcHash));   // keys to copy onto the same picture elsewhere
     for (const r of edits) {
       const upd = {};
-      if (r.correct_answer !== r.origAnswer) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
+      if (r.correct_answer !== r.origAnswer || r.keyConfirmedNow) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
       if (r.topic !== r.origTopic) upd.topic = r.topic;
       if ((r.model||"") !== (r.origModel||"")) upd.model = r.model || "";
+      if ((r.modelCode||"") !== (r.origModelCode||"")) upd.modelCode = r.modelCode || deleteField();
+      if (r.solChanged) upd.solutionImage = r.solutionImage || deleteField();
       if (r.difficulty !== r.origDiff) upd.difficulty = r.difficulty;
       if (r.section !== r.origSection) {
         upd.section = r.section; upd.correct_answer = String(r.correct_answer); upd.keySrc = "user";
@@ -3878,9 +4114,9 @@ async function dgSave(){
                           upd.imgHash = (await imgHashOf(r.image)) || deleteField(); upd.srcHash = deleteField(); }
       try {
         await updateDoc(doc(db,"questions",r.docId), upd);
-        if (upd.correct_answer !== undefined) { keysSaved++; keyShare.push(r); }
+        if (upd.correct_answer !== undefined) { if (r.correct_answer !== r.origAnswer || r.section !== r.origSection) keysSaved++; keyShare.push(r); r.keyConfirmedNow = false; }
         if (r.imgChanged) { r.imgHash = typeof upd.imgHash === "string" ? upd.imgHash : null; r.srcHash = null; }
-        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origModel = r.model || ""; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false;
+        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origModel = r.model || ""; r.origModelCode = r.modelCode || ""; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false; r.solChanged = false;
         say(`Updated ${r.q?.id||r.docId}: ${Object.entries(upd).filter(([k])=>!["image","imageUpdatedAt","aiVerify"].includes(k)).map(([k,v])=>`${k} → ${v}`).concat(upd.image?["new image"]:[]).join(", ")}`);
       } catch(e) {
         failed++;
@@ -4040,7 +4276,7 @@ $("dgAutoDurBtn").onclick = () => {
   $("dgDuration").value = Math.max(1, Math.ceil(total*1.1/60));
 };
 $("dgResetIdealBtn").onclick = () => {
-  if (DG.rows.length && !confirm("Reset every question's ideal time to the Bloom / Intermediate / Advanced defaults?")) return;
+  if (DG.rows.length && !confirm("Reset every question's ideal time to the Easy / Moderate / Hard defaults?")) return;
   DG.rows.forEach(r => { r.idealSec = dgDefaultIdeal(r); });
   dgRender();
 };
@@ -4139,7 +4375,7 @@ function dgLoadAiDraft(d){
   const order = { verified: 0, disputed: 1 };
   (d.items||[]).filter(it => it.verdict !== "rejected").sort((a,b)=>order[a.verdict]-order[b.verdict]).forEach(it => {
     const r = { key: ++dgSeq, docId: null, isNew: true, image: null, text: it.stem, options: it.options.slice(),
-      subject: it.subject, section: "A", topic: it.topic, model: it.model || "", difficulty: normLevel(it.level), correct_answer: it.key,
+      subject: it.subject, section: "A", topic: it.topic, model: it.model || "", modelCode: it.modelCode || "", difficulty: normLevel(it.level), correct_answer: it.key,
       solution: it.solution || "", ai: { ...it, models: d.models } };
     r.idealSec = it.idealSec || dgDefaultIdeal(r);
     DG.rows.push(r);
@@ -4171,7 +4407,7 @@ async function cpLoadBank(examType, subjects){
 }
 const lvlIdx = d => LEVELS.findIndex(L => L.key === normLevel(d));
 // One student's follow-up: for every wrong/skipped (and optionally correct-but-slow) question, fresh bank questions
-// from the same topic chosen by the REASON: concept gap → start from Bloom and climb to the question's level;
+// from the same topic chosen by the REASON: concept gap → one level below the question (levelRule);
 // accuracy slip → same level; speed → same level or easier, served with ideal time shown.
 function cpPlan(att, opts){
   const { exam, qById, bank } = cpSource;
@@ -4193,19 +4429,22 @@ function cpPlan(att, opts){
   const order = { concept: 0, accuracy: 1, speed: 2 };
   needs.sort((a,b) => order[a.group]-order[b.group] || lvlIdx(a.q.difficulty)-lvlIdx(b.q.difficulty));
   const picked = new Map();   // id -> {s(subject), d, sec, why}
+  const shortages = [];       // mistakes with too few eligible questions (shown, never filled with harder ones)
   const add = (id, info) => { if (!picked.has(id) && picked.size < opts.max) picked.set(id, info); };
   needs.forEach(n => {
     if (picked.size >= opts.max) return;
     const L = lvlIdx(n.q.difficulty), topic = (n.q.topic||"").trim().toLowerCase();
     let pool = (bank[n.q.subject] || []).filter(e => (e.t||"").trim().toLowerCase() === topic && !examIds.has(e.i) && !picked.has(e.i));
-    if (n.group !== "accuracy") pool = pool.filter(e => lvlIdx(e.d) <= L);
-    const rank = n.group === "concept" ? e => lvlIdx(e.d)          // easiest first, climbing to the question's level
-               : n.group === "speed"   ? e => -lvlIdx(e.d)         // same level, then easier
-               :                         e => Math.abs(lvlIdx(e.d) - L);   // accuracy: same level first
+    const R = levelRule(n.group, n.q.difficulty), model = String(n.q.model || "").trim(), mcode = nrm(n.q.modelCode);
+    pool = pool.filter(e => lvlIdx(e.d) <= R.max && !e.u);   // never harder than the rule allows; confirmed keys only
+    // closest to the preferred level, then the same question model, then teacher-confirmed keys
+    const rank = e => Math.abs(lvlIdx(e.d) - R.prefer) * 4 + ((mcode ? nrm(e.mc) !== mcode : model && (e.m || "") !== model) ? 2 : 0) + (e.u ? 1 : 0);
     // shuffle, then a stable sort: random only among equally-suitable questions, so two students
     // with the same gap don't get identical sets but nobody gets a worse-fitting level
     pool = shuffle(pool).sort((a,b) => rank(a) - rank(b));
-    pool.slice(0, opts.perQ).forEach(e => add(e.i, { s:n.q.subject, d:e.d, sec:e.s, topic:n.q.topic, why:n.group }));
+    const take = pool.slice(0, opts.perQ);
+    if (take.length < opts.perQ) shortages.push({ id: n.q.docId, topic: n.q.topic || "", model, rule: levelRuleText(R), missing: opts.perQ - take.length });
+    take.forEach(e => add(e.i, { s:n.q.subject, d:e.d, sec:e.s, topic:n.q.topic, why:n.group }));
     if (opts.retest && n.verdict !== "correct") add(n.q.docId, { s:n.q.subject, d:n.q.difficulty, sec:n.q.section||"A", topic:n.q.topic, why:n.group, original:true });
   });
   const items = [...picked.entries()].map(([id, x]) => ({ id, ...x }))
@@ -4213,7 +4452,7 @@ function cpPlan(att, opts){
   const groups = { concept:0, accuracy:0, speed:0 };
   needs.forEach(n => groups[n.group]++);
   const reasonsGiven = needs.filter(n => n.reason).length;
-  return { items, groups, needs: needs.length, reasonsGiven,
+  return { items, groups, needs: needs.length, reasonsGiven, shortages,
            topics: [...new Set(needs.filter(n=>n.group==="concept").map(n=>n.q.topic).filter(Boolean))] };
 }
 function cpOpts(){
@@ -4259,7 +4498,7 @@ function cpRender(){
       <td>${p.reasonsGiven}/${p.needs}${p.reasonsGiven < p.needs ? ` <span style="font-size:11px;color:var(--muted)">(rest guessed from timing)</span>`:""}</td>
       <td>${p.groups.concept}</td><td>${p.groups.accuracy}</td><td>${p.groups.speed}</td>
       <td style="font-size:12px">${esc(p.topics.join(", ")||"—")}</td>
-      <td><b>${p.items.length}</b> <span style="font-size:11px;color:var(--muted)">${p.items.filter(x=>x.original).length} re-test</span></td>
+      <td><b>${p.items.length}</b> <span style="font-size:11px;color:var(--muted)">${p.items.filter(x=>x.original).length} re-test</span>${p.shortages.length ? `<br><span style="font-size:11px;color:#a4610b" title="Not enough questions at the allowed level — add some to the bank">⚠ ${p.shortages.reduce((x, y) => x + y.missing, 0)} short</span>` : ""}</td>
       <td><button class="btn secondary" style="padding:2px 9px" data-cpview="${i}">View</button></td></tr>`; }).join("") +
     `</tbody></table>`;
   $("cpAll").onchange = () => { cpRows.forEach(r => r.include = $("cpAll").checked && r.plan.items.length > 0); cpRender(); };
@@ -4269,7 +4508,9 @@ function cpRender(){
     $("qpvBody").innerHTML = `<div style="font-size:13px;margin-bottom:8px"><b>${esc(r.att.studentName)}</b> — planned practice (${r.plan.items.length} Qs, easiest first)</div>
       <table class="tbl"><thead><tr><th>#</th><th>Question ID</th><th>Topic</th><th>Level</th><th>Why it's here</th></tr></thead><tbody>` +
       r.plan.items.map((x,k) => `<tr><td>${k+1}</td><td>${esc(x.id)}</td><td>${esc(x.topic||"")}</td><td>${esc(levelShort(x.d))}</td>
-        <td>${GROUP_LABEL[x.why]}${x.original?' <span class="badge zero">re-test</span>':""}</td></tr>`).join("") + `</tbody></table>`;
+        <td>${GROUP_LABEL[x.why]}${x.original?' <span class="badge zero">re-test</span>':""}</td></tr>`).join("") + `</tbody></table>` +
+      (r.plan.shortages.length ? `<div style="font-size:12.5px;margin-top:8px;color:#a4610b"><b>⚠ Too few questions at the allowed level</b> (not replaced with harder ones):<br>` +
+        r.plan.shortages.map(x => `${esc(x.topic)}${x.model ? " · " + esc(x.model) : ""} — ${esc(x.rule)}: ${x.missing} missing`).join("<br>") + `</div>` : "");
     $("qpvBack").classList.remove("hidden");
   });
 }
@@ -4729,9 +4970,28 @@ $("tmIndexBtn").onclick = async () => {
       const key = `${q.examType}__${q.subject}`;
       (buckets[key] = buckets[key] || []).push({
         i: q.docId, t: (q.topic||"").trim(), d: q.difficulty || "Medium", s: q.section || "A",
-        ...(q.model ? { m: String(q.model).trim() } : {}), ...(q.aiGenerated ? { a: 1 } : {})   // question model; AI-written
+        ...(q.model ? { m: String(q.model).trim() } : {}), ...(q.modelCode ? { mc: String(q.modelCode).trim() } : {}),
+        ...(q.aiGenerated ? { a: 1 } : {}),   // question model (name / code); AI-written
+        ...(q.keySrc === "ai" ? { u: 1 } : {})   // key proposed by an AI, not yet confirmed by a teacher (ranked last in suggestions)
       });
     });
+    // full bank index for the Model Bank (admin view): every question incl. no-key ones and repeated pictures
+    const full = {}, picSeen = new Set();
+    allBankCache.forEach(q => {
+      if (!q.examType || !q.subject) return;
+      const k = `${q.examType}__${q.subject}`;
+      const pk = q.imgHash ? `${q.examType}|${q.imgHash}` : null, dup = pk && picSeen.has(pk);
+      if (pk) picSeen.add(pk);
+      (full[k] = full[k] || []).push({ i: q.docId, t: (q.topic||"").trim(), d: normLevel(q.difficulty), s: q.section || "A",
+        ...(q.modelCode ? { mc: String(q.modelCode).trim() } : {}), ...(q.model ? { m: String(q.model).trim() } : {}),
+        k: hasKey(q) ? (q.keySrc === "ai" ? "ai" : "ok") : q.keySrc === "ai-unsure" ? "unsure" : q.keySrc === "pending-ai" ? "pending" : "none",
+        ...(dup ? { dup: 1 } : {}) });
+    });
+    for (const k of Object.keys(full)) {
+      try { await setDoc(doc(db,"bankIndex",k), { q: full[k], count: full[k].length, updatedAt: serverTimestamp(), updatedBy: currentUser.name }); }
+      catch(e) { setMsg($("tmMsg"), "Bank index (Model Bank) not saved: " + e.message + " — publish the updated firestore.rules.", false); }
+    }
+    TX.bank = {};
     const keys = Object.keys(buckets);
     for (const k of keys) {
       const [examType, subject] = k.split("__");
@@ -5280,6 +5540,7 @@ async function enterStudent(){
   showView("view-student");
   loadActiveExam(); loadMyAttempts();
   initPractice(); loadPracticeHistory();
+  txStudentInit();
   progressHtml(currentUser.uid, currentUser.name).then(h => { const el=$("myProgress"); if(el) el.innerHTML=h; }).catch(()=>{});
   openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true)
     .then(() => renderMistakenModels($("myModels"), $("myNotebook")._nb))
@@ -5341,6 +5602,206 @@ async function loadActiveExam(){
   });
 }
 
+/* ---------- 📚 Model Bank ----------
+   taxonomy/{examType__subject__chapter}: { examType, subject, chapter (= question.topic), title, source,
+     groups:[{ code, name, sub, note, models:[{ code, name, level: NEET|JEE MAIN|JEE ADV, fail, aliases:[] }] }] }
+   bankIndex/{examType__subject}: every bank question { i, t, d, s, mc, m, k: ok|ai|none|unsure|pending, dup } (built with
+   the practice index). Admin-only; settings/taxonomyAccess.uids lists the students who may view it (firestore.rules). */
+const TX = { list: [], bank: {}, open: null };
+const nrm = x => String(x ?? "").trim().toLowerCase();
+const txDocId = t => `${t.examType}__${t.subject}__${safeDocId(t.chapter)}`.slice(0, 140);
+const TX_LVL = { "NEET": "neet", "JEE MAIN": "main", "JEE ADV": "adv" };
+function txValidate(t){
+  const err = [];
+  if (!t || typeof t !== "object") return ["not an object"];
+  if (!["medical", "engineering"].includes(t.examType)) err.push('examType must be "medical" or "engineering"');
+  if (!t.subject) err.push("missing subject"); if (!t.chapter) err.push("missing chapter (must equal the questions' topic)");
+  if (!Array.isArray(t.groups) || !t.groups.length) err.push("groups[] missing");
+  const codes = new Set();
+  (t.groups || []).forEach((g, gi) => {
+    if (!g.name) err.push(`group ${gi + 1}: missing name`);
+    (g.models || []).forEach((m, mi) => {
+      const c = nrm(m.code);
+      if (!c) err.push(`group ${g.code || gi + 1} model ${mi + 1}: missing code`);
+      else if (codes.has(c)) err.push(`model code "${m.code}" used twice`); else codes.add(c);
+      if (!m.name) err.push(`model ${m.code}: missing name`);
+    });
+  });
+  return err;
+}
+async function txLoad(){
+  const snap = await getDocs(collection(db,"taxonomy"));
+  TX.list = snap.docs.map(d => ({ docId: d.id, ...d.data() }))
+    .sort((a, b) => ALL_SUBJECTS.indexOf(a.subject) - ALL_SUBJECTS.indexOf(b.subject) || String(a.chapter).localeCompare(String(b.chapter)));
+  return TX.list;
+}
+async function txBank(examType, subject){
+  const k = `${examType}__${subject}`;
+  if (!(k in TX.bank)) { try { const sn = await getDoc(doc(db,"bankIndex",k)); TX.bank[k] = sn.exists() ? (sn.data().q || []) : []; } catch(e) { TX.bank[k] = []; } }
+  return TX.bank[k];
+}
+// questions of this chapter linked to a model: by modelCode, else by the exact model name or one of its aliases
+function txLinked(model, chapterEntries){
+  const code = nrm(model.code), names = new Set([model.name, ...(model.aliases || [])].map(nrm));
+  return chapterEntries.filter(e => e.mc ? nrm(e.mc) === code : (e.m && names.has(nrm(e.m))));
+}
+function txCounts(list){
+  const c = { E: 0, M: 0, H: 0, ai: 0, none: 0, dup: 0 };
+  list.forEach(e => {
+    if (e.dup) { c.dup++; return; }
+    if (e.k === "ok") c[e.d === "Easy" ? "E" : e.d === "Hard" ? "H" : "M"]++;
+    else if (e.k === "ai") c.ai++; else c.none++;
+  });
+  return c;
+}
+async function txMount(box, admin){
+  box.innerHTML = "Loading…";
+  try { await txLoad(); } catch(e) { box.innerHTML = `<div class="card"><p>${e.code === "permission-denied" ? "No access — publish the updated firestore.rules, or ask the admin for view access." : esc(e.message)}</p></div>`; return; }
+  box._admin = admin;
+  TX.open ? txRenderChapter(box, TX.list.find(t => t.docId === TX.open) || null) : txRenderList(box);
+}
+async function txRenderList(box){
+  TX.open = null;
+  if (!TX.list.length) { box.innerHTML = `<div class="card"><p style="color:var(--muted)">No taxonomies yet${box._admin ? " — upload one above." : "."}</p></div>`; return; }
+  const cards = [];
+  for (const t of TX.list) {
+    const entries = (await txBank(t.examType, t.subject)).filter(e => nrm(e.t) === nrm(t.chapter));
+    const models = t.groups.flatMap(g => g.models || []);
+    const covered = models.filter(m => { const c = txCounts(txLinked(m, entries)); return c.E + c.M + c.H > 0; }).length;
+    const linked = new Set(models.flatMap(m => txLinked(m, entries).map(e => e.i)));
+    cards.push(`<button class="txChap" data-txopen="${esc(t.docId)}">
+      <span style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600">${esc(t.subject)} · ${esc(t.examType)}</span>
+      <span style="font-size:15px;font-weight:700;color:var(--blue)">${esc(t.chapter)}</span>
+      <span style="font-size:12.5px">${models.length} models · ${t.groups.length} groups</span>
+      <span style="font-size:12px">${entries.length} bank questions · <b>${linked.size}</b> linked to a model</span>
+      <span style="display:block;height:5px;border-radius:3px;background:#eef1f4;overflow:hidden"><span style="display:block;height:100%;width:${models.length ? Math.round(100 * covered / models.length) : 0}%;background:#2e9e5b"></span></span>
+      <span style="font-size:11.5px;color:var(--muted)">${covered}/${models.length} models have usable questions</span></button>`);
+  }
+  box.innerHTML = `<div class="txGrid">${cards.join("")}</div>`;
+  box.querySelectorAll("[data-txopen]").forEach(b => b.onclick = () => txRenderChapter(box, TX.list.find(t => t.docId === b.dataset.txopen)));
+}
+async function txRenderChapter(box, t){
+  if (!t) return txRenderList(box);
+  TX.open = t.docId;
+  const admin = box._admin;
+  const entries = (await txBank(t.examType, t.subject)).filter(e => nrm(e.t) === nrm(t.chapter));
+  const models = t.groups.flatMap(g => g.models || []);
+  const linkedIds = new Set(models.flatMap(m => txLinked(m, entries).map(e => e.i)));
+  const unlinked = entries.filter(e => !linkedIds.has(e.i));
+  const cell = (n, warnGap) => `<td class="txCnt ${warnGap && !n ? "gap" : ""}">${n || "—"}</td>`;
+  const tot = txCounts(entries);
+  box.innerHTML = `<div class="card">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn secondary" data-txback style="padding:4px 12px">← All chapters</button>
+      <h3 style="margin:0;font-size:17px;color:var(--blue)">${esc(t.chapter)}</h3>
+      <span class="badge zero">${esc(t.subject)}</span>
+      ${admin ? `<button class="btn danger" style="padding:2px 10px;margin-left:auto" data-txdel>Delete taxonomy</button>` : ""}
+    </div>
+    ${t.title || t.source ? `<div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">${esc(t.title || "")}${t.source ? " · " + esc(t.source) : ""}</div>` : ""}
+    <div class="statRow" style="margin-bottom:10px">
+      <div class="stat"><div class="v">${models.length}</div><div class="l">Models</div></div>
+      <div class="stat"><div class="v">${tot.E} / ${tot.M} / ${tot.H}</div><div class="l">Usable Easy / Moderate / Hard</div></div>
+      <div class="stat"><div class="v" style="color:#b03a2e">${models.filter(m => { const c = txCounts(txLinked(m, entries)); return !(c.E + c.M + c.H); }).length}</div><div class="l">Models with no usable question</div></div>
+      ${admin ? `<div class="stat"><div class="v" style="color:#a4610b">${tot.ai + tot.none}</div><div class="l">Key not confirmed / missing</div></div>` : ""}
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Usable = teacher-confirmed key, each picture counted once. Red cells = gaps. Click a model to see its questions by level.</div>
+    <div style="overflow:auto"><table class="tbl"><thead><tr><th>#</th><th>Model</th><th>Exam</th><th class="txCnt">Easy</th><th class="txCnt">Moderate</th><th class="txCnt">Hard</th>${admin ? `<th class="txCnt" title="AI-proposed key, not confirmed">🤖 key</th><th class="txCnt">No key</th>` : ""}</tr></thead><tbody>
+    ${t.groups.map(g => `<tr><td colspan="${admin ? 8 : 6}" style="background:#f3f6fa;font-weight:700;color:#345">${esc(g.code || "")} · ${esc(g.name)} <span style="font-weight:400;color:var(--muted);font-size:12px">${esc([g.sub, g.note].filter(Boolean).join(" — "))}</span></td></tr>` +
+      (g.models || []).map(m => { const c = txCounts(txLinked(m, entries)); return `<tr class="txRow" data-txmodel="${esc(m.code)}">
+        <td><b>${esc(m.code)}</b></td>
+        <td>${esc(m.name)}${m.fail ? `<div style="font-size:11.5px;color:#7a4d00">Fail: ${esc(m.fail)}</div>` : ""}</td>
+        <td>${m.level ? `<span class="txLvl ${TX_LVL[m.level] || "main"}">${esc(m.level)}</span>` : ""}</td>
+        ${cell(c.E, true)}${cell(c.M, true)}${cell(c.H, m.level !== "NEET")}${admin ? cell(c.ai) + cell(c.none) : ""}</tr>
+        <tr class="hidden" data-txqs="${esc(m.code)}"><td colspan="${admin ? 8 : 6}"></td></tr>`; }).join("")).join("")}
+    ${admin && unlinked.length ? `<tr><td colspan="8" style="background:#fff6e0"><b>${unlinked.length}</b> question(s) of this chapter are not linked to any model —
+       <button class="btn secondary" style="padding:1px 8px;font-size:12px" data-txunlinked>show</button> (set their model in the Diagnostic Builder, or upload with <code>modelCode</code>)</td></tr>
+       <tr class="hidden" data-txqs="__unlinked"><td colspan="8"></td></tr>` : ""}
+    </tbody></table></div></div>`;
+  box.querySelector("[data-txback]").onclick = () => txRenderList(box);
+  const del = box.querySelector("[data-txdel]");
+  if (del) del.onclick = async () => {
+    if (!confirm(`Delete the taxonomy for "${t.chapter}"? Questions are not touched.`)) return;
+    try { await deleteDoc(doc(db,"taxonomy",t.docId)); TX.list = TX.list.filter(x => x !== t); txRenderList(box); }
+    catch(e) { alert("Could not delete: " + e.message); }
+  };
+  const openRow = async (code, list) => {
+    const tr = box.querySelector(`[data-txqs="${CSS.escape(code)}"]`);
+    if (!tr.classList.contains("hidden")) { tr.classList.add("hidden"); return; }
+    tr.classList.remove("hidden");
+    const td = tr.firstElementChild; td.innerHTML = "Loading questions…";
+    await txRenderQuestions(td, list.filter(e => !e.dup), admin);
+  };
+  box.querySelectorAll("[data-txmodel]").forEach(row => row.onclick = () => {
+    const m = models.find(x => x.code === row.dataset.txmodel);
+    openRow(m.code, txLinked(m, entries));
+  });
+  const ub = box.querySelector("[data-txunlinked]");
+  if (ub) ub.onclick = () => openRow("__unlinked", unlinked);
+}
+async function txRenderQuestions(td, list, admin){
+  const LV = [["Easy", "Easy"], ["Medium", "Moderate"], ["Hard", "Hard"]];
+  const MAX = 30;
+  const pick = LV.flatMap(([k]) => list.filter(e => (e.d || "Medium") === k).slice(0, MAX));
+  const snaps = await Promise.all(pick.map(e => getDoc(doc(db,"questions",e.i)).catch(() => null)));
+  const byId = {}; snaps.forEach(sn => { if (sn?.exists()) byId[sn.id] = { docId: sn.id, ...sn.data() }; });
+  const qCard = (e) => {
+    const q = byId[e.i]; if (!q) return "";
+    const opts = (q.options || []).some(o => o) ? `<div style="font-size:12.5px;margin-top:4px">${q.options.map((o, k) => `(${"ABCD"[k]}) ${String(o).replace(/^\s*[A-D][).]\s*/, "")}`).join(" &nbsp; ")}</div>` : "";
+    const key = `<b>Answer:</b> ${esc(q.correct_answer || "—")}${admin && e.k !== "ok" ? ` <span class="badge zero">${e.k === "ai" ? "🤖 AI key, not confirmed" : "no key"}</span>` : ""}${solutionHtml(q)}`;
+    return `<div class="txQ">${admin ? `<div style="font-size:11px;color:var(--muted);margin-bottom:3px">${esc(q.id || q.docId)}</div>` : ""}
+      <div>${q.text || ""}${imgHtml(q.image)}</div>${opts}
+      ${admin ? `<div style="margin-top:4px;font-size:12.5px">${key}</div>` : `<details style="margin-top:4px;font-size:12.5px"><summary style="cursor:pointer;color:var(--blue)">Show answer</summary>${key}</details>`}</div>`;
+  };
+  td.innerHTML = list.length ? `<div class="txCols">${LV.map(([k, label]) => {
+      const lv = list.filter(e => (e.d || "Medium") === k);
+      return `<div><div style="font-weight:700;margin-bottom:6px">${label} <span style="font-weight:400;color:var(--muted)">(${lv.length})</span></div>
+        ${lv.length ? lv.slice(0, MAX).map(qCard).join("") + (lv.length > MAX ? `<div style="font-size:12px;color:var(--muted)">…and ${lv.length - MAX} more</div>` : "")
+                    : `<div style="font-size:12.5px;color:#b03a2e">No question at this level yet.</div>`}</div>`; }).join("")}</div>`
+    : `<div style="color:var(--muted)">No questions linked to this model yet.</div>`;
+  typeset(td);
+}
+$("txUploadBtn").onclick = async () => {
+  const f = $("txFile").files[0];
+  if (!f) { setMsg($("txMsg"), "Choose a taxonomy JSON file first."); return; }
+  let data;
+  try { data = JSON.parse(await f.text()); } catch(e) { setMsg($("txMsg"), "Invalid JSON: " + e.message); return; }
+  const list = Array.isArray(data) ? data : [data];
+  const errs = list.flatMap((t, i) => txValidate(t).map(e => `${t?.chapter || "item " + (i + 1)}: ${e}`));
+  if (errs.length) { setMsg($("txMsg"), "Not uploaded — " + errs.slice(0, 8).join(" · ") + (errs.length > 8 ? ` · …${errs.length - 8} more` : "")); return; }
+  try {
+    for (const t of list) await setDoc(doc(db,"taxonomy",txDocId(t)), { ...t, updatedAt: serverTimestamp(), updatedBy: currentUser.name });
+    setMsg($("txMsg"), `Uploaded ${list.length} taxonomy(ies): ${list.map(t => `${t.chapter} (${t.groups.reduce((n, g) => n + (g.models || []).length, 0)} models)`).join(", ")}.`, true);
+    txMount($("txAdminBox"), true);
+  } catch(e) { setMsg($("txMsg"), "Could not upload: " + e.message + (e.code === "permission-denied" ? " — admins only, and publish the updated firestore.rules." : "")); }
+};
+$("txRefreshBtn").onclick = () => { TX.bank = {}; txMount($("txAdminBox"), true); };
+$("txAccessBtn").onclick = async () => {
+  const box = $("txAccess");
+  if (!box.classList.contains("hidden")) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  let uids = [];
+  try { const sn = await getDoc(doc(db,"settings","taxonomyAccess")); uids = sn.exists() ? (sn.data().uids || []) : []; } catch(e) {}
+  const sel = new Set(uids);
+  const studs = studentCache.slice().sort((a, b) => String(a.batch || "").localeCompare(String(b.batch || "")) || String(a.name).localeCompare(String(b.name)));
+  box.innerHTML = `<div style="font-size:13px;margin-bottom:6px"><b>Students who may view the Model Bank</b> (read-only: chapters, models and questions; answers behind “Show answer”).</div>
+    <input id="txAccSearch" placeholder="Search name or batch…" style="width:260px;margin-bottom:6px">
+    <div id="txAccList" class="checklist" style="max-height:220px">${studs.map(st => `<label style="display:flex;gap:7px;align-items:center;font-weight:400;font-size:13px" data-txs="${esc((st.name + " " + (st.batch || "")).toLowerCase())}">
+      <input type="checkbox" value="${st.uid}" ${sel.has(st.uid) ? "checked" : ""}> ${esc(st.name)} <span style="color:var(--muted)">${esc(st.batch || "")}</span></label>`).join("")}</div>
+    <button class="btn" id="txAccSave" style="margin-top:6px">Save access</button> <span id="txAccMsg" style="font-size:12.5px"></span>`;
+  $("txAccSearch").oninput = () => { const q = $("txAccSearch").value.trim().toLowerCase(); box.querySelectorAll("[data-txs]").forEach(l => l.style.display = !q || l.dataset.txs.includes(q) ? "" : "none"); };
+  $("txAccSave").onclick = async () => {
+    const list = [...box.querySelectorAll("#txAccList input:checked")].map(c => c.value);
+    try { await setDoc(doc(db,"settings","taxonomyAccess"), { uids: list, updatedBy: currentUser.name, updatedAt: serverTimestamp() }); $("txAccMsg").textContent = `Saved — ${list.length} student(s) can view.`; }
+    catch(e) { $("txAccMsg").textContent = "Could not save: " + e.message + (e.code === "permission-denied" ? " — admins only; publish the updated firestore.rules." : ""); }
+  };
+};
+// students with view access see it on their dashboard
+async function txStudentInit(){
+  try { const list = await txLoad(); if (!list.length) return; }
+  catch(e) { return; }   // no access: nothing shown
+  $("txStudentWrap").classList.remove("hidden");
+  txMount($("txStudentBox"), false);
+}
 /* ---- staff: Study Packages tab — the shared package per programme, and each student's status per chapter ---- */
 let PK = { chapters: [], students: [], att: {} };
 function initPackages(){
@@ -6009,7 +6470,7 @@ async function submitExam(auto, flag={}){
     examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks, examDurationSec: cfg.durationSec,
     examUntimed: cfg.untimed,
     // subject / chapter / level of each question, so progress and the mistake notebook need no extra reads
-    qMeta: Object.fromEntries(EX.questions.map(q => [q.docId, { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), ...(q.model ? { m: String(q.model).trim() } : {}) }])),
+    qMeta: Object.fromEntries(EX.questions.map(q => [q.docId, { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), ...(q.model ? { m: String(q.model).trim() } : {}), ...(q.modelCode ? { mc: String(q.modelCode).trim() } : {}) }])),
     idealTimes, quickAnswers, pledgedAt: EX.pledgedAt,
     // queue for the hourly AI follow-up job (ai/ + .github/workflows/ai-followup.yml)
     ...(activeExam?.aiFollowUp ? { aiStatus: "queued", aiTries: 0 } : {}),
@@ -6235,7 +6696,7 @@ function prShowFeedback(){
       ${st.correct ? "" : ` — the answer is <b>${correctTxt}</b>`}
       <div style="font-size:12.5px;color:var(--muted);margin-top:4px">Time on this question: ${fmtSec(st.timeSec)}${
         st.timeSec > 120 ? " — that's over 2 minutes; worth revisiting the concept." : ""}</div>
-    </div>`;
+    </div>${solutionHtml(q)}`;
   typeset($("prFeedback"));
 }
 $("prCheckBtn").onclick = () => {
@@ -6465,7 +6926,7 @@ async function showResult(attempt){
   const errRows = kind => detail.filter(d=>d.verdict===kind).map((d,i) => `
     <tr><td>${i+1}</td><td>${esc(d.q.subject)}</td><td>${esc(d.q.topic)}</td><td>${esc(levelShort(d.q.difficulty))}</td>
     <td><details class="qexp"><summary>${esc((d.q.text||"(image question)").slice(0,80))}&hellip;</summary><div>${d.q.text||""}${imgHtml(d.q.image)}${
-      d.q.options?.length ? "<br>" + d.q.options.map((o,k)=>`(${"ABCD"[k]}) ${esc(String(o).replace(/^\s*[A-D][).]\s*/,""))}${d.q.optionImages?imgHtml(d.q.optionImages[k]):""}`).join("<br>") : ""}</div></details></td>
+      d.q.options?.length ? "<br>" + d.q.options.map((o,k)=>`(${"ABCD"[k]}) ${esc(String(o).replace(/^\s*[A-D][).]\s*/,""))}${d.q.optionImages?imgHtml(d.q.optionImages[k]):""}`).join("<br>") : ""}${solutionHtml(d.q)}</div></details></td>
     <td><b>${esc(d.q.correct_answer)}</b></td></tr>`).join("")
     || `<tr><td colspan="6">None 🎉</td></tr>`;
 
@@ -6570,7 +7031,7 @@ async function showResult(attempt){
     <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">Each question is compared with its <b>ideal time</b>. <b>Correct but slow</b> = knows it, needs speed; <b>Wrong &amp; fast</b> = rushed or a misconception; <b>Wrong &amp; slow</b> = concept gap.</p>
     <div class="statRow">${diagChips}</div>
     <table class="tbl"><thead><tr><th>Subject — Topic</th><th>Concept</th><th>Level reached</th><th>Qs</th><th>Mastered</th><th>Correct but slow</th><th>Wrong &amp; fast</th><th>Wrong &amp; slow</th><th>Skipped</th><th>Time taken / ideal</th><th>What to do next</th></tr></thead><tbody>${diagRows}</tbody></table>
-    <h2 class="sec">Level-wise (Bloom → Intermediate → Advanced)</h2>
+    <h2 class="sec">Level-wise (Easy → Moderate → Hard)</h2>
     <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">A level is <b>cleared</b> at 60% or more correct.</p>
     <table class="tbl"><thead><tr><th>Level</th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy</th><th>Time taken</th><th>Ideal time</th><th></th></tr></thead><tbody>${levelRows}</tbody></table>
     <h2 class="sec">Question-by-question</h2>
@@ -6767,7 +7228,7 @@ function renderIntegrity(attempt, detail){
     ${incidents.length ? `<p style="margin-top:6px"><b>🚨 Left the test screen ${incidents.length} time(s)</b> — your teacher was notified each time:</p>
       <ul style="font-size:13px;margin:4px 0 0 18px">${incidents.map(v => `<li>${new Date(v.at).toLocaleTimeString("en-IN")} — ${esc(VIOLATION_TEXT[v.type] || v.type)}</li>`).join("")}</ul>` : ""}
     ${quick.length ? `<p style="margin-top:8px"><b>⚡ ${quick.length} tough question(s) answered too quickly.</b>
-      <span style="font-size:12.5px;color:var(--muted)">An Advanced/Intermediate question answered in a small fraction of its ideal time usually means a blind guess or outside help. Your teacher reviews these.</span></p>
+      <span style="font-size:12.5px;color:var(--muted)">A Hard/Moderate question answered in a small fraction of its ideal time usually means a blind guess or outside help. Your teacher reviews these.</span></p>
       <table class="tbl" style="margin-top:6px"><thead><tr><th>Q#</th><th>Topic</th><th>Level</th><th>Your time</th><th>Ideal</th><th>Result</th></tr></thead><tbody>
       ${quick.map(({d,i}) => `<tr><td>${i+1}</td><td>${esc(d.q.topic||"")}</td><td>${esc(levelShort(d.q.difficulty))}</td><td><b>${d.timeSec}s</b></td><td>${fmtSec(d.idealSec)}</td>
         <td><span class="badge ${d.verdict==="correct"?"zero":"neg"}">${d.verdict}</span></td></tr>`).join("")}</tbody></table>` : ""}

@@ -253,4 +253,22 @@ import { solveRequestedExams } from "./estimate.mjs";
   ok(g.length === 2 && g.find(x => x.model === "Pulley").needs.length === 2, "mistakes grouped by question model within a topic");
 }
 
+// --- difficulty ceiling: an Easy miss never gets harder questions; concept gaps go one level down
+{
+  const { levelRule, genPrompt } = await import("./pipeline.mjs");
+  const lv = r => ["Easy", "Medium", "Hard"][r.max];
+  ok(lv(levelRule("concept", "Easy")) === "Easy" && lv(levelRule("accuracy", "Easy")) === "Easy" && lv(levelRule("speed", "Easy")) === "Easy", "Easy miss: Easy only, whatever the reason");
+  ok(lv(levelRule("concept", "Medium")) === "Easy" && lv(levelRule("accuracy", "Medium")) === "Medium", "Moderate miss: Easy for a concept gap, Moderate for an accuracy slip");
+  ok(lv(levelRule("concept", "Hard")) === "Medium" && lv(levelRule("accuracy", "Hard")) === "Hard" && lv(levelRule("speed", "Hard")) === "Hard", "Hard miss: Moderate for a concept gap, Hard allowed for accuracy / speed");
+  const p = genPrompt({ subject: "Physics", topic: "LoM", level: "Easy", group: "concept", count: 2, needs: [] }, { examType: "medical" }, []);
+  ok(/Target level: Easy/.test(p[1].content) && !/Moderate|Hard/.test(p[1].content.split("Target level")[1].split("\n")[0]), "concept prompt for an Easy miss targets Easy only");
+}
+
+// --- model codes: grouped by code when present (names may differ), and carried into drafts
+{
+  const g = groupNeeds([{ q: { subject: "Physics", topic: "CE", modelCode: "8b", model: "Non-ohmic", difficulty: "Easy" }, group: "concept" },
+                        { q: { subject: "Physics", topic: "CE", modelCode: "8B", model: "Non-ohmic device V-I", difficulty: "Easy" }, group: "concept" }], CONFIG_DEFAULTS);
+  ok(g.length === 1 && g[0].modelCode === "8b", "same modelCode (any case) = one group, even with different model names");
+}
+
 console.log(`\n${passed} passed`);
