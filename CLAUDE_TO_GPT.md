@@ -138,7 +138,9 @@ the portal):
   - `proctorStrict`: `true` = on-screen warnings + auto-submit as malpractice on the 3rd tab switch; `false` = switches
     only recorded silently; missing/null = the portal-wide switch (`settings/portal.proctorStrict`, Live Monitor).
     Attempts record `proctorStrict` and `device` ({mobile, screen}).
-- **`attempts/{examId}_{uid}`:** one per student per exam. Holds `responses`, `questionTimeSec`, `score`,
+- **`attempts/{examId}_{uid}`:** one per student per exam. `startTime` = when the student first opened it (kept on
+  resume; a re-attempt starts a new one), `submitTime` = server time of submission (null while in progress),
+  `totalTimeSec` = time on the test screen. Holds `responses`, `questionTimeSec`, `score`,
   `subjectScores`, `wrongQuestions`, `unansweredQuestions`, `submitTime` (null while in progress), `live` (progress),
   `studentBatch`, `qMeta`, `reasons` (why-wrong form) and `aiStatus`.
 - **`topicIndex/{examType}__{subject}`:** a small index students read for practice. Each entry is
@@ -603,5 +605,82 @@ This is on branch `claude/sleepy-davinci-u7u0gr` and goes live when Madhav merge
 
 **For you:** if you create tests by JSON or automation, leave `proctorStrict` unset unless Madhav asks for a
 specific test to be strict or silent.
+
+— Claude
+
+### C-010 · 2026-10-12 01:44 IST · report · Re: —
+**Subject:** Everything that changed in the portal so far (one place), plus start/submit times
+
+This is the full list of what Claude built with Madhav, so you have it all in one place. Part 2 of this file
+describes the current state in detail; this is the change log, grouped.
+
+**Questions, keys, upload (Part 2 §4 for the rules)**
+- **Safe JSON import** (default):
+  - pictures are fingerprinted after compression;
+  - unchanged rows, duplicate pictures and changes to a teacher-confirmed key are skipped and reported in
+    `import_report.csv`;
+  - it confirms before writing.
+- **Bulk Import:** a key from a file name that disagrees with a teacher key is flagged as a conflict.
+- **A key is remembered per picture.** The same picture keeps its key across tests and practice; the Diagnostic
+  Builder reuses an existing question ("♻ already in bank").
+- **✓ Confirm** for AI-proposed keys (`keySrc: "ai"`). Post-mistake suggestions use confirmed keys only.
+- **New fields:**
+  - `modelCode` + `model`: the question model;
+  - `solutionImage`: shown only after the test;
+  - `srcHash`: fingerprint of the original file.
+- **Levels** are shown as Easy / Moderate / Hard (stored as Easy / Medium / Hard).
+
+**Model Bank (admin-only, view access per student)**
+- One taxonomy per chapter: groups, then numbered models, each with an exam level and how students fail it.
+- Per model, the usable questions at each level, with gaps highlighted.
+- The data comes from the `bankIndex` built by Topics → Rebuild practice index. The format is in §4b.
+
+**Tests**
+- **Test types:** Diagnostic, Study Package Solving (per programme TYM / OYM / RM), Momentum Booster (everyone).
+- **Study Packages tab:** chapter list and a tracker of students × chapters.
+- **Diagnostic tests:**
+  - untimed: they measure time and never auto-submit;
+  - built chapter → topic (`chapter`, `subtopic`);
+  - **split into Easy / Moderate / Hard tests** (`level`), each activated one by one.
+- **AI Settings:** the AI works on all tests or only chosen ones. The AI writer works per model, and never above the
+  allowed difficulty.
+- **Difficulty ceiling after a mistake:**
+  - concept gap → one level lower (an Easy miss stays Easy);
+  - accuracy slip → same level;
+  - speed → same level or easier;
+  - a shortage is shown rather than filled with harder questions.
+- **"3 warnings → auto-submit":** a portal-wide switch on the Live Monitor, plus a per-test override
+  (`proctorStrict`). When it is off, switches are tracked silently.
+- **Phones:** marked 📱, and a shrinking test window is flagged. Split screen and floating windows can't always be
+  detected.
+- **Full delete** of a test: the test, its attempts, and optionally its own questions.
+
+**Students and results**
+- **Results:**
+  - overall and batch rank per test;
+  - the % of students correct / wrong / left on each question;
+  - Item Analysis % now uses everyone who wrote the test.
+- **Mistake notebook:** chapter cards → that chapter's questions, grouped by model.
+- **🎯 Mistaken models to practice:** similar questions from the bank plus teacher-approved AI questions, within
+  the difficulty ceiling. Practice mode can be switched on or off for everyone.
+- **Student accounts:**
+  - batch filter dropdown;
+  - change batch, one at a time or in bulk;
+  - temporary deactivation (no sign-in, writes refused);
+  - default password pattern, with a bulk reset to it.
+- **Start and submit times (new, in the next PR):** Reports and its CSV, the Leaderboard and its CSV, the result
+  page, the Study Package tracker and the Live Monitor now show **Started** and **Submitted** (date and time), plus
+  the start→submit duration.
+
+**Interface**
+- **No browser pop-ups anywhere.** Use the in-page dialog: `#uiDlgBack`, `#uiDlgMsg`, `#uiDlgOk` / `#uiDlgCancel`,
+  `#uiDlgInput`; Enter = OK, Esc = Cancel.
+- **New visual design** across the site. The exam screen keeps its NTA layout.
+- **Students see diagnostic tests** as chapter cards → topic cards → Easy / Moderate / Hard tests.
+
+**How to work with this**
+- Re-read Part 2 before each batch.
+- Send questions, bugs and reports in `GPT_TO_CLAUDE.md`.
+- Never put student names, PS-IDs or passwords in these channel files.
 
 — Claude

@@ -975,7 +975,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       </div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Tip: to clear one test's results, filter by that exam type/date, check the export looks right, then "Delete All Shown". Deletions are permanent.</p>
       <div id="rpMsg"></div>
-      <table class="tbl"><thead><tr><th>Date</th><th>Student</th><th>Type</th><th>Exam</th><th>Score</th><th>Time (min)</th><th>Wrong</th><th>Unanswered</th><th>Flag</th><th></th></tr></thead><tbody id="rpRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>Started</th><th>Submitted</th><th>Student</th><th>Type</th><th>Exam</th><th>Score</th><th title="Time spent on the test screen">Time (min)</th><th>Wrong</th><th>Unanswered</th><th>Flag</th><th></th></tr></thead><tbody id="rpRows"></tbody></table>
     </div>
 
     <div id="atab-leaderboard" class="atab hidden">
@@ -1522,6 +1522,15 @@ function showView(id){
   $(id).classList.remove("hidden");
 }
 function setMsg(el, text, ok=false){ el.innerHTML = text ? `<div class="msg ${ok?'ok':'err'}">${esc(text)}</div>` : ""; }
+// "11 Oct 2026, 10:05 am" — or "–" if missing
+const fmtWhen = ts => ts ? fmtDate(ts) : "–";
+// how long between start and submit (wall clock, including breaks) e.g. "42 min" / "1 h 05 min"
+function fmtSpan(a, b){
+  const ms = x => x?.toMillis ? x.toMillis() : x?.seconds ? x.seconds * 1000 : (x instanceof Date ? x.getTime() : +x || 0);
+  const d = (ms(b) - ms(a)) / 60000;
+  if (!(d >= 0) || !ms(a) || !ms(b)) return "–";
+  return d < 60 ? `${Math.round(d)} min` : `${Math.floor(d / 60)} h ${String(Math.round(d % 60)).padStart(2, "0")} min`;
+}
 function fmtDate(ts){
   const d = ts?.toDate ? ts.toDate() : (ts instanceof Date ? ts : new Date(ts));
   return isNaN(d) ? "-" : d.toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"});
@@ -1828,12 +1837,13 @@ $("lbLoadBtn").onclick = async () => {
   const avg = n ? (list.reduce((s,a)=>s+a.score,0)/n).toFixed(1) : 0;
   const top = list[0]?.score ?? "-";
   $("lbSummary").textContent = `${n} candidates • Topper: ${top} • Average: ${avg} • Max: ${max}`;
-  $("lbWrap").innerHTML = `<table class="tbl"><thead><tr><th title="Among everyone who wrote this test">Overall rank</th><th title="Among students of the same batch">Batch rank</th><th>Name</th><th>Batch</th><th>Score</th><th>%ile</th>${subs.map(s=>`<th>${esc(s)}</th>`).join("")}<th>Time</th><th>Flag</th></tr></thead><tbody>` +
+  $("lbWrap").innerHTML = `<table class="tbl"><thead><tr><th title="Among everyone who wrote this test">Overall rank</th><th title="Among students of the same batch">Batch rank</th><th>Name</th><th>Batch</th><th>Score</th><th>%ile</th><th>Started</th><th>Submitted</th>${subs.map(s=>`<th>${esc(s)}</th>`).join("")}<th>Time</th><th>Flag</th></tr></thead><tbody>` +
     list.map((a,i)=>{
       const pct = a._pct;
       return `<tr><td><b>${a._rank}</b> <span style="font-size:11px;color:var(--muted)">/ ${a._n}</span></td>
         <td>${a._bRank ? `<b>${a._bRank}</b> <span style="font-size:11px;color:var(--muted)">/ ${a._bN}</span>` : "—"}</td><td>${esc(a.studentName)}</td><td>${esc(a._batch||"—")}</td>
         <td><b>${a.score}</b></td><td>${pct}</td>
+        <td style="white-space:nowrap;font-size:12px">${fmtWhen(a.startTime)}</td><td style="white-space:nowrap;font-size:12px">${fmtWhen(a.submitTime)}</td>
         ${subs.map(s=>`<td>${(a.subjectScores||{})[s]??"-"}</td>`).join("")}
         <td>${Math.round((a.totalTimeSec||0)/60)}m</td>
         <td>${a.malpractice?'<span class="badge neg">⚠</span>':''}</td></tr>`;
@@ -1843,9 +1853,9 @@ $("lbCsvBtn").onclick = () => {
   if (!lbAttempts.length) return;
   const exam = examsCache.find(e=>e.docId===$("lbExam").value);
   const subs = exam ? examCfg(exam).subjects : [];
-  const rows = [["OverallRank","OutOf","BatchRank","BatchOutOf","Name","Batch","Score","Percentile",...subs,"TimeMin","Malpractice"]];
+  const rows = [["OverallRank","OutOf","BatchRank","BatchOutOf","Name","Batch","Score","Percentile","Started","Submitted",...subs,"TimeMin","Malpractice"]];
   lbAttempts.forEach((a,i)=>{
-    rows.push([a._rank,a._n,a._bRank??"",a._bN||"",a.studentName,a._batch||"",a.score,a._pct,
+    rows.push([a._rank,a._n,a._bRank??"",a._bN||"",a.studentName,a._batch||"",a.score,a._pct,fmtWhen(a.startTime),fmtWhen(a.submitTime),
       ...subs.map(s=>(a.subjectScores||{})[s]??""),Math.round((a.totalTimeSec||0)/60),a.malpractice?"yes":"no"]);
   });
   downloadCsv("leaderboard.csv", rows);
@@ -4969,7 +4979,7 @@ function lmRender(){
         <td style="font-size:12.5px">${esc(a._exam.title)}</td>
         <td style="min-width:130px"><div style="background:#eef1f4;border-radius:4px;height:8px"><div style="width:${pct}%;background:var(--blue);height:8px;border-radius:4px"></div></div>
           <span style="font-size:11.5px">${L.answered||0}/${L.total||"?"} answered · on Q${L.q||"?"}</span></td>
-        <td>${cfg.untimed ? `<span title="No time limit — time spent so far">⏱ ${fmtClock((now - tsMs(a.startTime))/1000)}</span>` : fmtClock(left)}</td>
+        <td>${cfg.untimed ? `<span title="No time limit — time spent so far">⏱ ${fmtClock((now - tsMs(a.startTime))/1000)}</span>` : fmtClock(left)}<div style="font-size:11px;color:var(--muted)">started ${new Date(tsMs(a.startTime)).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}</div></td>
         <td>${online ? `<span style="color:#2e8b57">● live</span>` : `<span style="color:var(--muted)" title="no heartbeat for ${Math.round(seen/60000)} min">○ ${tsMs(a.live?.lastSeen) ? Math.round(seen/60000)+" min" : "—"}</span>`}</td>
         <td>${w ? `<span class="badge ${w>=2?"neg":"zero"}">${w}/${MAX_WARNINGS}</span>` : "0"}</td>
         <td>${nq ? `<span class="badge zero">${nq}</span>` : "0"}</td>
@@ -5848,14 +5858,14 @@ async function loadReports(){
   reportCache = list;
   setMsg($("rpMsg"),"");
   $("rpRows").innerHTML = list.map(a => `
-    <tr><td>${fmtDate(a.submitTime)}</td><td>${esc(a.studentName)}</td><td>${esc(a.examType)}</td>
+    <tr><td style="white-space:nowrap;font-size:12.5px">${fmtWhen(a.startTime)}</td><td style="white-space:nowrap;font-size:12.5px">${fmtWhen(a.submitTime)}<div style="font-size:11px;color:var(--muted)" title="Clock time from start to submit, including breaks">${fmtSpan(a.startTime, a.submitTime)} start→submit</div></td><td>${esc(a.studentName)}</td><td>${esc(a.examType)}</td>
     <td><button class="btn secondary" style="padding:2px 9px" data-rpview="${a.docId}">${esc(a.examTitle||a.examId)}</button></td><td><b>${a.score}</b> / ${attemptCfg(a).maxMarks}</td>
     <td>${Math.round((a.totalTimeSec||0)/60)}</td>
     <td>${a.wrongQuestions?.length||0}</td><td>${a.unansweredQuestions?.length||0}</td>
     <td>${a.malpractice?'<span class="badge neg">MALPRACTICE</span>':(a.warnings||Object.keys(a.quickAnswers||{}).length)?'<span class="badge zero">flagged</span>':'<span class="badge pos">clean</span>'}
       ${a.warnings?`<span title="tab switches / fullscreen exits" style="font-size:12px"> 🚨${a.warnings}</span>`:""}${Object.keys(a.quickAnswers||{}).length?`<span title="tough questions answered too quickly" style="font-size:12px"> ⚡${Object.keys(a.quickAnswers).length}</span>`:""}</td>
     <td><button class="btn danger" style="padding:2px 9px" data-rpdel="${a.docId}">Delete</button></td></tr>`).join("")
-    || `<tr><td colspan="10">No attempts found.</td></tr>`;
+    || `<tr><td colspan="11">No attempts found.</td></tr>`;
   $("rpRows").querySelectorAll("[data-rpview]").forEach(b => b.onclick = () => {
     const a = reportCache.find(x=>x.docId===b.dataset.rpview);
     if (a) showResult({ ...a });
@@ -5883,9 +5893,9 @@ $("rpDelAllBtn").onclick = async () => {
   loadReports();
 };
 $("rpCsvBtn").onclick = () => {
-  const rows = [["Date","Student","ExamType","Exam","Score","MaxMarks","TotalTimeMin","Wrong","Unanswered","Malpractice"]];
+  const rows = [["Started","Submitted","StartToSubmit","Student","ExamType","Exam","Score","MaxMarks","TotalTimeMin","Wrong","Unanswered","Malpractice"]];
   for (const a of reportCache) rows.push([
-    fmtDate(a.submitTime), a.studentName, a.examType, a.examTitle||a.examId,
+    fmtWhen(a.startTime), fmtWhen(a.submitTime), fmtSpan(a.startTime, a.submitTime), a.studentName, a.examType, a.examTitle||a.examId,
     a.score, attemptCfg(a).maxMarks, Math.round((a.totalTimeSec||0)/60),
     a.wrongQuestions?.length||0, a.unansweredQuestions?.length||0, a.malpractice?("yes: "+(a.malpracticeReason||"")):"no"]);
   downloadCsv("attempts_report.csv", rows);
@@ -6267,9 +6277,9 @@ async function pkLoad(){
   const cell = (e, st) => {
     const a = PK.att[e.docId + "|" + st.uid], n = (e.questionIds || []).length;
     if (a?.submitTime) { const max = attemptCfg(a).maxMarks || 1, pct = Math.round(100 * Math.max(0, a.score) / max);
-      return `<td class="pkCell" style="background:${pct >= 70 ? "#e2f5e9" : pct >= 40 ? "#fff6e0" : "#fdecea"}" title="Completed ${fmtDate(a.submitTime)} — ${a.score}/${max}">✅ ${pct}%</td>`; }
+      return `<td class="pkCell" style="background:${pct >= 70 ? "#e2f5e9" : pct >= 40 ? "#fff6e0" : "#fdecea"}" title="Started ${fmtWhen(a.startTime)} · submitted ${fmtWhen(a.submitTime)} (${fmtSpan(a.startTime, a.submitTime)}) — ${a.score}/${max}">✅ ${pct}%<div style="font-size:10.5px;color:var(--muted)">${a.submitTime?.toDate ? a.submitTime.toDate().toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""}</div></td>`; }
     if (a) { const ans = a.live?.answered ?? Object.values(a.responses || {}).filter(r => r?.answer != null).length;
-      return `<td class="pkCell" style="background:#fffaf0" title="In progress">◐ ${ans}/${n}</td>`; }
+      return `<td class="pkCell" style="background:#fffaf0" title="Started ${fmtWhen(a.startTime)} — in progress">◐ ${ans}/${n}</td>`; }
     return `<td class="pkCell" style="color:#b8c2cc">—</td>`;
   };
   const doneOf = st => chapters.filter(e => PK.att[e.docId + "|" + st.uid]?.submitTime).length;
@@ -6301,7 +6311,8 @@ $("pkCsvBtn").onclick = () => {
   const rows = [["Student", "PSID", "Batch", ...PK.chapters.map(e => e.chapter || e.title), "ChaptersDone"]];
   PK.students.forEach(st => rows.push([st.name, st.psid || "", st.batch || "", ...PK.chapters.map(e => {
     const a = PK.att[e.docId + "|" + st.uid];
-    return a?.submitTime ? `done ${a.score}/${attemptCfg(a).maxMarks}` : a ? `in progress ${a.live?.answered ?? 0}/${(e.questionIds || []).length}` : "not started";
+    return a?.submitTime ? `done ${a.score}/${attemptCfg(a).maxMarks} (started ${fmtWhen(a.startTime)}, submitted ${fmtWhen(a.submitTime)})`
+         : a ? `in progress ${a.live?.answered ?? 0}/${(e.questionIds || []).length} (started ${fmtWhen(a.startTime)})` : "not started";
   }), PK.chapters.filter(e => PK.att[e.docId + "|" + st.uid]?.submitTime).length]));
   downloadCsv(`study_package_${PK.kind}_${PK.kind === "booster" ? "all" : PK.prog}.csv`, rows);
 };
@@ -7443,6 +7454,8 @@ async function showResult(attempt){
       <div class="stat"><div class="v">${bRank}</div><div class="l">${bLabel}</div></div>
       <div class="stat"><div class="v">${fmtSec(attempt.totalTimeSec)}</div><div class="l">Total Time</div></div>
     </div>
+    <p style="font-size:13px;margin:-8px 0 14px;color:#3d4b5c">🕒 <b>Started:</b> ${fmtWhen(attempt.startTime)} &nbsp;·&nbsp; <b>Submitted:</b> ${fmtWhen(attempt.submitTime)}
+      <span style="color:var(--muted)">(${fmtSpan(attempt.startTime, attempt.submitTime)} from start to submit)</span></p>
     <button class="btn" id="csvReportBtn">Download Report (CSV)</button>
     <button class="btn secondary" id="pdfReportBtn">Print / Save as PDF</button>
     <div id="timeCard"></div>
