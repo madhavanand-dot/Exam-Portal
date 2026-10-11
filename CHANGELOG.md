@@ -7,6 +7,17 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — Delete a test completely
+
+- **Delete** now removes a test **completely**: the test, **every student attempt of it** (results leave Reports, ranks,
+  notebooks and progress), and — if you say yes to the second question — **the questions no other test uses**
+  (questions shared with other tests are always kept). Questions owned by another teacher are kept and counted.
+- Available in **Exams** (the existing Delete), **Assign Tests** (new Delete per test), **Study Packages** (new Delete per
+  chapter) and the **Diagnostic Builder** (🗑 Delete this test, for the open test). Only the test's creator or an
+  admin can delete. Both questions use the in-page dialog. After deleting questions, rebuild the practice index.
+
+---
+
 ## 2026-10-11 — No browser pop-ups; package save message
 
 - **All browser pop-ups (alert / confirm / prompt) are replaced by an in-page dialog** — they froze the tab and blocked
