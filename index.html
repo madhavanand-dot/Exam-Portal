@@ -651,6 +651,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div id="dgAiSolveBox" class="hidden" style="border:1px solid #c9dcf2;background:#f2f7fd;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:13px"></div>
         <div id="dgWrap" style="overflow:auto;max-height:75vh"></div>
         <input type="file" id="dgImgFile" accept="image/*" class="hidden">
+        <input type="file" id="dgSolFile" accept="image/*" class="hidden">
         <div id="dgMsg"></div>
         <div class="flexrow" style="margin-top:10px">
           <button class="btn green" id="dgSaveBtn">Save test</button>
@@ -2201,7 +2202,7 @@ function nbRender(NB){
       out.innerHTML = `<div style="border:1px solid var(--border);border-radius:6px;padding:10px;background:#fbfcfd">
         <div style="font-size:15px;line-height:1.55;margin-bottom:6px">${q.text || ""}${imgHtml(q.image)}</div>${opts}
         <div style="margin-top:6px"><b>Correct answer:</b> ${esc(q.correct_answer)}${isMultiQ(q) ? " (more than one correct)" : ""}${it.last.verdict === "wrong" ? ` &nbsp;·&nbsp; <b>Yours:</b> ${esc(String(it.last.answer))}` : ""}</div>
-        ${q.solution ? `<div style="margin-top:6px;font-size:13px"><b>Solution:</b> ${q.solution}</div>` : ""}</div>`;
+        ${solutionHtml(q)}</div>`;
       typeset(out);
     } catch(e) { out.textContent = "Could not load: " + e.message; }
   });
@@ -2752,6 +2753,7 @@ $("qUploadBtn").onclick = async () => {
                  options: section==="A" ? (q.options || ["","","",""]) : [],
                  topic: q.topic || "", difficulty: normLevel(q.difficulty) };
     if (hasImg) clean.image = q.image; else delete clean.image;
+    if (q.solutionImage != null && !(typeof q.solutionImage === "string" && /^data:image\//.test(q.solutionImage))) return errors.push(`${where_}: solutionImage must be a data:image/... URI`);
     if (section==="A" && optImgs) clean.optionImages = optImgs; else delete clean.optionImages;
     valid.push(clean);
   });
@@ -2759,13 +2761,14 @@ $("qUploadBtn").onclick = async () => {
   say(`Validated: ${valid.length} ok, ${errors.length} rejected.`);
   if (!valid.length) return;
   // shrink embedded images before they go into Firestore (they are exam download time)
-  const withImgs = valid.filter(q => q.image || q.optionImages);
+  const withImgs = valid.filter(q => q.image || q.optionImages || q.solutionImage);
   if (withImgs.length) {
     let before = 0, after = 0;
     for (let i = 0; i < withImgs.length; i++) {
       const q = withImgs[i];
       try {
         if (q.image) { before += q.image.length; q.image = await compressDataUrl(q.image, "question"); after += q.image.length; }
+        if (q.solutionImage) { before += q.solutionImage.length; q.solutionImage = await compressDataUrl(q.solutionImage, "solution"); after += q.solutionImage.length; }
         if (q.optionImages) for (let k = 0; k < q.optionImages.length; k++) {
           before += q.optionImages[k].length; q.optionImages[k] = await compressDataUrl(q.optionImages[k], "option"); after += q.optionImages[k].length;
         }
@@ -2860,8 +2863,14 @@ function safeDocId(s){
 // perfectly legible at ~1000px wide, so we cap width and pick the smallest of WebP / PNG / JPEG.
 // WebP decodes in every current browser (Safari 14+); set false if students use very old iPads.
 const IMG_ALLOW_WEBP = true;
-const IMG_BUDGET = { question: 180000, option: 60000 };   // bytes of data-URI text per image
-const IMG_MAX_W  = { question: 1000,   option: 600   };
+const IMG_BUDGET = { question: 180000, option: 60000, solution: 200000 };   // bytes of data-URI text per image
+const IMG_MAX_W  = { question: 1000,   option: 600,   solution: 1000   };
+// Worked solution (text and/or image). Shown only after the test: notebook, practice feedback, result review —
+// never in the exam screen.
+function solutionHtml(q){
+  if (!q?.solution && !q?.solutionImage) return "";
+  return `<div style="margin-top:6px;font-size:13px;border-top:1px dashed var(--border);padding-top:6px"><b>Solution:</b> ${q.solution || ""}${q.solutionImage ? imgHtml(q.solutionImage) : ""}</div>`;
+}
 function loadImage(src){
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -3451,6 +3460,7 @@ function dgRowFromQuestion(q, idealTimes){
   r.idealSec = idealTimes?.[q.docId] ?? q.idealTimeSec ?? dgDefaultIdeal(r);
   r.keySrc = q.keySrc || ""; r.idealSrc = q.idealTimeSrc || ""; r.aiKeyNote = q.aiKeyNote || "";
   r.imgHash = q.imgHash || null; r.srcHash = q.srcHash || null;
+  r.solutionImage = q.solutionImage || null;
   return r;
 }
 async function dgAddFiles(files){
@@ -3601,7 +3611,7 @@ async function dgAiSolveRefresh(){
 }
 $("dgAiSolveBtn").onclick = async () => {
   if (!DG.examDocId) { setMsg($("dgMsg"), "Save the test first — the AI solves the saved version."); return; }
-  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.keyConfirmedNow || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.section !== r.origSection);
+  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.keyConfirmedNow || r.solChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.section !== r.origSection);
   if (unsaved) { setMsg($("dgMsg"), "You have unsaved changes — press Save test first, then ask the AI."); return; }
   if (DG.aiSolve?.status === "queued" || DG.aiSolve?.status === "processing") { setMsg($("dgMsg"), "The AI has already been asked to solve this test — wait for it, then Refresh.", true); return; }
   if (!confirm(`Ask the AI to solve all ${DG.rows.length} question(s) of this test?\n\nTwo AI models solve each question independently and suggest an answer key and an ideal time. ` +
@@ -3708,6 +3718,13 @@ async function aiScoreLoad(){
 }
 // ---- replace only the picture of a question (saved or new); key, topic and times are kept ----
 let dgImgTarget = null;
+let dgSolTarget = null;
+$("dgSolFile").onchange = async e => {
+  const f = e.target.files[0], r = dgSolTarget; dgSolTarget = null;
+  if (!f || !r) return;
+  try { r.solutionImage = await imageFileToDataUrl(f, "solution"); r.solChanged = !r.isNew; dgRender(); }
+  catch(err) { setMsg($("dgMsg"), "Could not read that image: " + err.message); }
+};
 function dgPickReplaceImage(r){
   dgImgTarget = r;
   setMsg($("dgMsg"), `Choose the new image for Q${DG.rows.indexOf(r)+1} — or press Ctrl+V to paste a screenshot.`, true);
@@ -3761,7 +3778,10 @@ function dgRender(){
         <td style="max-width:460px">${preview}${r.ai ? "" : `<div><button class="btn secondary" style="padding:1px 7px;font-size:11.5px;margin-top:3px" data-dgimg="${i}" title="Swap in a new picture for this question; key, topic and times stay as they are">🖼 ${r.image?"Replace image":"Add image"}</button>${r.imgChanged?` <span class="badge zero">new image — not saved yet</span>`:""}</div>`}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||(r.ai?"AI draft":""))} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
         <td style="font-size:12.5px">${esc(r.subject)}</td>
         <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px">
-            <input data-dgf="model" value="${esc(r.model||"")}" list="dgModelList" placeholder="question model (optional)" style="width:150px;margin-top:3px;font-size:12px"></td>
+            <input data-dgf="model" value="${esc(r.model||"")}" list="dgModelList" placeholder="question model (optional)" style="width:150px;margin-top:3px;font-size:12px">
+            <div style="margin-top:3px;font-size:11.5px">${r.solutionImage
+              ? `<span title="Shown to students only after the test">📎 solution image</span> <button class="btn secondary" style="padding:0 5px;font-size:11px" data-dgsolview="${i}">view</button> <button class="btn secondary" style="padding:0 5px;font-size:11px" data-dgsolrm="${i}">✕</button>`
+              : `<button class="btn secondary" style="padding:0 6px;font-size:11px" data-dgsol="${i}" title="Attach a worked-solution image — students see it only after the test">+ solution image</button>`}</div></td>
         <td><select data-dgf="difficulty">${levelOptions(r.difficulty)}</select></td>
         <td>${r.ai ? esc(r.section) : `<select data-dgf="section" title="MCQ = student picks option(s); Numerical = student types the answer"><option value="A" ${r.section==="A"?"selected":""}>MCQ</option><option value="B" ${r.section==="B"?"selected":""}>Numerical</option></select>`}</td>
         <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}${reusedBadge(r)}${dgAiSolveKeyChip(r)}${r.isNew ? "" : `<div><button class="btn secondary" style="padding:0 6px;font-size:11px;margin-top:3px" data-dgaiview="${i}" title="What each AI model read, answered and why">🔍 AI working</button></div>`}</td>
@@ -3810,6 +3830,9 @@ function dgRender(){
     dgRender();
   });
   // ✓ Confirm: the teacher checked an AI-proposed key — saved as teacher-set even when the letter doesn't change
+  $("dgWrap").querySelectorAll("[data-dgsol]").forEach(b => b.onclick = () => { dgSolTarget = DG.rows[+b.dataset.dgsol]; $("dgSolFile").value = ""; $("dgSolFile").click(); });
+  $("dgWrap").querySelectorAll("[data-dgsolrm]").forEach(b => b.onclick = () => { const r = DG.rows[+b.dataset.dgsolrm]; r.solutionImage = null; r.solChanged = !r.isNew; dgRender(); });
+  $("dgWrap").querySelectorAll("[data-dgsolview]").forEach(b => b.onclick = () => { $("qpvBody").innerHTML = imgHtml(DG.rows[+b.dataset.dgsolview].solutionImage); $("qpvBack").classList.remove("hidden"); });
   $("dgConfirmAllBtn").onclick = () => {
     const todo = DG.rows.filter(r => r.keySrc === "ai" && r.correct_answer);
     if (!todo.length) { setMsg($("dgMsg"), "No AI-proposed keys to confirm in this test."); return; }
@@ -3855,7 +3878,7 @@ async function dgSave(){
   const errs = dgValidate();
   if (errs.length) { setMsg($("dgMsg"), errs.slice(0,6).join("  ") + (errs.length>6?` …and ${errs.length-6} more.`:"")); log.classList.add("hidden"); return; }
   const newRows = DG.rows.filter(r => r.isNew);
-  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.keyConfirmedNow || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
+  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.keyConfirmedNow || r.solChanged || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
   const imgEdits = edits.filter(r => r.imgChanged);
   const keyEdits = edits.filter(r => r.correct_answer !== r.origAnswer || r.section !== r.origSection);
   const shared = keyEdits.filter(r => examsCache.some(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId))).length;
@@ -3881,7 +3904,7 @@ async function dgSave(){
         id: r.docId, examType, subject: r.subject, section: r.section,
         text: r.text || "", options: r.section === "A" ? (r.options || ["","","",""]) : [],
         correct_answer: String(r.correct_answer), topic: r.topic, difficulty: r.difficulty,
-        ...(r.model ? { model: r.model } : {}),
+        ...(r.model ? { model: r.model } : {}), ...(r.solutionImage ? { solutionImage: r.solutionImage } : {}),
         ...(r.image ? { image: r.image } : {}), idealTimeSec: +r.idealSec,
         ...(r.imgHash ? { imgHash: r.imgHash } : {}), ...(r.srcHash ? { srcHash: r.srcHash } : {}),
         ...(r.keySrc ? { keySrc: r.keySrc } : {}), ...(r.idealSrc ? { idealTimeSrc: r.idealSrc } : {}),
@@ -3902,6 +3925,7 @@ async function dgSave(){
       if (r.correct_answer !== r.origAnswer || r.keyConfirmedNow) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
       if (r.topic !== r.origTopic) upd.topic = r.topic;
       if ((r.model||"") !== (r.origModel||"")) upd.model = r.model || "";
+      if (r.solChanged) upd.solutionImage = r.solutionImage || deleteField();
       if (r.difficulty !== r.origDiff) upd.difficulty = r.difficulty;
       if (r.section !== r.origSection) {
         upd.section = r.section; upd.correct_answer = String(r.correct_answer); upd.keySrc = "user";
@@ -3914,7 +3938,7 @@ async function dgSave(){
         await updateDoc(doc(db,"questions",r.docId), upd);
         if (upd.correct_answer !== undefined) { if (r.correct_answer !== r.origAnswer || r.section !== r.origSection) keysSaved++; keyShare.push(r); r.keyConfirmedNow = false; }
         if (r.imgChanged) { r.imgHash = typeof upd.imgHash === "string" ? upd.imgHash : null; r.srcHash = null; }
-        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origModel = r.model || ""; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false;
+        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origModel = r.model || ""; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false; r.solChanged = false;
         say(`Updated ${r.q?.id||r.docId}: ${Object.entries(upd).filter(([k])=>!["image","imageUpdatedAt","aiVerify"].includes(k)).map(([k,v])=>`${k} → ${v}`).concat(upd.image?["new image"]:[]).join(", ")}`);
       } catch(e) {
         failed++;
@@ -6275,7 +6299,7 @@ function prShowFeedback(){
       ${st.correct ? "" : ` — the answer is <b>${correctTxt}</b>`}
       <div style="font-size:12.5px;color:var(--muted);margin-top:4px">Time on this question: ${fmtSec(st.timeSec)}${
         st.timeSec > 120 ? " — that's over 2 minutes; worth revisiting the concept." : ""}</div>
-    </div>`;
+    </div>${solutionHtml(q)}`;
   typeset($("prFeedback"));
 }
 $("prCheckBtn").onclick = () => {
@@ -6505,7 +6529,7 @@ async function showResult(attempt){
   const errRows = kind => detail.filter(d=>d.verdict===kind).map((d,i) => `
     <tr><td>${i+1}</td><td>${esc(d.q.subject)}</td><td>${esc(d.q.topic)}</td><td>${esc(levelShort(d.q.difficulty))}</td>
     <td><details class="qexp"><summary>${esc((d.q.text||"(image question)").slice(0,80))}&hellip;</summary><div>${d.q.text||""}${imgHtml(d.q.image)}${
-      d.q.options?.length ? "<br>" + d.q.options.map((o,k)=>`(${"ABCD"[k]}) ${esc(String(o).replace(/^\s*[A-D][).]\s*/,""))}${d.q.optionImages?imgHtml(d.q.optionImages[k]):""}`).join("<br>") : ""}</div></details></td>
+      d.q.options?.length ? "<br>" + d.q.options.map((o,k)=>`(${"ABCD"[k]}) ${esc(String(o).replace(/^\s*[A-D][).]\s*/,""))}${d.q.optionImages?imgHtml(d.q.optionImages[k]):""}`).join("<br>") : ""}${solutionHtml(d.q)}</div></details></td>
     <td><b>${esc(d.q.correct_answer)}</b></td></tr>`).join("")
     || `<tr><td colspan="6">None 🎉</td></tr>`;
 
