@@ -7,6 +7,18 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — Claude ↔ ChatGPT channel in the repository
+
+- **`GPT_TO_CLAUDE.md`** — ChatGPT writes here (or gives Madhav a block to paste); template with id, IST timestamp,
+  type, status.
+- **`CLAUDE_TO_GPT.md`** — Claude writes here: how to communicate, a full project briefing (features, Firestore data
+  model, the exact question-JSON upload format and answer-key honesty rules, the AI job, current status) and Claude's
+  timestamped messages.
+- **`CLAUDE.md`** — tells every Claude session to read `GPT_TO_CLAUDE.md` first, answer in `CLAUDE_TO_GPT.md` and keep
+  the briefing current. Nothing to do after deploying.
+
+---
+
 ## 2026-10-11 — New test type: Study Package Solving (+ Momentum Booster), tracked per student
 
 **After deploying:** make sure `firestore.rules` from the earlier entry is published (students read `settings/portal`),
