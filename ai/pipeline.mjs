@@ -119,9 +119,9 @@ export function studentNeeds(att, exam, qById){
 export function groupNeeds(needs, cfg){
   const m = new Map();
   for (const n of needs) {
-    const model = String(n.q.model || "").trim();
-    const k = [n.q.subject, (n.q.topic || "").trim().toLowerCase(), model.toLowerCase(), normLevel(n.q.difficulty), n.group].join("|");
-    if (!m.has(k)) m.set(k, { subject: n.q.subject, topic: n.q.topic || "General", model, level: normLevel(n.q.difficulty), group: n.group, needs: [] });
+    const model = String(n.q.model || "").trim(), modelCode = String(n.q.modelCode || "").trim();
+    const k = [n.q.subject, (n.q.topic || "").trim().toLowerCase(), (modelCode || model).toLowerCase(), normLevel(n.q.difficulty), n.group].join("|");
+    if (!m.has(k)) m.set(k, { subject: n.q.subject, topic: n.q.topic || "General", model: model || modelCode, modelCode, level: normLevel(n.q.difficulty), group: n.group, needs: [] });
     m.get(k).needs.push(n);
   }
   const order = { concept: 0, accuracy: 1, speed: 2 };
@@ -216,7 +216,7 @@ function cleanItem(raw, g){
   const R = levelRule(g.group, g.level);
   const claimed = Math.max(0, lvlIdx(raw.level || LEVELS[R.prefer].key));
   const level = LEVELS[Math.min(claimed, R.max)].key;
-  return { subject: g.subject, topic: g.topic, model: g.model || "", level, group: g.group, stem, options: opts, key: ans,
+  return { subject: g.subject, topic: g.topic, model: g.model || "", modelCode: g.modelCode || "", level, group: g.group, stem, options: opts, key: ans,
            solution: String(raw.solution || "").trim(),
            idealSec: Math.max(20, Math.min(600, parseInt(raw.idealSec) || 0)) || null };
 }
@@ -288,7 +288,7 @@ export async function run({ store, llm, cfg: cfgIn = {}, log = console.log, now 
         attemptId: id, examId: att.examId, examTitle: exam.title || "", examType: exam.examType,
         studentUid: att.studentUid, studentName: att.studentName || "",
         status: "ready", createdAt: now(), counts, items,
-        needs: needs.map(n => ({ questionId: n.q.docId, topic: n.q.topic || "", model: n.q.model || "", level: normLevel(n.q.difficulty), group: n.group, reason: n.reason, verdict: n.verdict })),
+        needs: needs.map(n => ({ questionId: n.q.docId, topic: n.q.topic || "", model: n.q.model || "", modelCode: n.q.modelCode || "", level: normLevel(n.q.difficulty), group: n.group, reason: n.reason, verdict: n.verdict })),
         models: { gen: cfg.genModel, verify: cfg.verifyModel, vision: cfg.visionModel }
       });
       await store.updateAttempt(id, { aiStatus: "ready", aiDoneAt: now(), aiError: null });

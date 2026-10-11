@@ -264,4 +264,11 @@ import { solveRequestedExams } from "./estimate.mjs";
   ok(/Target level: Easy/.test(p[1].content) && !/Moderate|Hard/.test(p[1].content.split("Target level")[1].split("\n")[0]), "concept prompt for an Easy miss targets Easy only");
 }
 
+// --- model codes: grouped by code when present (names may differ), and carried into drafts
+{
+  const g = groupNeeds([{ q: { subject: "Physics", topic: "CE", modelCode: "8b", model: "Non-ohmic", difficulty: "Easy" }, group: "concept" },
+                        { q: { subject: "Physics", topic: "CE", modelCode: "8B", model: "Non-ohmic device V-I", difficulty: "Easy" }, group: "concept" }], CONFIG_DEFAULTS);
+  ok(g.length === 1 && g[0].modelCode === "8b", "same modelCode (any case) = one group, even with different model names");
+}
+
 console.log(`\n${passed} passed`);

@@ -102,6 +102,22 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // ---------- Model Bank: question-model taxonomies + a full bank index ----------
+    // Admins only; settings/taxonomyAccess.uids lists students (or faculty) who may view them.
+    function canSeeTaxonomy() {
+      return isSuperAdmin() ||
+        (signedIn() && exists(/databases/$(database)/documents/settings/taxonomyAccess) &&
+         request.auth.uid in get(/databases/$(database)/documents/settings/taxonomyAccess).data.uids);
+    }
+    match /taxonomy/{id} {
+      allow read: if canSeeTaxonomy();
+      allow write: if isSuperAdmin();
+    }
+    match /bankIndex/{id} {
+      allow read: if canSeeTaxonomy();
+      allow write: if isStaff();          // rebuilt together with the practice index
+    }
+
     // ---------- notebooks (student's mistake notebook: cleared flags + own notes) ----------
     // The student edits their own; staff can read it (Progress tab).
     match /notebooks/{uid} {
