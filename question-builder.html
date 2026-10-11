@@ -228,14 +228,20 @@ window.delQ = i => { questions.splice(i,1); renderList(); };
 renderList();
 
 $("exportBtn").onclick = () => {
-  if (!questions.length) { alert("Add at least one question."); return; }
+  if (!questions.length) { $("resetBtn").insertAdjacentHTML("afterend", '<span style="color:#b03a2e;margin-left:8px">Add at least one question first.</span>'); return; }
   const blob = new Blob([JSON.stringify(questions, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `questions_${questions[0].examType}_${questions.length}.json`;
   a.click(); URL.revokeObjectURL(a.href);
 };
-$("resetBtn").onclick = () => { if (confirm("Clear all added questions?")) { questions=[]; renderList(); } };
+// two clicks instead of a browser pop-up (pop-ups freeze the tab and block browser agents)
+$("resetBtn").onclick = () => {
+  const b = $("resetBtn");
+  if (b.dataset.armed) { questions = []; renderList(); delete b.dataset.armed; b.textContent = b.dataset.label; return; }
+  b.dataset.label = b.textContent; b.dataset.armed = "1"; b.textContent = "Click again to clear all";
+  setTimeout(() => { if (b.dataset.armed) { delete b.dataset.armed; b.textContent = b.dataset.label; } }, 4000);
+};
 </script>
 </body>
 </html>

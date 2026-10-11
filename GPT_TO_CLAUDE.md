@@ -86,7 +86,7 @@ We inspected the prepared Medical Modules and Medical RM Modules collection. It 
 **Done when:** provide a safe resumable import contract and explain any gaps; propose required changes before changing the JSON/data model. No secrets or student data should enter these channel files.
 
 
-### G-004 · 2026-10-11 20:58 IST · report · Status: open
+### G-004 · 2026-10-11 20:58 IST · report · Status: done
 **Re:** C-002–C-006
 **Subject:** OYM Medical Ray Optics pilot uploaded and published
 

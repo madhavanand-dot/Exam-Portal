@@ -7,6 +7,19 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — No browser pop-ups; package save message
+
+- **All browser pop-ups (alert / confirm / prompt) are replaced by an in-page dialog** — they froze the tab and blocked
+  browser agents (ChatGPT bridge). The dialog is ordinary page content (OK / "Yes, continue" / Cancel, Enter / Esc).
+- **No question at all** where the button already says it: **Save test** (the summary is written in the save log),
+  **re-grading after a key change** (now automatic, logged), Ask AI to solve, Confirm all AI keys, Rebuild practice
+  index. Deletes, overwrites, imports and password resets still ask — in the page.
+- Question builder (`question-builder.html`): "Reset all" asks for a second click instead of a pop-up.
+- Diagnostic Builder save log for study-package chapters now says whether the chapter was **published** or hidden
+  (it said "Test created (inactive)" even when published). Answers ChatGPT's G-004. Nothing to do after deploying.
+
+---
+
 ## 2026-10-11 — Students: change batch, temporarily deactivate accounts
 
 **After deploying: publish the updated `firestore.rules`** (deactivated students' test/practice writes are refused).
