@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aakash Avadi Online Test Platform</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1d5fa8">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Aakash Tests">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
@@ -357,6 +365,8 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <div id="signupMsg"></div>
         <p style="font-size:12.5px;color:var(--muted);margin-top:10px;text-align:center">Already registered? <a href="#" id="showLogin" style="color:var(--blue);font-weight:600">Sign In</a></p>
       </div>
+      <button type="button" class="btn secondary installAppBtn hidden" style="width:100%;margin-top:10px">📲 Install app on this phone</button>
+      <p id="installHelp" class="hidden" style="white-space:pre-wrap;font-size:13px;background:#fff;border:1px solid var(--line,#dde3ec);border-radius:10px;padding:10px 12px;margin-top:8px"></p>
       <p id="landingFoot">Secure testing portal &bull; One active session per account</p>
     </div>
   </div>
@@ -364,7 +374,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
 
 <!-- ================= ADMIN ================= -->
 <div id="view-admin" class="view hidden">
-  <div class="topbar"><h1 id="dashTitle">Admin Dashboard</h1><span class="who" id="adminWho"></span><button class="btn secondary" id="adminLogout">Logout</button></div>
+  <div class="topbar"><h1 id="dashTitle">Admin Dashboard</h1><span class="who" id="adminWho"></span><button type="button" class="btn secondary installAppBtn hidden">📲 Install app</button><button class="btn secondary" id="adminLogout">Logout</button></div>
   <div class="wrap">
     <div class="tabs">
       <button data-atab="students" class="active">Students</button>
@@ -1051,7 +1061,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
 
 <!-- ================= STUDENT ================= -->
 <div id="view-student" class="view hidden">
-  <div class="topbar"><h1>Student Dashboard</h1><span class="who" id="studentWho"></span><button class="btn secondary" id="studentLogout">Logout</button></div>
+  <div class="topbar"><h1>Student Dashboard</h1><span class="who" id="studentWho"></span><button type="button" class="btn secondary installAppBtn hidden">📲 Install app</button><button class="btn secondary" id="studentLogout">Logout</button></div>
   <div class="wrap">
     <div id="pkgStudentCard" class="hidden" style="margin-bottom:16px"></div>
     <div id="txStudentWrap" class="hidden" style="margin-bottom:16px"><h2 class="sec">📚 Model Bank</h2><div id="txStudentBox"></div></div>
@@ -1327,6 +1337,7 @@ function uiDialog(kind, msg, def){
 const uiAlert   = msg => uiDialog("alert", msg);
 const uiConfirm = msg => uiDialog("confirm", msg);
 const uiPrompt  = (msg, def = "") => uiDialog("prompt", msg, def);
+window.uiAlert = uiAlert;                 // used by the install-app script
 window.alert = msg => { uiAlert(msg); };   // safety net for anything that still calls the browser's alert
 
 /* ========== TINY HELPERS ========== */
@@ -7753,6 +7764,38 @@ $("resultBack").onclick = () => {
 window.addEventListener("beforeunload", e => {
   if (EX && !EX.submitted) { e.preventDefault(); e.returnValue = ""; }
 });
+</script>
+<script>
+/* ========== INSTALL AS APP (PWA) ==========
+   manifest.webmanifest + sw.js make the portal installable. Android / desktop Chrome & Edge: the browser's
+   beforeinstallprompt event is kept and fired from our "📲 Install app" buttons. iPhone / iPad Safari has no such
+   event, so the button shows the Share → Add to Home Screen steps in the in-page dialog.
+   A plain script, not part of the module, so it works even when Firebase has not loaded. Hidden once installed. */
+let pwaPrompt = null;
+const pwaStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const pwaIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function pwaRefresh(){
+  const show = !pwaStandalone() && (!!pwaPrompt || pwaIOS());
+  document.querySelectorAll(".installAppBtn").forEach(b => b.classList.toggle("hidden", !show));
+}
+async function pwaInstall(){
+  if (pwaPrompt) {
+    const p = pwaPrompt; pwaPrompt = null;
+    try { p.prompt(); await p.userChoice; } catch {}
+    pwaRefresh(); return;
+  }
+  const say = msg => window.uiAlert ? window.uiAlert(msg) : (document.getElementById("installHelp").textContent = msg, document.getElementById("installHelp").classList.remove("hidden"));
+  if (pwaIOS()) {
+    say("To install on iPhone / iPad:\n\n1. Open this page in Safari.\n2. Tap the Share button (square with an arrow ↑).\n3. Tap \"Add to Home Screen\", then \"Add\".\n\nThe app then opens from its own icon, full screen.");
+    return;
+  }
+  say("Open this page in Chrome on your phone, then use the ⋮ menu → \"Install app\" (or \"Add to Home screen\").");
+}
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); pwaPrompt = e; pwaRefresh(); });
+window.addEventListener("appinstalled", () => { pwaPrompt = null; pwaRefresh(); });
+document.querySelectorAll(".installAppBtn").forEach(b => b.addEventListener("click", pwaInstall));
+if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
+pwaRefresh();
 </script>
 </body>
 </html>

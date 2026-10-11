@@ -11,6 +11,7 @@ See [`CHANGELOG.md`](CHANGELOG.md) for what changed and when — including the f
 | File | Purpose |
 |------|---------|
 | `index.html` | The entire SPA — login, admin/faculty dashboard, student dashboard, exam interface, result page. |
+| `manifest.webmanifest`, `sw.js`, `icons/` | Make the portal installable as a phone app (PWA). `sw.js` is network-first and never caches Firebase calls. |
 | `question-builder.html` | Standalone local tool to crop images from screenshots/PDFs and export an exam JSON (base64 images embedded). Nothing is uploaded — runs in your browser. |
 | `firestore.rules` | Firestore security rules (super-admin / faculty / student, with ownership). |
 | `sample_medical.json` | 20 sample NEET questions (5 per subject). |

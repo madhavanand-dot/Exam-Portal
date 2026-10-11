@@ -7,7 +7,21 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
-## 2026-10-11 — Started / Submitted times visible to staff
+## 2026-10-12 — Install as a phone app (PWA)
+
+- The portal can now be **installed like an app** on phones (and on desktop Chrome / Edge): its own icon on the
+  home screen, opens full screen without the browser bar.
+- New files: `manifest.webmanifest` (app name, colours, icons), `sw.js` (service worker) and `icons/`.
+- **📲 Install app** button on the login page and in the Admin / Student dashboard top bars. On Android Chrome it
+  opens the browser's install prompt; on iPhone / iPad it shows the Safari steps (Share → Add to Home Screen) in the
+  page. The button hides itself when the app is already installed or the browser can't install.
+- The service worker is **network-first** for the site's own files, so a new deploy shows up the next time the app
+  opens; the stored copy is only used when the phone is offline. Firebase / Google / CDN requests are never cached,
+  so tests, answers and results always go straight to Firebase.
+- **After deploying:** nothing to publish. Open the site once on a phone (GitHub Pages is HTTPS, which installing
+  needs) and try the button. If a phone ever seems stuck on an old version, close and reopen the app once.
+
+ visible to staff
 
 - **Reports**: new **Started** and **Submitted** columns (date + time) with the start→submit duration under it
   (clock time, includes breaks; "Time (min)" stays the time on the test screen). Also in the Reports **CSV**
