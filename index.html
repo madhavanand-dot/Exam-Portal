@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aakash Avadi Online Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
 window.MathJax = {
   tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$','$$'], ['\\[','\\]']] },
@@ -221,6 +223,96 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 .msel .mselLbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .msel .opts{border:1px solid var(--border);border-radius:4px;margin-top:3px;max-height:210px;overflow-y:auto;padding:4px 8px;background:#fff}
 .msel .opts label{display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13px;font-weight:400;cursor:pointer;border-bottom:1px solid #eef1f4;margin:0}
+
+/* =====================================================================
+   DESIGN LAYER — one visual system over the whole portal (staff, student, login).
+   Layout rules above stay; this only refines colour, type, spacing, radius and states.
+   The exam screen keeps its NTA look (only small polish below).
+   ===================================================================== */
+:root{
+  --blue:#1d5fa8; --blue-dark:#144a87; --blue-light:#eaf2fb; --blue-ink:#0f3d70;
+  --bg:#f3f6fa; --surface:#fff; --border:#dfe5ec; --border-strong:#c9d3de;
+  --text:#1c2733; --muted:#5f6c7b; --ring:0 0 0 3px rgba(29,95,168,.22);
+  --shadow-sm:0 1px 2px rgba(16,32,56,.06); --shadow:0 1px 2px rgba(16,32,56,.05),0 6px 18px rgba(16,32,56,.06);
+  --radius:12px; --radius-sm:8px;
+}
+*{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+body{background:var(--bg);color:var(--text);font-size:14.5px;line-height:1.45;-webkit-font-smoothing:antialiased}
+::selection{background:#cfe0f5}
+a{color:var(--blue)}
+/* buttons */
+.btn{padding:8px 16px;border-radius:var(--radius-sm);font-weight:600;letter-spacing:.005em;transition:background .15s,border-color .15s,box-shadow .15s,transform .05s;box-shadow:var(--shadow-sm)}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:none;box-shadow:var(--ring)}
+.btn.secondary{background:#fff;color:var(--blue);border-color:var(--border-strong);box-shadow:none}
+.btn.secondary:hover{background:var(--blue-light);border-color:var(--blue)}
+.btn.danger{background:#c63a2b;border-color:#c63a2b}.btn.danger:hover{background:#a92f22;border-color:#a92f22}
+.btn.green{background:#23864f;border-color:#23864f}.btn.green:hover{background:#1c6e41;border-color:#1c6e41}
+/* surfaces */
+.card{border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow)}
+.wrap{max-width:1240px;padding:24px 20px 48px}
+h2.sec{font-size:17px;font-weight:700;color:var(--blue-ink);margin:22px 0 12px;letter-spacing:-.01em}
+.card > h2.sec:first-child{margin-top:0}
+/* forms */
+.field label{font-size:12.5px;font-weight:600;color:#3d4b5c;margin-bottom:5px}
+.field input,.field select,input[type=text],input[type=number],input[type=password],input:not([type]),select,textarea{
+  border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:#fff;color:var(--text);transition:border-color .15s,box-shadow .15s}
+.field input,.field select{padding:9px 11px}
+input:hover,select:hover,textarea:hover{border-color:#aebccb}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:var(--ring)}
+input[type=checkbox],input[type=radio]{accent-color:var(--blue)}
+/* tables */
+table.tbl{border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:#fff;font-size:13.5px}
+table.tbl th,table.tbl td{border:none;border-bottom:1px solid #edf1f5;padding:9px 11px}
+table.tbl th{background:#f5f8fc;color:#3d4b5c;font-size:12.5px;font-weight:600;border-bottom:1px solid var(--border)}
+table.tbl tr:last-child td{border-bottom:none}
+table.tbl tr:nth-child(even) td{background:#fbfcfe}
+table.tbl tbody tr:hover td{background:#f2f7fd}
+/* badges / messages / stats */
+.badge{padding:2px 9px;border-radius:999px;font-size:11.5px;letter-spacing:.01em}
+.msg{border-radius:var(--radius-sm);border:1px solid transparent}
+.msg.err{border-color:#f5c9c3}.msg.ok{border-color:#bfe5cd}
+.stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:14px 12px}
+.stat .v{font-size:23px;color:var(--blue-ink);letter-spacing:-.02em}
+.stat .l{font-size:12px}
+/* top bar */
+.topbar{background:linear-gradient(90deg,var(--blue-dark),var(--blue));padding:12px 22px;box-shadow:0 2px 10px rgba(16,40,80,.18);position:sticky;top:0;z-index:50}
+.topbar h1{font-size:17px;letter-spacing:-.01em}
+.topbar .btn.secondary{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.35)}
+.topbar .btn.secondary:hover{background:rgba(255,255,255,.22)}
+/* admin tabs: pill navigation */
+.tabs{gap:6px;border-bottom:none;margin-bottom:20px;padding:8px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.tabs button{padding:8px 14px;border:1px solid transparent;border-radius:var(--radius-sm);background:transparent;color:#3d4b5c;font-weight:600;font-size:13.5px;transition:background .15s,color .15s}
+.tabs button:hover{background:var(--blue-light);color:var(--blue)}
+.tabs button.active{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 2px 6px rgba(29,95,168,.25)}
+.subTabs button{border-radius:var(--radius-sm)}
+/* pickers / lists */
+.checklist{border-radius:var(--radius-sm);background:#fff}
+.msel>details>summary{border-radius:var(--radius-sm);border-color:var(--border-strong)}
+.msel .opts{border-radius:var(--radius-sm);box-shadow:var(--shadow)}
+details>summary{cursor:pointer}
+/* login */
+#view-login{background:var(--bg)}
+#landingLogin .card{border-radius:16px}
+/* dialogs */
+#uiDlg{border-radius:14px;padding:20px 22px}
+#uiDlgBack{backdrop-filter:blur(2px)}
+/* exam screen: light polish only */
+#examTop{box-shadow:0 2px 8px rgba(16,40,80,.18)}
+/* student: test lists */
+.dgCh{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:var(--radius-sm);background:#fff;padding:11px 13px;cursor:pointer;font:inherit;color:inherit;transition:box-shadow .15s,transform .15s}
+.dgCh:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+.dgCh .t{font-size:15px;font-weight:700;color:var(--blue-ink)}
+.dgCh .m{font-size:12px;color:var(--muted)}
+.dgGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.crumbs{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13.5px;margin-bottom:10px}
+.crumbs button{border:none;background:none;color:var(--blue);font-weight:600;padding:2px 4px;border-radius:6px}
+.crumbs button:hover{background:var(--blue-light)}
+.card + .card{margin-top:14px}
+input[type=file]{font-size:13px;color:var(--muted)}
+input[type=file]::file-selector-button{margin-right:10px;padding:7px 14px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:#fff;color:var(--blue);font-weight:600;cursor:pointer}
+input[type=file]::file-selector-button:hover{background:var(--blue-light);border-color:var(--blue)}
+@media (max-width:640px){ .wrap{padding:16px 12px 40px} .card{padding:16px} .tabs{padding:6px} .tabs button{padding:7px 10px;font-size:13px} }
 </style>
 </head>
 <body>
@@ -607,6 +699,8 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <button class="btn danger" id="dgDeleteBtn" title="Delete the open test, its attempts and (optionally) its own questions">🗑 Delete this test</button>
         </div>
         <div class="flexrow" style="margin-top:6px">
+          <div class="field" id="dgLevelWrap"><label title="Diagnostic tests can be split into Easy / Moderate / Hard tests and activated one by one">Test level</label><select id="dgLevel">
+            <option value="">Mixed levels</option><option value="Easy">Easy</option><option value="Medium">Moderate</option><option value="Hard">Hard</option></select></div>
           <div class="field"><label>Test type</label><select id="dgKind">
             <option value="diagnostic">Diagnostic test</option>
             <option value="package">Study Package Solving</option>
@@ -616,9 +710,10 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <div class="field" style="min-width:240px"><label>Title</label><input id="dgTitle" placeholder="e.g. Diagnostic — Laws of Motion"></div>
           <div class="field"><label>Exam type</label><select id="dgType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
           <div class="field"><label>Subject (for new questions)</label><select id="dgSubject"></select></div>
-          <div class="field" style="min-width:220px"><label>Topic (for new questions)</label><input id="dgTopic" list="dgTopicList" placeholder="e.g. Laws of Motion"><datalist id="dgTopicList"></datalist><datalist id="dgModelList"></datalist></div>
+          <div class="field" style="min-width:220px"><label title="The NCERT chapter stored on each new question (filled from Chapter automatically)">Question chapter (for new questions)</label><input id="dgTopic" list="dgTopicList" placeholder="e.g. Laws of Motion"><datalist id="dgTopicList"></datalist><datalist id="dgModelList"></datalist></div>
           <div class="field" style="min-width:200px"><label>Chapter (for the test library)</label><input id="dgChapter" list="dgChapterList" placeholder="e.g. Laws of Motion"><datalist id="dgChapterList"></datalist></div>
-          <div class="field" style="min-width:200px"><label>Subtopic</label><input id="dgSubtopic" placeholder="e.g. Friction"></div>
+          <div class="field" style="min-width:200px"><label>Topic (pick the chapter first)</label><input id="dgSubtopic" list="dgSubtopicList" placeholder="e.g. Friction"><datalist id="dgSubtopicList"></datalist></div>
+          <div id="dgExistingHint" style="flex-basis:100%;font-size:12.5px;color:var(--muted);margin:-6px 0 6px"></div>
         </div>
         <div class="flexrow">
           <div class="field"><label>Scoring</label><select id="dgScoring">
@@ -701,6 +796,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div class="flexrow" style="margin-top:10px">
           <button class="btn green" id="dgSaveBtn">Save test</button>
           <button class="btn secondary" id="dgRegradeBtn" title="Recompute scores of submitted attempts with the current key and question list">Re-grade submitted attempts</button>
+          <button class="btn secondary" id="dgSplitBtn" title="Make one Easy, one Moderate and one Hard test from this test's questions (inactive — activate them one by one in Assign Tests)">✂ Split into Easy / Moderate / Hard tests</button>
           <button class="btn secondary" id="dgConfirmAllBtn" title="Mark every AI-proposed key in this test as checked by you (then Save test)">✓ Confirm all AI keys</button>
           <button class="btn secondary" id="dgAiSolveBtn" title="After saving: the AI job solves every question of this test and suggests an answer key and an ideal time for each">🤖 Ask AI to solve this test (key + time)</button>
         </div>
@@ -3629,6 +3725,38 @@ function dgReadAudience(){
 $("dgAudience").onchange = dgAudToggle;
 
 /* ----- diagnostic test library: grouped by chapter -> subtopic ----- */
+// Chapter → topic pickers in the Diagnostic Builder, filled from what already exists: chapters of existing tests,
+// bank chapters (practice index) and Model Bank taxonomies; topics of the chosen chapter from existing tests,
+// taxonomy groups and question models. Below them: the tests that already exist for that chapter / topic.
+function dgFillChapterTopic(){
+  const dl = $("dgChapterList"); if (!dl) return;
+  const tests = examsCache.filter(e => e.diagnostic || e.studyPackage);
+  const chapters = new Set(tests.map(dgChapterOf).filter(c => c !== "Uncategorised"));
+  Object.values(_tiCache).forEach(x => (x?.q || []).forEach(e => e.t && chapters.add(e.t)));
+  (TX.list || []).forEach(t => t.chapter && chapters.add(t.chapter));
+  dl.innerHTML = [...chapters].sort((a, b) => a.localeCompare(b)).map(c => `<option value="${esc(c)}">`).join("");
+  const ch = nrm($("dgChapter").value);
+  const topics = new Set();
+  if (ch) {
+    tests.filter(e => nrm(dgChapterOf(e)) === ch).forEach(e => e.subtopic && topics.add(String(e.subtopic).trim()));
+    (TX.list || []).filter(t => nrm(t.chapter) === ch).forEach(t => t.groups.forEach(g => topics.add(g.name)));
+    Object.values(_tiCache).forEach(x => (x?.q || []).forEach(e => nrm(e.t) === ch && e.m && topics.add(e.m)));
+  }
+  $("dgSubtopicList").innerHTML = [...topics].sort((a, b) => a.localeCompare(b)).map(c => `<option value="${esc(c)}">`).join("");
+  const sub = nrm($("dgSubtopic").value);
+  const same = ch ? tests.filter(e => e.docId !== DG.examDocId && nrm(dgChapterOf(e)) === ch && (!sub || nrm(e.subtopic) === sub)) : [];
+  $("dgExistingHint").innerHTML = !ch ? "Pick a chapter first, then its topic."
+    : same.length ? `Already ${sub ? "for this topic" : "in this chapter"}: ` + same.slice(0, 8).map(e => `<a href="#" data-dgopenex="${e.docId}">${esc(e.title)}</a>${e.studyPackage ? " (package)" : ""}`).join(" · ") + (same.length > 8 ? ` · …${same.length - 8} more` : "")
+    : `No existing test ${sub ? "for this topic" : "in this chapter"} yet.`;
+  $("dgExistingHint").querySelectorAll("[data-dgopenex]").forEach(a => a.onclick = ev => { ev.preventDefault(); $("dgExisting").value = a.dataset.dgopenex; dgOpenExam(a.dataset.dgopenex); });
+}
+$("dgChapter").addEventListener("input", () => {
+  if (!$("dgTopic").value.trim()) $("dgTopic").value = $("dgChapter").value.trim();   // new questions get the chapter as their topic
+  dgFillChapterTopic();
+});
+$("dgSubtopic").addEventListener("input", dgFillChapterTopic);
+// Easy → Moderate → Hard → mixed, then by title
+const dgLevelOrder = (a, b) => (a.level ? lvlIdx(a.level) : 9) - (b.level ? lvlIdx(b.level) : 9) || String(a.title).localeCompare(String(b.title));
 function dgChapterOf(e){ return ((e.chapter || (e.topics||[])[0] || "") + "").trim() || "Uncategorised"; }
 function dgLibRender(){
   const box = $("dgLibList"); if (!box) return;
@@ -3636,8 +3764,7 @@ function dgLibRender(){
   const mine = examsCache.filter(e => e.diagnostic && (isSuper() || e.createdBy === currentUser.uid));
   let list = mine.filter(e => (!t || e.examType === t) && (!sh || (sh === "active") === !!e.isActive));
   $("dgLibCount").textContent = `${mine.length} test(s), ${mine.filter(e => e.isActive).length} active`;
-  const dl = $("dgChapterList");
-  if (dl) dl.innerHTML = [...new Set(mine.map(dgChapterOf).filter(c => c !== "Uncategorised"))].sort().map(c => `<option value="${esc(c)}">`).join("");
+  dgFillChapterTopic();
   if (!list.length) { box.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:6px 0">No diagnostic tests match.</div>`; return; }
   const groups = new Map();
   list.forEach(e => {
@@ -3645,7 +3772,7 @@ function dgLibRender(){
     if (!groups.has(ch)) groups.set(ch, new Map());
     const g = groups.get(ch); if (!g.has(sub)) g.set(sub, []); g.get(sub).push(e);
   });
-  const row = e => `<tr><td>${esc(e.title)}</td><td>${esc(e.examType)}</td><td>${e.questionIds?.length||0}</td>
+  const row = e => `<tr><td>${esc(e.title)}${e.level ? ` <span class="badge zero">${esc(levelShort(e.level))}</span>` : ""}</td><td>${esc(e.examType)}</td><td>${e.questionIds?.length||0}</td>
     <td style="font-size:12px">${esc(audienceLabel(e))}</td>
     <td>${e.isActive?'<span class="badge pos">ACTIVE</span>':'<span class="badge zero">inactive</span>'}</td>
     <td style="white-space:nowrap"><button class="btn secondary" style="padding:3px 10px" data-libprev="${e.docId}">Preview</button>
@@ -3658,7 +3785,7 @@ function dgLibRender(){
     return `<details open style="border:1px solid var(--border);border-radius:6px;margin-bottom:8px;padding:6px 10px">
       <summary style="cursor:pointer;font-weight:700;color:var(--blue)">${esc(ch)} <span style="font-weight:400;color:var(--muted);font-size:12px">— ${all.length} test(s), ${all.filter(e => e.isActive).length} active</span></summary>
       ${[...g.keys()].sort().map(sub => `<div style="margin:8px 0 2px 6px;font-weight:600;font-size:13px">${esc(sub)}</div>
-        <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Qs</th><th>Audience</th><th>Status</th><th></th></tr></thead><tbody>${g.get(sub).map(row).join("")}</tbody></table>`).join("")}
+        <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Qs</th><th>Audience</th><th>Status</th><th></th></tr></thead><tbody>${g.get(sub).slice().sort(dgLevelOrder).map(row).join("")}</tbody></table>`).join("")}
     </details>`;
   }).join("");
   box.querySelectorAll("[data-libprev]").forEach(b => b.onclick = () => previewExam(b.dataset.libprev));
@@ -3699,7 +3826,7 @@ function initDiagnostic(){
 function dgNew(){
   DG = { examDocId: null, rows: [], origIds: [] }; dgImgTarget = null;
   $("dgTitle").value = ""; $("dgExisting").value = "";
-  $("dgChapter").value = ""; $("dgSubtopic").value = ""; $("dgKind").value = "diagnostic"; $("dgPkgPublish").checked = true; dgAudRender({ mode: "all" });
+  $("dgChapter").value = ""; $("dgSubtopic").value = ""; $("dgLevel").value = ""; setTimeout(dgFillChapterTopic); $("dgKind").value = "diagnostic"; $("dgPkgPublish").checked = true; dgAudRender({ mode: "all" });
   $("dgAiFollow").checked = true;
   $("dgScoring").value = "preset"; $("dgCustomMarks").style.display = "none";
   $("dgKeepOrder").checked = true; $("dgShowIdeal").checked = true; $("dgShuffleOpt").checked = false;
@@ -3717,7 +3844,7 @@ async function dgOpenExam(docId){
   if (ex.studyPackage?.kind === "package") $("dgProgram").value = ex.studyPackage.program;
   $("dgPkgPublish").checked = ex.isActive !== false;
   $("dgTitle").value = ex.title || "";
-  $("dgChapter").value = ex.chapter || (ex.topics||[])[0] || ""; $("dgSubtopic").value = ex.subtopic || "";
+  $("dgChapter").value = ex.chapter || (ex.topics||[])[0] || ""; $("dgSubtopic").value = ex.subtopic || ""; $("dgLevel").value = ex.level || ""; dgFillChapterTopic();
   dgAudRender(ex.audience);
   $("dgDuration").value = ex.durationMin || 30;
   $("dgKeepOrder").checked = !!ex.keepOrder;
@@ -4271,6 +4398,7 @@ async function dgSave(){
       shuffleOptions: $("dgShuffleOpt").checked,
       aiFollowUp: $("dgAiFollow").checked,
       chapter: $("dgChapter").value.trim() || (DG.rows.find(r => r.topic)?.topic || ""), subtopic: $("dgSubtopic").value.trim(),
+      level: $("dgLevel").value || null,   // Easy / Medium / Hard test of a chapter-topic, or null = mixed
       ...(DG.aiDraftId ? {} : { audience: dgReadAudience() }),
       // Study Package Solving / Momentum Booster: one shared package per programme (booster: everyone)
       ...(DG.aiDraftId ? {} : $("dgKind").value === "diagnostic"
@@ -4386,6 +4514,36 @@ $("dgSubject").onchange = dgLoadTopicList;
 $("dgScoring").onchange = () => { $("dgCustomMarks").style.display = $("dgScoring").value === "custom" ? "" : "none"; dgRender(); };
 $("dgMkA").onchange = $("dgMkW").onchange = dgRender;
 $("dgNewBtn").onclick = dgNew;
+// Split the open (saved) diagnostic test into one test per level. The new tests copy the settings, chapter, topic and
+// audience, start INACTIVE, and are activated one by one in Assign Tests. The original test is left as it is.
+$("dgSplitBtn").onclick = async () => {
+  const ex = examsCache.find(e => e.docId === DG.examDocId);
+  if (!ex) { setMsg($("dgMsg"), "Save the test first, then split it."); return; }
+  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.keyConfirmedNow || r.correct_answer !== r.origAnswer || r.difficulty !== r.origDiff);
+  if (unsaved) { setMsg($("dgMsg"), "You have unsaved changes — press Save test first, then split."); return; }
+  const byLv = { Easy: [], Medium: [], Hard: [] };
+  DG.rows.forEach(r => byLv[normLevel(r.difficulty)].push(r));
+  const parts = Object.entries(byLv).filter(([, rows]) => rows.length);
+  if (parts.length < 2) { setMsg($("dgMsg"), "All questions are at one level — set the Test level instead of splitting."); return; }
+  const base = String(ex.title || "Diagnostic").replace(/\s+—\s+(Easy|Moderate|Hard)$/i, "");
+  const marks = ex.marks || EXAM_CONFIG[ex.examType].marks;
+  const made = [];
+  try {
+    for (const [lv, rows] of parts) {
+      const ids = rows.map(r => r.docId);
+      const { docId, createdAt, updatedAt, aiSolve, ...rest } = ex;
+      const ref = await addDoc(collection(db,"exams"), { ...rest,
+        title: `${base} — ${LEVELS.find(l => l.key === lv).label}`, level: lv,
+        questionIds: ids, maxMarks: rows.reduce((t, r) => t + (r.section === "B" ? marks.B : marks.A).correct, 0),
+        idealTimes: Object.fromEntries(Object.entries(ex.idealTimes || {}).filter(([k]) => ids.includes(k))),
+        durationMin: Math.max(1, Math.ceil(rows.reduce((t, r) => t + (+r.idealSec || 60), 0) * 1.1 / 60)),
+        isActive: false, splitFrom: ex.docId, createdAt: serverTimestamp(), createdBy: currentUser.uid, createdByName: currentUser.name });
+      made.push(`${LEVELS.find(l => l.key === lv).label}: ${rows.length} Qs`);
+    }
+  } catch(e) { setMsg($("dgMsg"), "Split failed: " + e.message); return; }
+  await loadExams();
+  setMsg($("dgMsg"), `Split into ${made.length} tests (${made.join(" · ")}) — all inactive. Activate them one by one in Assign Tests. The original mixed test is unchanged (deactivate or delete it if no longer needed).`, true);
+};
 $("dgDeleteBtn").onclick = () => {
   const id = DG.examDocId || $("dgExisting").value;
   if (!id) { setMsg($("dgMsg"), "Open a saved test first (or pick one in “Open existing test”)."); return; }
@@ -5738,6 +5896,7 @@ function examTargetsMe(e){
   return false;
 }
 let availableExams = [];
+const SDG = { ch: "", sub: "" };   // student's place in the diagnostic chapter → topic picker
 async function loadActiveExam(){
   activeExam = null;
   const qs = await getDocs(query(collection(db,"exams"),
@@ -5754,17 +5913,46 @@ async function loadActiveExam(){
     // closed -> hidden
   });
   let html = "";
-  if (availableExams.length) {
-    html += availableExams.map((ex,i) => {
+  // diagnostic tests: chapter → topic → tests (other tests stay a plain list)
+  const diag = availableExams.map((ex, i) => ({ ex, i })).filter(x => x.ex.diagnostic);
+  const others = availableExams.map((ex, i) => ({ ex, i })).filter(x => !x.ex.diagnostic);
+  const examCard = ({ ex, i }) => {
       const cfg = examCfg(ex), w = examWindow(ex);
       return `<div class="card" style="margin-bottom:10px">
-        <p style="margin-bottom:8px"><b>${esc(ex.title)}</b> &mdash; ${esc(EXAM_CONFIG[ex.examType].label)}<br>
+        <p style="margin-bottom:8px">${ex.level ? `<span class="badge ${ex.level === "Easy" ? "pos" : ex.level === "Hard" ? "neg" : "zero"}" style="margin-right:6px">${esc(levelShort(ex.level))}</span>` : ""}<b>${esc(ex.title)}</b> &mdash; ${esc(EXAM_CONFIG[ex.examType]?.label || ex.examType || "")}<br>
         <span style="color:var(--muted);font-size:13px">${ex.questionIds.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${cfg.untimed ? `no time limit (about ${Math.round(cfg.durationSec/60)} min)` : `${Math.round(cfg.durationSec/60)} min`} &bull; Max ${cfg.maxMarks}${w.at?` &bull; closes ${fmtDate(new Date(w.at))}`:""}</span></p>
         <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:6px 0 10px;cursor:pointer"><input type="checkbox" data-pledge="${i}" style="margin-top:3px">
           <span><b>Honesty pledge:</b> I will take this test on my own — no switching tabs, no other device, no help from anyone, no blind guessing.
           I understand my teacher sees live when I switch tabs or answer tough questions too quickly.</span></label>
         <button class="btn green" data-startex="${i}" disabled title="Tick the honesty pledge first">Start Exam (Fullscreen)</button></div>`;
-    }).join("") +
+  };
+  if (diag.length) {
+    const S = SDG, chOf = x => dgChapterOf(x.ex), subOf = x => String(x.ex.subtopic || "").trim() || "General";
+    const chapters = [...new Set(diag.map(chOf))].sort((a, b) => a === "Uncategorised" ? 1 : b === "Uncategorised" ? -1 : a.localeCompare(b));
+    if (S.ch && !chapters.includes(S.ch)) { S.ch = ""; S.sub = ""; }
+    html += `<div class="card" style="margin-bottom:12px"><h3 style="margin:0 0 8px;font-size:16px;color:var(--blue-ink)">🩺 Diagnostic tests</h3>
+      <div class="crumbs"><button data-sdg="">All chapters</button>${S.ch ? ` › <button data-sdg="${esc(S.ch)}">${esc(S.ch)}</button>` : ""}${S.sub ? ` › <b>${esc(S.sub)}</b>` : ""}</div>`;
+    if (!S.ch) {
+      html += `<p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Choose a chapter.</p><div class="dgGrid">` + chapters.map(c => {
+        const n = diag.filter(x => chOf(x) === c), subs = new Set(n.map(subOf));
+        return `<button class="dgCh" data-sdgch="${esc(c)}"><span class="t">${esc(c === "Uncategorised" ? "Other tests" : c)}</span><span class="m">${subs.size} topic(s) · ${n.length} test(s)</span></button>`;
+      }).join("") + `</div>`;
+    } else if (!S.sub) {
+      const inCh = diag.filter(x => chOf(x) === S.ch), subs = [...new Set(inCh.map(subOf))].sort((a, b) => a === "General" ? 1 : b === "General" ? -1 : a.localeCompare(b));
+      html += `<p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Now choose a topic.</p><div class="dgGrid">` + subs.map(t => {
+        const n = inCh.filter(x => subOf(x) === t).length;
+        return `<button class="dgCh" data-sdgsub="${esc(t)}"><span class="t">${esc(t)}</span><span class="m">${n} test(s)</span></button>`;
+      }).join("") + `</div>`;
+    } else {
+      html += diag.filter(x => chOf(x) === S.ch && subOf(x) === S.sub).sort((a, b) => dgLevelOrder(a.ex, b.ex)).map(examCard).join("");
+    }
+    html += `</div>`;
+  }
+  if (others.length) {
+    html += (diag.length ? `<h3 style="margin:10px 0 8px;font-size:16px;color:var(--blue-ink)">Other tests</h3>` : "") + others.map(examCard).join("");
+  }
+  if (availableExams.length) {
+    html +=
       `<p style="font-size:12.5px;color:#a4271a">⚠ These are proctored tests. They run in fullscreen. Your teacher sees <b>live</b> who is writing, every tab switch or exit from fullscreen, and tough questions answered suspiciously fast. After 3 warnings the test auto-submits as malpractice — and that stays on your record.</p>`;
   }
   if (upcoming.length) {
@@ -5773,6 +5961,9 @@ async function loadActiveExam(){
        <span style="color:var(--muted);font-size:13px">Opens ${fmtDate(new Date(u.at))}</span></div>`).join("");
   }
   $("activeExamInfo").innerHTML = html || "No exam available for you right now. Check back later.";
+  $("activeExamInfo").querySelectorAll("[data-sdg]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdg; SDG.sub = ""; loadActiveExam(); });
+  $("activeExamInfo").querySelectorAll("[data-sdgch]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdgch; SDG.sub = ""; loadActiveExam(); });
+  $("activeExamInfo").querySelectorAll("[data-sdgsub]").forEach(b => b.onclick = () => { SDG.sub = b.dataset.sdgsub; loadActiveExam(); });
   $("activeExamInfo").querySelectorAll("[data-pledge]").forEach(c => c.onchange = () => {
     $("activeExamInfo").querySelector(`[data-startex="${c.dataset.pledge}"]`).disabled = !c.checked;
   });

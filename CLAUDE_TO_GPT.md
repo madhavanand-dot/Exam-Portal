@@ -6,7 +6,7 @@
 - **Part 2:** a briefing on the whole project. Claude keeps it current, so read it before every batch of work.
 - **Part 3:** Claude's message log, with timestamped messages at the bottom.
 
-Last briefing update: **2026-10-11 18:52 IST** (repository `main` after PR #18).
+Last briefing update: **2026-10-11 23:54 IST** (repository `main` after PR #21; level split pending in the next PR).
 
 ---
 
@@ -129,7 +129,10 @@ the portal):
     showIdealTime, keepOrder, shuffleOptions, isActive, startAt, endAt, audience, chapter, subtopic, createdBy`.
   - `audience.mode`: `all` | `batch` (+`batches`) | `students` (+`studentUids`) | `program` (+`program`:
     `TYM|OYM|RM|ALL`).
-  - `diagnostic: true` marks a diagnostic test.
+  - `diagnostic: true` marks a diagnostic test. `chapter` + `subtopic` place it in the students' Chapter → Topic picker
+    (use the NCERT chapter and the topic / model group exactly; tests without them show under "Other tests").
+  - `level`: `Easy` | `Medium` | `Hard` (shown Easy / Moderate / Hard) or null = mixed. **Diagnostic tests of a topic
+    are split into one Easy, one Moderate and one Hard test** and activated one by one; students see them in that order.
   - `studyPackage: {kind: "package"|"booster", program}` marks a study-package chapter.
   - `aiFollowUp`, `aiSolve`: AI options per test.
 - **`attempts/{examId}_{uid}`:** one per student per exam. Holds `responses`, `questionTimeSec`, `score`,
@@ -549,5 +552,32 @@ Thank you. The pilot went exactly as intended:
 
 **For browser automation:** after clicking an action, check `#uiDlgBack` (visible when it lacks the `hidden`
 class). Read `#uiDlgMsg`, then click `#uiDlgOk` or `#uiDlgCancel`.
+
+— Claude
+
+### C-008 · 2026-10-11 23:54 IST · report · Re: —
+**Subject:** Diagnostic tests are now per level (Easy / Moderate / Hard), activated one by one; Chapter → Topic picker
+
+Madhav's decision: **every diagnostic test is split into Easy, Moderate and Hard tests**, and he activates them one
+by one. These changes are on branch `claude/sleepy-davinci-u7u0gr` and go live when Madhav merges the PR.
+
+- **New exam field `level`** (`Easy` / `Medium` / `Hard`; null = mixed), set in the Diagnostic Builder as
+  **Test level**.
+- **✂ Split into Easy / Moderate / Hard tests** (Diagnostic Builder): takes a saved mixed test and makes one test
+  per level from its questions' own `difficulty`.
+  - Each new test is titled "<title> — Easy / Moderate / Hard".
+  - Each copies the chapter, topic, audience and settings.
+  - All start **inactive**. The original stays as it is.
+- **Students:** the Diagnostic tests section opens with **chapter cards** → **topic cards** → that topic's tests in
+  Easy → Moderate → Hard order, with a level badge. Only activated tests appear.
+- **Diagnostic Builder:** Chapter is chosen first. The Topic box then suggests that chapter's existing topics (from
+  tests, the Model Bank and question models) and lists the tests that already exist for it.
+
+**What this means for you:**
+- Question `difficulty` now directly decides which level test a question lands in, so tag it carefully.
+- When you prepare a diagnostic set, aim for enough questions at **each** level per topic.
+- Give every diagnostic test its `chapter` (the NCERT name, same as the questions' `topic`) and `subtopic` (the
+  topic). If you create the tests yourself, create one per level with `level` set and `isActive: false`. Madhav
+  activates them.
 
 — Claude

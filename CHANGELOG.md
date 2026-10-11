@@ -7,6 +7,23 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — New look; diagnostic tests by chapter → topic → level
+
+- **New visual design across the portal** (Inter font, softer cards and tables, pill-style tab bar, clearer buttons,
+  inputs with focus rings, sticky top bar, styled file pickers). Layouts are unchanged; the exam screen keeps its NTA look.
+- **Students: Diagnostic tests** open as **chapter cards → topic cards → tests** (breadcrumbs to go back); tests without
+  a chapter/topic are listed under "Other tests". Other tests stay a plain list below.
+- **Diagnostic tests per level**: new **Test level** (Mixed / Easy / Moderate / Hard) in the Diagnostic Builder, and
+  **✂ Split into Easy / Moderate / Hard tests** — one inactive test per level from the open test's questions (by their
+  level), same chapter / topic / audience / settings, titled "… — Easy / Moderate / Hard". Activate them one by one in
+  Assign Tests; students see them in Easy → Moderate → Hard order with a level badge. Assign Tests shows the level and
+  sorts by it.
+- **Diagnostic Builder: chapter first, then topic** — Chapter suggests existing chapters (tests, bank, Model Bank);
+  Topic then suggests that chapter's topics (tests, taxonomy groups, question models) and the tests that already exist
+  for it, linked to open. "Question chapter (for new questions)" fills from Chapter. Nothing to do after deploying.
+
+---
+
 ## 2026-10-11 — Delete a test completely
 
 - **Delete** now removes a test **completely**: the test, **every student attempt of it** (results leave Reports, ranks,
