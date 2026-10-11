@@ -298,7 +298,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div class="flexrow">
           <div class="field"><label>Name</label><input id="stName"></div>
           <div class="field"><label>PS-ID</label><input id="stPsid" inputmode="numeric" placeholder="11-digit PS-ID"></div>
-          <div class="field"><label>Password</label><input id="stPass" type="text" placeholder="min 6 chars"></div>
+          <div class="field"><label>Password</label><input id="stPass" type="text" placeholder="blank = default (e.g. Ly@15456129)"></div>
           <div class="field"><label>Exam Type</label><select id="stType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
           <div class="field"><label>Batch</label><input id="stBatch" placeholder="e.g. TR01"></div>
           <div class="field"><label>Class</label><select id="stClass"><option>XI</option><option>XII</option><option>Repeater</option></select></div>
@@ -315,8 +315,9 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div id="csvLog" class="hidden" style="max-height:200px;overflow:auto;font-size:12.5px;font-family:ui-monospace,monospace;background:#f7f9fb;border:1px solid var(--border);border-radius:4px;padding:8px;margin-top:8px;white-space:pre-wrap"></div>
       </div>
       <div class="flexrow" style="margin:10px 0">
-        <div class="field"><label>Filter by batch</label><input id="stFilterBatch" placeholder="(all)"></div>
-        <button class="btn secondary" id="stFilterBtn" style="align-self:flex-end">Filter</button>
+        <div class="field"><label>Filter by batch</label><select id="stFilterBatch"><option value="">All batches</option></select></div>
+        <button class="btn secondary hidden" id="stFilterBtn" style="align-self:flex-end">Filter</button>
+        <button class="btn secondary" id="stBulkPwBtn" style="align-self:flex-end" title="Set every listed student's password to the default pattern, e.g. Ly@15456129">🔑 Reset passwords to default</button>
       </div>
       <h2 class="sec">Students (<span id="stCount">0</span>) <button class="btn secondary" id="stExportBtn" style="padding:3px 12px;font-size:12px">Export roster CSV</button></h2>
       <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Exam Type</th><th>Batch</th><th>Class</th><th>Password</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
@@ -2565,9 +2566,17 @@ async function loadStaff(){
 }
 
 /* ----- students ----- */
+// Default student password: first two letters of the name ("Ly", first capital, second small) + "@" + the PS-ID
+// without its leading zeros. "Lydia EL Eben", 00015456129 → "Ly@15456129".
+function defaultStudentPassword(name, psid){
+  const letters = String(name || "").replace(/[^A-Za-z]/g, "");
+  const pre = (letters.charAt(0).toUpperCase() + letters.charAt(1).toLowerCase()) || "St";
+  const num = String(psid || "").replace(/\D/g, "").replace(/^0+/, "") || "0";
+  return `${pre}@${num}`;
+}
 $("addStudentBtn").onclick = async () => {
   const name = $("stName").value.trim(),
-        pass = $("stPass").value, examType = $("stType").value, batch = $("stBatch").value.trim(),
+        pass = $("stPass").value || defaultStudentPassword($("stName").value, $("stPsid").value), examType = $("stType").value, batch = $("stBatch").value.trim(),
         klass = $("stClass").value, psid = $("stPsid").value.trim();
   if (!name || !isPsid(psid) || pass.length < 6) { setMsg($("studentMsg"), "Name, an 11-digit PS-ID and a password of 6+ chars are required."); return; }
   $("addStudentBtn").disabled = true;
@@ -2607,9 +2616,21 @@ async function loadStudents(){
   $("rpStudent").innerHTML = `<option value="">All</option>` +
     studentCache.map(s=>`<option value="${s.uid}">${esc(s.name)}${s.batch?" ("+esc(s.batch)+")":""}</option>`).join("");
 }
+function stFillBatchFilter(){
+  const sel = $("stFilterBatch"), cur = sel.value, counts = {};
+  studentCache.forEach(st => { const b = (st.batch || "").trim(); counts[b] = (counts[b] || 0) + 1; });
+  const names = Object.keys(counts).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  sel.innerHTML = `<option value="">All batches (${studentCache.length})</option>` + names.map(b => `<option value="${esc(b)}">${esc(b)} (${counts[b]})</option>`).join("") +
+    (counts[""] ? `<option value="__none">No batch (${counts[""]})</option>` : "");
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : "";
+}
+function stFiltered(){
+  const f = $("stFilterBatch")?.value || "";
+  return !f ? studentCache : f === "__none" ? studentCache.filter(s => !(s.batch || "").trim()) : studentCache.filter(s => (s.batch || "").trim() === f);
+}
 function renderStudents(){
-  const f = ($("stFilterBatch")?.value || "").trim().toLowerCase();
-  const list = f ? studentCache.filter(s=>(s.batch||"").toLowerCase()===f) : studentCache;
+  stFillBatchFilter();
+  const list = stFiltered();
   $("stCount").textContent = list.length;
   $("studentRows").innerHTML = list.map(s => `
     <tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td><td>${esc(s.class||"—")}</td>
@@ -2683,6 +2704,60 @@ async function changeStudentPassword(s){
   } finally { deleteApp(secApp).catch(()=>{}); }
 }
 if ($("stFilterBtn")) $("stFilterBtn").onclick = renderStudents;
+$("stFilterBatch").onchange = renderStudents;
+// Bulk reset to the default password for the students currently listed (filter). Firebase only lets a client change a
+// password while signed in as that user, so each student is signed in on a secondary app with the stored password.
+$("stBulkPwBtn").onclick = async () => {
+  if (!isSuper()) { alert("Only an admin can change passwords."); return; }
+  const list = stFiltered();
+  const todo = list.filter(st => st.password && st.psid && st.password !== defaultStudentPassword(st.name, st.psid));
+  const noPw = list.filter(st => !st.password || !st.psid);
+  const already = list.length - todo.length - noPw.length;
+  if (!todo.length) { alert(`Nothing to change: ${already} already use the default${noPw.length ? `, ${noPw.length} have no stored password (change those one by one)` : ""}.`); return; }
+  const ex = todo[0];
+  if (!confirm(`Reset ${todo.length} student password(s) in "${$("stFilterBatch").selectedOptions[0].textContent}" to the default pattern?
+
+` +
+               `Example: ${ex.name} (${ex.psid}) → ${defaultStudentPassword(ex.name, ex.psid)}
+
+` +
+               `${already} already use it${noPw.length ? `; ${noPw.length} without a stored password will be skipped` : ""}. Students signed in elsewhere keep working until they sign out. This takes about a second per student — keep this tab open.`)) return;
+  const btn = $("stBulkPwBtn"); btn.disabled = true;
+  const secApp = initializeApp(firebaseConfig, "bulkpw-" + Date.now()), secAuth = getAuth(secApp);
+  const failed = []; let done = 0;
+  try {
+    for (const st of todo) {
+      const np = defaultStudentPassword(st.name, st.psid);
+      let tries = 0;
+      while (true) {
+        try {
+          const cred = await signInWithEmailAndPassword(secAuth, st.email || idToEmail(st.psid), st.password);
+          await updatePassword(cred.user, np);
+          await signOut(secAuth);
+          await updateDoc(doc(db,"users",st.uid), { password: np });
+          st.password = np; done++;
+          break;
+        } catch(e) {
+          if (String(e.code).includes("too-many-requests") && tries++ < 4) { await new Promise(r => setTimeout(r, 4000 * tries)); continue; }   // back off
+          failed.push(`${st.name} (${st.psid}): ${friendlyAuthError(e)}`); break;
+        }
+      }
+      btn.textContent = `🔑 ${done + failed.length}/${todo.length}…`;
+      await new Promise(r => setTimeout(r, 250));   // stay under Firebase's sign-in rate limit
+    }
+  } finally {
+    deleteApp(secApp).catch(()=>{});
+    btn.disabled = false; btn.textContent = "🔑 Reset passwords to default";
+    renderStudents();
+  }
+  alert(`Done: ${done} password(s) reset to the default.` + (failed.length ? `
+
+${failed.length} failed (stored password out of date?):
+` + failed.slice(0, 15).join("\n") + (failed.length > 15 ? `\n…and ${failed.length - 15} more` : "") : "") +
+        (noPw.length ? `
+
+Skipped ${noPw.length} without a stored password: change them with "Change PW".` : ""));
+};
 
 /* ----- bulk CSV import ----- */
 function parseCSV(text){
@@ -2722,7 +2797,7 @@ $("csvImportBtn").onclick = async () => {
   for (let r=start; r<rows.length; r++){
     const row = rows[r];
     const name=(row[idx.name]||"").trim(),
-          pass=(row[idx.password]||"").trim(), examType=((row[idx.examType]||"medical").trim().toLowerCase()),
+          pass=((idx.password >= 0 ? row[idx.password] : "") || "").trim() || defaultStudentPassword(row[idx.name], idx.psid >= 0 ? row[idx.psid] : ""), examType=((row[idx.examType]||"medical").trim().toLowerCase()),
           batch=(idx.batch>=0?(row[idx.batch]||"").trim():""), psid=(idx.psid>=0?(row[idx.psid]||"").trim():""),
           klass=(idx.klass>=0?(row[idx.klass]||"").trim():"");
     if (!name||!isPsid(psid)||pass.length<6||!["medical","engineering"].includes(examType)) { say(`Row ${r+1}: SKIP (need name,11-digit psid,6+char password,valid examType) — ${psid||name||"?"}`); fail++; continue; }

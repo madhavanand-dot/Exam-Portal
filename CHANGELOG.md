@@ -7,6 +7,20 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — Students tab: batch dropdown, default passwords, bulk reset
+
+- **Filter by batch** is now a drop-down of the existing batches (with counts, plus "No batch"); it filters at once.
+- **Default password** = first two letters of the name (first capital, second small) + `@` + PS-ID without its leading
+  zeros — "Lydia EL Eben", 00015456129 → `Ly@15456129`. Used when the password is left blank in Add Student or in the
+  CSV import.
+- **🔑 Reset passwords to default** (admin): resets every student currently listed (all, or the chosen batch) to that
+  pattern. Firebase only allows a password change while signed in as the student, so each one is signed in on a
+  separate connection with the stored password (about a second per student; keep the tab open). Students without a
+  stored password, or whose stored password is out of date, are skipped and listed — use "Change PW" for them.
+  Nothing to do after deploying.
+
+---
+
 ## 2026-10-11 — Model Bank, Safe import, ✓ Confirm keys, solution images, Easy / Moderate / Hard
 
 **After deploying: publish the updated `firestore.rules`** (new `taxonomy`, `bankIndex`, `settings/taxonomyAccess`),
