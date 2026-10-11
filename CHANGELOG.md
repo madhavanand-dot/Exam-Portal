@@ -7,6 +7,32 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — Keys remembered per picture, practice on/off, batch + overall rank, per-question correct/wrong/left
+
+**After deploying: publish the updated `firestore.rules`** (new `settings/portal` doc that students read for the practice switch).
+Then click **Topics → Rebuild practice index** once, so existing repeated pictures share their keys.
+
+- **A key set once is remembered for that picture everywhere.** Every picture question now gets a fingerprint.
+  - Diagnostic Builder: adding a picture that is already in the bank reuses that bank question with its key, ideal time
+    and AI checks ("♻ already in bank" in the table). The same picture added twice to one test is skipped.
+  - Saving a key (Diagnostic Builder or Answer Key tab) copies it to every other question with the same picture.
+    Questions owned by another teacher can only be changed by an admin; the log says which.
+  - Bulk image import fills the saved key for pictures already in the bank.
+  - Rebuild practice index: fingerprints older pictures, copies the best key (teacher > filename > AI) onto copies
+    with no/weaker key, **leaves questions with no key out of practice** and offers a repeated picture only once.
+  - Practice / Retry my mistakes skip any question that still has no key.
+- **Practice mode on/off** (Topics tab, admin only): turns off Practice by Chapter and Retry my mistakes for every
+  student. On by default.
+- **Two rankings per test**: overall (everyone who wrote that test) and batch-wise (same batch). Shown on the result
+  page, in the student's attempts list and in the Leaderboard (+ CSV). Equal scores share a rank. Previously the
+  student's rank and percentile were against *all tests* of that exam type, not the test itself — fixed.
+  The batch is now saved on each attempt; opening the Leaderboard fills it in on older attempts.
+- **Per-question comparison**: the result page shows, for each question, % of the class correct / wrong / left
+  (with a small bar). Item Analysis "% Correct" is now out of everyone who wrote the test, so correct + wrong + left
+  = 100% (it used to be out of those who answered); accuracy among those who answered is shown beneath.
+
+---
+
 ## 2026-10-11 (fix) — Diagnostic tests are no longer auto-submitted when the time runs out
 
 Diagnostic tests were still timed like a full exam: the countdown used the test's duration (often "total ideal time + 10%")

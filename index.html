@@ -426,6 +426,9 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <span id="tmSelCount" style="font-size:12.5px;color:var(--muted);align-self:center"></span>
           <button class="btn secondary" id="tmIndexBtn" title="Students read this small index instead of the whole bank">Rebuild practice index</button>
         </div>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13.5px;font-weight:600" title="Only an admin can change this">
+          <input type="checkbox" id="tmPracticeOn"> Students can use practice mode (Practice by Chapter and Retry my mistakes)
+          <span id="tmPracticeMsg" style="font-weight:400;font-size:12px;color:var(--muted)"></span></label>
         <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Tick one topic and type a new name to rename it. Tick several to merge them all under a single name.</p>
       </div>
       <div id="tmWrap" style="margin-top:14px;overflow:auto;max-height:65vh"></div>
@@ -853,7 +856,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
     <table class="tbl"><thead><tr><th>Date</th><th>Subject</th><th>Chapters</th><th>Questions</th><th>Correct</th><th>Accuracy</th><th>Time</th></tr></thead><tbody id="prHistRows"><tr><td colspan="7">…</td></tr></tbody></table>
 
     <h2 class="sec">Past Attempts</h2>
-    <table class="tbl"><thead><tr><th>Date</th><th>Exam</th><th>Type</th><th>Score</th><th>Rank</th><th>Percentile</th><th></th></tr></thead><tbody id="attemptRows"></tbody></table>
+    <table class="tbl"><thead><tr><th>Date</th><th>Exam</th><th>Type</th><th>Score</th><th title="Among everyone who wrote this test">Overall rank</th><th title="Among students of your batch who wrote this test">Batch rank</th><th>Percentile</th><th></th></tr></thead><tbody id="attemptRows"></tbody></table>
     <h2 class="sec">📒 My Mistake Notebook</h2>
     <div id="myNotebook">&hellip;</div>
     <h2 class="sec">My Progress</h2>
@@ -1485,12 +1488,20 @@ $("lbLoadBtn").onclick = async () => {
   const examId = $("lbExam").value; if (!examId) return;
   const exam = examsCache.find(e=>e.docId===examId);
   const qs = await getDocs(query(collection(db,"attempts"), where("examId","==",examId)));
-  let list = qs.docs.map(d=>d.data()).filter(a=>a.submitTime!=null);
-  // attach batch from student cache
+  let list = qs.docs.map(d=>({ _id:d.id, ...d.data() })).filter(a=>a.submitTime!=null);
+  // batch: saved on the attempt (newer), else the student's profile
   const byUid = Object.fromEntries(studentCache.map(s=>[s.uid,s]));
-  list.forEach(a=>a._batch = byUid[a.studentUid]?.batch || "");
+  list.forEach(a=>a._batch = a.studentBatch || byUid[a.studentUid]?.batch || "");
+  // remember the batch on older attempts, so students also see their batch rank (fire-and-forget)
+  list.filter(a => !a.studentBatch && a._batch).forEach(a => updateDoc(doc(db,"attempts",a._id), { studentBatch: a._batch }).catch(()=>{}));
+  // overall rank = among everyone who wrote the test; batch rank = among the same batch. Equal scores share a rank.
+  const rankOf = (l, a) => 1 + l.filter(x => x.score > a.score).length;
+  const batchCount = {};
+  list.forEach(a => { const k = normBatch(a._batch); (batchCount[k] = batchCount[k] || []).push(a); });
+  list.forEach(a => { a._rank = rankOf(list, a); a._bRank = a._batch ? rankOf(batchCount[normBatch(a._batch)], a) : null; a._bN = a._batch ? batchCount[normBatch(a._batch)].length : 0; a._n = list.length;
+                    a._pct = (100 * list.filter(x => x.score <= a.score).length / list.length).toFixed(1); });   // percentile: out of everyone
   const bf = $("lbBatch").value.trim().toLowerCase();
-  if (bf) list = list.filter(a=>(a._batch||"").toLowerCase()===bf);
+  if (bf) list = list.filter(a=>normBatch(a._batch)===bf);
   list.sort((a,b)=> b.score - a.score || (a.totalTimeSec||0)-(b.totalTimeSec||0));
   lbAttempts = list;
   const cfg = exam ? examCfg(exam) : null;
@@ -1500,11 +1511,11 @@ $("lbLoadBtn").onclick = async () => {
   const avg = n ? (list.reduce((s,a)=>s+a.score,0)/n).toFixed(1) : 0;
   const top = list[0]?.score ?? "-";
   $("lbSummary").textContent = `${n} candidates • Topper: ${top} • Average: ${avg} • Max: ${max}`;
-  $("lbWrap").innerHTML = `<table class="tbl"><thead><tr><th>Rank</th><th>Name</th><th>Batch</th><th>Score</th><th>%ile</th>${subs.map(s=>`<th>${esc(s)}</th>`).join("")}<th>Time</th><th>Flag</th></tr></thead><tbody>` +
+  $("lbWrap").innerHTML = `<table class="tbl"><thead><tr><th title="Among everyone who wrote this test">Overall rank</th><th title="Among students of the same batch">Batch rank</th><th>Name</th><th>Batch</th><th>Score</th><th>%ile</th>${subs.map(s=>`<th>${esc(s)}</th>`).join("")}<th>Time</th><th>Flag</th></tr></thead><tbody>` +
     list.map((a,i)=>{
-      const below = list.filter(x=>x.score<=a.score).length;
-      const pct = (100*below/n).toFixed(1);
-      return `<tr><td><b>${i+1}</b></td><td>${esc(a.studentName)}</td><td>${esc(a._batch||"—")}</td>
+      const pct = a._pct;
+      return `<tr><td><b>${a._rank}</b> <span style="font-size:11px;color:var(--muted)">/ ${a._n}</span></td>
+        <td>${a._bRank ? `<b>${a._bRank}</b> <span style="font-size:11px;color:var(--muted)">/ ${a._bN}</span>` : "—"}</td><td>${esc(a.studentName)}</td><td>${esc(a._batch||"—")}</td>
         <td><b>${a.score}</b></td><td>${pct}</td>
         ${subs.map(s=>`<td>${(a.subjectScores||{})[s]??"-"}</td>`).join("")}
         <td>${Math.round((a.totalTimeSec||0)/60)}m</td>
@@ -1515,10 +1526,9 @@ $("lbCsvBtn").onclick = () => {
   if (!lbAttempts.length) return;
   const exam = examsCache.find(e=>e.docId===$("lbExam").value);
   const subs = exam ? examCfg(exam).subjects : [];
-  const rows = [["Rank","Name","Batch","Score","Percentile",...subs,"TimeMin","Malpractice"]];
+  const rows = [["OverallRank","OutOf","BatchRank","BatchOutOf","Name","Batch","Score","Percentile",...subs,"TimeMin","Malpractice"]];
   lbAttempts.forEach((a,i)=>{
-    const below = lbAttempts.filter(x=>x.score<=a.score).length;
-    rows.push([i+1,a.studentName,a._batch||"",a.score,(100*below/lbAttempts.length).toFixed(1),
+    rows.push([a._rank,a._n,a._bRank??"",a._bN||"",a.studentName,a._batch||"",a.score,a._pct,
       ...subs.map(s=>(a.subjectScores||{})[s]??""),Math.round((a.totalTimeSec||0)/60),a.malpractice?"yes":"no"]);
   });
   downloadCsv("leaderboard.csv", rows);
@@ -1599,7 +1609,9 @@ async function runItemAnalysis(){
       const topWrong = Object.entries(wrongPick).sort((a,b)=>b[1]-a[1])[0] || null;
       rows.push({
         q, idx: qi+1, n, correct, wrong, blank,
-        pctCorrect: iaPct(correct,correct+wrong), pctWrong: iaPct(wrong,n), pctBlank: iaPct(blank,n),
+        // % correct / wrong / left are all out of everyone who wrote the test (they add up to 100);
+        // pctAcc = accuracy among those who answered (used for the accuracy flags)
+        pctCorrect: iaPct(correct,n), pctWrong: iaPct(wrong,n), pctBlank: iaPct(blank,n), pctAcc: iaPct(correct,correct+wrong),
         avgTime: timeN ? timeSum/timeN : 0,
         avgTimeCorrect: correct ? correctTimeSum/correct : 0,
         avgVisits: visitN ? visitSum/visitN : 0,
@@ -1612,12 +1624,12 @@ async function runItemAnalysis(){
     const meanTime = rows.length ? rows.reduce((s,r)=>s+r.avgTime,0)/rows.length : 0;
     rows.forEach(r => {
       const f = [];
-      if (r.pctCorrect < 33) f.push(["Low accuracy","neg"]);
+      if (r.pctAcc < 33) f.push(["Low accuracy","neg"]);
       if (r.topWrong && r.wrong && r.topWrong[1]/r.wrong >= 0.5 && r.pctWrong >= 40) f.push([`Trap → ${esc(r.topWrong[0])}`,"neg"]);
       if (r.pctBlank >= 30) f.push(["Often skipped","zero"]);
       if (meanTime && r.avgTime >= 1.75*meanTime && r.avgTime >= 60) f.push(["Time sink","zero"]);
       if (r.avgTime > 1.5*r.idealSec) f.push(["Over ideal time","zero"]);
-      if (r.pctCorrect >= 85) f.push(["High accuracy","pos"]);
+      if (r.pctAcc >= 85) f.push(["High accuracy","pos"]);
       r.flags = f;
     });
     iaRows = rows;
@@ -1747,7 +1759,7 @@ function renderItemAnalysis(){
   $("iaWrap").innerHTML = `<h2 class="sec">Question-wise analysis</h2>
     <table class="tbl"><thead><tr>
       <th>Q</th><th>Subject</th><th>Topic</th><th>Question</th><th>Key</th>
-      <th>% Correct</th><th>Wrong</th><th>Blank</th><th>Most-picked wrong</th><th>Avg time</th><th title="Average time of the students who got it right">Avg time (correct)</th><th>Ideal</th><th>Avg visits</th><th title="Discrimination: % correct in the top 27% − bottom 27%">Quality (D)</th><th>Why (students)</th><th>Flags</th>
+      <th title="Out of everyone who wrote the test — correct + wrong + left = 100%">% Correct</th><th>Wrong</th><th>Left (blank)</th><th>Most-picked wrong</th><th>Avg time</th><th title="Average time of the students who got it right">Avg time (correct)</th><th>Ideal</th><th>Avg visits</th><th title="Discrimination: % correct in the top 27% − bottom 27%">Quality (D)</th><th>Why (students)</th><th>Flags</th>
     </tr></thead><tbody>` +
     list.map(r => `<tr>
       <td><b>${r.idx}</b></td><td>${esc(r.q.subject)}</td><td>${esc(r.q.topic||"—")}</td>
@@ -1760,7 +1772,7 @@ function renderItemAnalysis(){
             <b>Slowest:</b> ${r.slowest.map(s=>`${esc(s.name)} (${fmtSec(s.t)})`).join(", ")||"—"}
           </div></div></details></td>
       <td><b>${esc(r.q.correct_answer)}</b></td>
-      <td style="${iaHeat(r.pctCorrect)}"><b>${r.pctCorrect}%</b><br><span style="font-size:11px;color:var(--muted)">${r.correct}/${r.correct+r.wrong} attempted</span></td>
+      <td style="${iaHeat(r.pctCorrect)}"><b>${r.pctCorrect}%</b> <span style="font-size:11px;color:var(--muted)">(${r.correct}/${r.n})</span><br><span style="font-size:11px;color:var(--muted)">accuracy ${r.pctAcc}% of attempted</span></td>
       <td>${r.wrong} <span style="font-size:11px;color:var(--muted)">(${r.pctWrong}%)</span></td>
       <td>${r.blank} <span style="font-size:11px;color:var(--muted)">(${r.pctBlank}%)</span></td>
       <td>${r.topWrong ? `<b>${esc(r.topWrong[0])}</b> ×${r.topWrong[1]}` : "—"}</td>
@@ -1897,7 +1909,7 @@ function nbRender(NB){
       <div class="field"><label>Show</label><select data-nbf="show">${opt("open", f.show, "Open")}${opt("cleared", f.show, "Cleared")}${opt("all", f.show, "All")}</select></div>
       <div class="field"><label>Type</label><select data-nbf="kind">${opt("", f.kind, "Wrong + skipped")}${opt("wrong", f.kind, "Wrong only")}${opt("blank", f.kind, "Skipped only")}</select></div>
       <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-bottom:14px"><input type="checkbox" data-nbf="repeat" ${f.repeat ? "checked" : ""}> Missed 2+ times</label>
-      ${editable ? `<button class="btn green" data-nbretry style="margin-bottom:14px" ${retryN ? "" : "disabled"}>🔁 Retry ${Math.min(retryN, 40)} open mistake(s)</button>` : ""}
+      ${editable && practiceOn ? `<button class="btn green" data-nbretry style="margin-bottom:14px" ${retryN ? "" : "disabled"}>🔁 Retry ${Math.min(retryN, 40)} open mistake(s)</button>` : ""}
     </div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${shown.length} shown.${editable ? " Retry them untimed — each one you get right is cleared automatically. Or tick “Cleared” when you've revised it." : " Read-only view of the student's notebook."}</div>
     ${Object.entries(groups).sort((a, b) => b[1].length - a[1].length).map(([g, its], gi) => `
@@ -1965,7 +1977,7 @@ function nbRender(NB){
     rb.disabled = true; rb.textContent = "Loading…";
     try {
       const snaps = await Promise.all(pick.map(i => getDoc(doc(db,"questions",i.id))));
-      const qs = shuffle(snaps.filter(s => s.exists()).map(s => ({ docId: s.id, ...s.data() })));
+      const qs = shuffle(snaps.filter(s => s.exists()).map(s => ({ docId: s.id, ...s.data() })).filter(hasKey));
       if (!qs.length) { alert("Those questions are no longer in the bank."); nbRender(NB); return; }
       startPracticeWith(qs, "Mistake notebook", [...new Set(pick.map(i => i.topic))], "notebook");
     } catch(e) { alert("Could not start: " + e.message); nbRender(NB); }
@@ -2661,6 +2673,57 @@ function readFileAsDataUrl(file){
     fr.readAsDataURL(file);
   });
 }
+/* ---- image fingerprints: the same picture uploaded again (another test, another upload) is recognised, so a key set
+   once is remembered everywhere that picture is used — tests, the bank and student practice.
+   imgHash = SHA-256 of the stored (compressed) image; srcHash = SHA-256 of the original file's bytes. ---- */
+async function sha256Hex(data){
+  const buf = typeof data === "string" ? new TextEncoder().encode(data) : data;
+  const h = await crypto.subtle.digest("SHA-256", buf);
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2,"0")).join("").slice(0, 40);
+}
+const imgHashOf = dataUrl => dataUrl ? sha256Hex(dataUrl).catch(() => null) : Promise.resolve(null);
+async function fileHashOf(file){ try { return await sha256Hex(await file.arrayBuffer()); } catch(e){ return null; } }
+// Every bank question carrying the same picture (matched on either fingerprint).
+async function findImageCopies(imgHash, srcHash){
+  const out = new Map();
+  for (const [field, h] of [["imgHash", imgHash], ["srcHash", srcHash]]) if (h) {
+    try { (await getDocs(query(collection(db,"questions"), where(field,"==",h)))).docs.forEach(d => out.set(d.id, { docId:d.id, ...d.data() })); }
+    catch(e){ /* offline / rules: behave as if no copy exists */ }
+  }
+  return [...out.values()];
+}
+const hasKey = q => String(q?.correct_answer ?? "").trim() !== "";
+// How much to trust a stored key: set by a teacher (or legacy, no source) > read from the filename > AI-proposed.
+const keyTrust = q => !hasKey(q) ? -1 : (!q.keySrc || q.keySrc === "user") ? 3 : q.keySrc === "filename" ? 2 : 1;
+// The copy whose key to reuse: most trusted key, then most recently changed.
+function bestKeyedCopy(copies){
+  return copies.filter(hasKey).sort((a, b) => keyTrust(b) - keyTrust(a) || tsMs(b.updatedAt || b.createdAt) - tsMs(a.updatedAt || a.createdAt))[0] || null;
+}
+// After a key is saved on a picture question, copy it onto every other question with the same picture.
+// Returns { updated, denied } — questions owned by someone else can't be changed by faculty (rules).
+async function shareKeyWithCopies(q, key, say){
+  const res = { updated: 0, denied: 0 };
+  if (!q || (!q.imgHash && !q.srcHash)) return res;
+  const copies = (await findImageCopies(q.imgHash, q.srcHash)).filter(c => c.docId !== q.docId && String(c.correct_answer ?? "") !== String(key));
+  for (const c of copies) {
+    try {
+      await updateDoc(doc(db,"questions",c.docId), { correct_answer: String(key), keySrc: "user", keyFrom: q.docId });
+      res.updated++; say?.(`  same picture in ${c.id || c.docId}: key ${c.correct_answer || "(none)"} → ${key}`);
+    } catch(e) { res.denied++; say?.(`  same picture in ${c.id || c.docId}: could not update (${e.code === "permission-denied" ? "owned by another teacher" : e.message})`); }
+  }
+  return res;
+}
+// Fingerprint older picture questions that have none yet (only the ones this user may edit). Fire-and-forget.
+async function backfillImgHashes(qs){
+  let n = 0;
+  for (const q of qs) {
+    if (!q.image || q.imgHash || !ownsItem(q)) continue;
+    const h = await imgHashOf(q.image);
+    if (!h) continue;
+    try { await updateDoc(doc(db,"questions",q.docId), { imgHash: h }); q.imgHash = h; n++; } catch(e){}
+  }
+  return n;
+}
 async function imageFileToDataUrl(file, kind="question"){
   const out = await compressDataUrl(await readFileAsDataUrl(file), kind);
   if (out.length > 900000) throw new Error("image too large even after compression");
@@ -2697,14 +2760,17 @@ async function biIngest(files){
     const guessed = $("biSection").value === "A" ? (guessAnswerFromFilename(f.name) || "") : "";
     try {
       const image = await imageFileToDataUrl(f);
+      const [imgHash, srcHash] = await Promise.all([imgHashOf(image), fileHashOf(f)]);
+      // picture already in the bank with a key → remember that key
+      const known = guessed ? null : bestKeyedCopy(await findImageCopies(imgHash, srcHash));
       rows.push({
-        image, file: f.name, rel,
+        image, file: f.name, rel, imgHash, srcHash, keyFrom: known ? (known.id || known.docId) : "",
         id: prefix + safeDocId(f.name),
         num: numFromName(f.name) ?? (i+1),
         subject: meta.subject, topic: meta.topic,
         section: $("biSection").value,
         difficulty: $("biDiff").value,
-        correct_answer: guessed,
+        correct_answer: guessed || (known ? String(known.correct_answer) : ""),
         kb: Math.round(image.length/1024)
       });
     } catch(e) {
@@ -2716,8 +2782,9 @@ async function biIngest(files){
   }
   biRows = rows;
   const bad = rows.filter(r=>r.error).length;
-  const keyed = rows.filter(r=>r.correct_answer).length;
+  const keyed = rows.filter(r=>r.correct_answer).length, remembered = rows.filter(r=>r.keyFrom).length;
   setMsg($("biMsg"), `Loaded ${rows.length} images${bad?` (${bad} could not be processed)`:""}. ` +
+    (remembered ? `${remembered} picture(s) were already in the bank — their saved key was filled in. ` : "") +
     `${keyed} answer key(s) read straight from the filename (rows highlighted red below still need one — ` +
     `type it in, or paste a key in step 2 as a fallback), then Import.`, true);
   renderBiTable();
@@ -2799,7 +2866,9 @@ function biToQuestions(){
     id: r.id, examType, subject: r.subject, section: r.section,
     text: "", options: r.section === "A" ? ["","","",""] : [],
     correct_answer: r.section === "A" ? normKey(r.correct_answer) : r.correct_answer, topic: r.topic, difficulty: r.difficulty,
-    image: r.image
+    image: r.image,
+    ...(r.imgHash ? { imgHash: r.imgHash } : {}), ...(r.srcHash ? { srcHash: r.srcHash } : {}),
+    ...(r.keyFrom ? { keySrc: "user", keyFrom: r.keyFrom } : {})
   }));
 }
 $("biImportBtn").onclick = async () => {
@@ -2905,11 +2974,17 @@ $("kpApplyBtn").onclick = async () => {
   try {
     for (let i = 0; i < rows.length; i += 400) {
       const batch = writeBatch(db);
-      rows.slice(i, i+400).forEach(r => batch.update(doc(db,"questions",r.q.docId), { correct_answer: String(r.to) }));
+      rows.slice(i, i+400).forEach(r => batch.update(doc(db,"questions",r.q.docId), { correct_answer: String(r.to), keySrc: "user" }));
       await batch.commit();
       setMsg($("kpMsg"), `Updated ${Math.min(i+400, rows.length)}/${rows.length}…`, true);
     }
-    setMsg($("kpMsg"), `Done — ${rows.length} answers updated.`, true);
+    // the same picture used elsewhere (other tests, practice) gets the same key
+    let shared = 0, denied = 0;
+    for (const r of rows.filter(r => r.q.image)) {
+      if (!r.q.imgHash) { r.q.imgHash = await imgHashOf(r.q.image); }
+      const res = await shareKeyWithCopies(r.q, r.to); shared += res.updated; denied += res.denied;
+    }
+    setMsg($("kpMsg"), `Done — ${rows.length} answers updated.` + (shared || denied ? ` Same key copied to ${shared} other question(s) with the same picture${denied ? ` (${denied} owned by another teacher could not be changed)` : ""}.` : ""), true);
     allBankCache = null;
     kpQuestions.forEach(q => { const r = rows.find(x=>x.q.docId===q.docId); if (r) q.correct_answer = String(r.to); });
     $("kpPreviewBtn").onclick();
@@ -3099,6 +3174,8 @@ async function dgOpenExam(docId){
   const missing = snaps.filter(s => !s.exists()).length;
   DG = { examDocId: docId, origIds: (ex.questionIds||[]).slice(), rows: [], aiSolve: ex.aiSolve || null };
   snaps.filter(s => s.exists()).forEach(s => DG.rows.push(dgRowFromQuestion({ docId: s.id, ...s.data() }, ex.idealTimes)));
+  // fingerprint older picture questions so a later upload of the same picture finds them (and their key)
+  backfillImgHashes(DG.rows.map(r => r.q)).then(() => DG.rows.forEach(r => { r.imgHash = r.imgHash || r.q?.imgHash || null; })).catch(() => {});
   const firstTopic = DG.rows.find(r => r.topic)?.topic;
   if (firstTopic) $("dgTopic").value = firstTopic;
   if (DG.rows[0] && EXAM_CONFIG[ex.examType].subjects.includes(DG.rows[0].subject)) { $("dgSubject").value = DG.rows[0].subject; dgLoadTopicList(); }
@@ -3116,6 +3193,7 @@ function dgRowFromQuestion(q, idealTimes){
   r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section;
   r.idealSec = idealTimes?.[q.docId] ?? q.idealTimeSec ?? dgDefaultIdeal(r);
   r.keySrc = q.keySrc || ""; r.idealSrc = q.idealTimeSrc || ""; r.aiKeyNote = q.aiKeyNote || "";
+  r.imgHash = q.imgHash || null; r.srcHash = q.srcHash || null;
   return r;
 }
 async function dgAddFiles(files){
@@ -3123,24 +3201,39 @@ async function dgAddFiles(files){
   if (!list.length) { setMsg($("dgAddMsg"), "No image files in that selection."); return; }
   list.sort((a,b) => (a.name||"").localeCompare(b.name||"", undefined, { numeric:true }));
   const topic = $("dgTopic").value.trim();
-  let ok = 0, bad = 0, keyed = 0;
+  let ok = 0, bad = 0, keyed = 0, reused = 0, dup = 0;
+  const seen = new Set(DG.rows.flatMap(r => [r.imgHash, r.srcHash, r.q?.imgHash, r.q?.srcHash]).filter(Boolean));
   for (let i = 0; i < list.length; i++) {
     const f = list[i];
     setMsg($("dgAddMsg"), `Compressing image ${i+1}/${list.length}…`, true);
     try {
       const image = await imageFileToDataUrl(f);
+      const [imgHash, srcHash] = await Promise.all([imgHashOf(image), fileHashOf(f)]);
+      if ((imgHash && seen.has(imgHash)) || (srcHash && seen.has(srcHash))) { dup++; continue; }   // already in this test
+      [imgHash, srcHash].forEach(h => h && seen.add(h));
+      // Seen this picture before? Use that bank question — its key, ideal time and AI checks come with it.
+      // A copy with no key that someone else owns is not reused (you couldn't set its key); a new question is made.
+      const copies = await findImageCopies(imgHash, srcHash);
+      const best = bestKeyedCopy(copies) || copies.find(ownsItem);
+      if (best && !DG.rows.some(r => r.docId === best.docId)) {
+        const row = dgRowFromQuestion(best, null);
+        row.reused = copies.length; DG.rows.push(row); ok++; reused++; if (hasKey(best)) keyed++;
+        continue;
+      }
       const section = $("dgSection").value;
       const guess = section === "A" ? (guessAnswerFromFilename(f.name) || "") : "";
       if (guess) keyed++;
       const r = { key: ++dgSeq, docId: null, isNew: true, image, text: "", file: f.name || "pasted image",
         subject: $("dgSubject").value, section, topic, difficulty: $("dgDiff").value,
-        correct_answer: guess, kb: Math.round(image.length/1024) };
+        correct_answer: guess, kb: Math.round(image.length/1024), imgHash, srcHash };
       r.idealSec = dgDefaultIdeal(r);
       r.keySrc = guess ? "filename" : "pending-ai"; r.idealSrc = "pending-ai";   // the AI job proposes the key / ideal time
       DG.rows.push(r); ok++;
     } catch(e){ bad++; }
   }
-  setMsg($("dgAddMsg"), `Added ${ok} image question(s)${bad?`, ${bad} could not be read`:""}. ${keyed} answer(s) read from filenames — fill the rest in the table (red rows).` +
+  setMsg($("dgAddMsg"), `Added ${ok} image question(s)${bad?`, ${bad} could not be read`:""}${dup?`, ${dup} skipped (already in this test)`:""}.` +
+    (reused ? ` ${reused} picture(s) were already in the bank — reused with their saved key.` : "") +
+    ` ${keyed} have an answer — fill the rest in the table (red rows).` +
     (topic ? "" : " No Topic was set above — give each row a topic so the topic-wise report works."), !!topic);
   dgRender();
 }
@@ -3168,6 +3261,7 @@ const keyBadge = r => r.keySrc === "pending-ai" && !r.correct_answer ? `<div sty
   : r.keySrc === "ai" ? `<div style="font-size:11px;color:#2563a8" title="${esc(r.aiKeyNote)}">🤖 AI-proposed — check it</div>`
   : r.keySrc === "ai-unsure" && !r.correct_answer ? `<div style="font-size:11px;color:#b3261e" title="${esc(r.aiKeyNote)}">⚠ AI unsure — you set it</div>`
   : r.keySrc === "user" ? `<div style="font-size:11px;color:var(--muted)">set by you</div>` : "";
+const reusedBadge = r => r.reused ? `<div style="font-size:11px;color:#1e7a44" title="This picture was already in the bank: the same question (and its key) is used here">♻ already in bank</div>` : "";
 const idealBadge = r => r.idealSrc === "pending-ai" ? `<div style="font-size:11px;color:#2563a8">🤖 AI will set</div>` : r.idealSrc === "ai" ? `<div style="font-size:11px;color:#2563a8">🤖 AI</div>` : "";
 // ---- AI solve: after a test is saved, the AI job solves every question and suggests a key + ideal time ----
 // Request: exams/{id}.aiSolve = { status:"queued" }. The job (ai/estimate.mjs → solveRequestedExams) writes
@@ -3412,7 +3506,7 @@ function dgRender(){
         <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px"></td>
         <td><select data-dgf="difficulty">${levelOptions(r.difficulty)}</select></td>
         <td>${r.ai ? esc(r.section) : `<select data-dgf="section" title="MCQ = student picks option(s); Numerical = student types the answer"><option value="A" ${r.section==="A"?"selected":""}>MCQ</option><option value="B" ${r.section==="B"?"selected":""}>Numerical</option></select>`}</td>
-        <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}${dgAiSolveKeyChip(r)}${r.isNew ? "" : `<div><button class="btn secondary" style="padding:0 6px;font-size:11px;margin-top:3px" data-dgaiview="${i}" title="What each AI model read, answered and why">🔍 AI working</button></div>`}</td>
+        <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}${reusedBadge(r)}${dgAiSolveKeyChip(r)}${r.isNew ? "" : `<div><button class="btn secondary" style="padding:0 6px;font-size:11px;margin-top:3px" data-dgaiview="${i}" title="What each AI model read, answered and why">🔍 AI working</button></div>`}</td>
         <td><input data-dgf="idealSec" type="number" min="5" value="${r.idealSec}" style="width:70px"> <span style="font-size:11px;color:var(--muted)">${fmtSec(r.idealSec)}</span>${idealBadge(r)}${dgAiSolveTimeChip(r)}</td>
         <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="-1" ${i===0?"disabled":""}>↑</button>
             <button class="btn secondary" style="padding:2px 7px" data-dgmv="${i}" data-dir="1" ${i===rows.length-1?"disabled":""}>↓</button></td>
@@ -3515,6 +3609,7 @@ async function dgSave(){
         text: r.text || "", options: r.section === "A" ? (r.options || ["","","",""]) : [],
         correct_answer: String(r.correct_answer), topic: r.topic, difficulty: r.difficulty,
         ...(r.image ? { image: r.image } : {}), idealTimeSec: +r.idealSec,
+        ...(r.imgHash ? { imgHash: r.imgHash } : {}), ...(r.srcHash ? { srcHash: r.srcHash } : {}),
         ...(r.keySrc ? { keySrc: r.keySrc } : {}), ...(r.idealSrc ? { idealTimeSrc: r.idealSrc } : {}),
         ...(r.solution ? { solution: r.solution } : {}),
         ...(r.ai ? { aiGenerated: { draftId: DG.aiDraftId || null, verdict: r.ai.verdict, keyAtDraft: r.ai.key,
@@ -3527,6 +3622,7 @@ async function dgSave(){
     newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; });
     // 2) key / topic / difficulty edits on existing questions (one by one so a permission error names the question)
     let failed = 0, keysSaved = 0;
+    const keyShare = newRows.filter(r => hasKey(r) && (r.imgHash || r.srcHash));   // keys to copy onto the same picture elsewhere
     for (const r of edits) {
       const upd = {};
       if (r.correct_answer !== r.origAnswer) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
@@ -3537,10 +3633,12 @@ async function dgSave(){
         upd.options = r.section === "A" ? (Array.isArray(r.q?.options) && r.q.options.length === 4 ? r.q.options : ["","","",""]) : [];
       }
       // new picture only: key/topic/times stay; the AI's old second opinion was about the old picture, so drop it
-      if (r.imgChanged) { upd.image = r.image; upd.imageUpdatedAt = serverTimestamp(); upd.aiVerify = deleteField(); }
+      if (r.imgChanged) { upd.image = r.image; upd.imageUpdatedAt = serverTimestamp(); upd.aiVerify = deleteField();
+                          upd.imgHash = (await imgHashOf(r.image)) || deleteField(); upd.srcHash = deleteField(); }
       try {
         await updateDoc(doc(db,"questions",r.docId), upd);
-        if (upd.correct_answer !== undefined) keysSaved++;
+        if (upd.correct_answer !== undefined) { keysSaved++; keyShare.push(r); }
+        if (r.imgChanged) { r.imgHash = typeof upd.imgHash === "string" ? upd.imgHash : null; r.srcHash = null; }
         r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false;
         say(`Updated ${r.q?.id||r.docId}: ${Object.entries(upd).filter(([k])=>!["image","imageUpdatedAt","aiVerify"].includes(k)).map(([k,v])=>`${k} → ${v}`).concat(upd.image?["new image"]:[]).join(", ")}`);
       } catch(e) {
@@ -3548,6 +3646,13 @@ async function dgSave(){
         say(`FAILED ${r.q?.id||r.docId}: ${e.code==="permission-denied" ? "you don't own this question — ask an admin to change it" : e.message}`);
       }
     }
+    // 2b) remember each key on every other copy of the same picture in the bank (other tests, practice)
+    let shared = 0, sharedDenied = 0;
+    for (const r of keyShare) {
+      const res = await shareKeyWithCopies({ docId: r.docId, imgHash: r.imgHash, srcHash: r.srcHash }, r.correct_answer, say);
+      shared += res.updated; sharedDenied += res.denied;
+    }
+    if (shared || sharedDenied) say(`Key copied to ${shared} other question(s) with the same picture${sharedDenied ? `; ${sharedDenied} could not be changed (owned by another teacher — ask an admin)` : ""}.`);
     // 3) the exam document itself
     const marks = dgMarks();
     const subjects = [...new Set(DG.rows.map(r=>r.subject))].sort((a,b)=>ALL_SUBJECTS.indexOf(a)-ALL_SUBJECTS.indexOf(b));
@@ -4223,7 +4328,28 @@ function tmFillSubjects(){
   $("tmSubject").innerHTML = `<option value="">(all)</option>` + subs.map(s=>`<option>${s}</option>`).join("");
 }
 $("tmType").onchange = tmFillSubjects;
-function initTopics(){ tmFillSubjects(); }
+function initTopics(){
+  tmFillSubjects();
+  const cb = $("tmPracticeOn");
+  cb.disabled = !isSuper();
+  $("tmPracticeMsg").textContent = isSuper() ? "" : "(only an admin can change this)";
+  practiceEnabled().then(on => { cb.checked = on; });
+}
+// Practice mode on/off for every student: settings/portal.practiceEnabled (missing = on).
+async function practiceEnabled(){
+  try { const s = await getDoc(doc(db,"settings","portal")); return s.exists() ? s.data().practiceEnabled !== false : true; }
+  catch(e){ return true; }   // rules not published yet → behave as before
+}
+$("tmPracticeOn").onchange = async () => {
+  const on = $("tmPracticeOn").checked;
+  try {
+    await setDoc(doc(db,"settings","portal"), { practiceEnabled: on, practiceSetBy: currentUser.name, practiceSetAt: serverTimestamp() }, { merge: true });
+    $("tmPracticeMsg").textContent = on ? "Practice mode is ON for students." : "Practice mode is OFF — students no longer see it.";
+  } catch(e) {
+    $("tmPracticeOn").checked = !on;
+    $("tmPracticeMsg").textContent = "Could not save: " + e.message + (e.code === "permission-denied" ? " — publish the updated firestore.rules first." : "");
+  }
+};
 async function loadTopics(force){
   setMsg($("tmMsg"), allBankCache && !force ? "Grouping topics…" : "Loading the question bank…", true);
   try {
@@ -4304,9 +4430,31 @@ $("tmIndexBtn").onclick = async () => {
     setMsg($("tmMsg"), "Reading the question bank…", true);
     const qs = await getDocs(collection(db,"questions"));
     allBankCache = qs.docs.map(d => ({ docId:d.id, ...d.data() }));
-    const buckets = {};
+    // Same picture in several questions: fingerprint, then give every copy the best-known key, so a key set once
+    // applies wherever that picture appears — including in practice.
+    setMsg($("tmMsg"), "Matching repeated pictures…", true);
+    await backfillImgHashes(allBankCache);
+    for (const q of allBankCache) if (q.image && !q.imgHash) q.imgHash = await imgHashOf(q.image);   // in memory only (not yours to save)
+    const groups = {};
+    allBankCache.forEach(q => { if (q.imgHash) (groups[q.imgHash] = groups[q.imgHash] || []).push(q); });
+    let keyFilled = 0;
+    for (const g of Object.values(groups)) {
+      if (g.length < 2) continue;
+      const best = bestKeyedCopy(g);
+      if (!best) continue;
+      for (const q of g) {
+        if (q === best || keyTrust(q) >= keyTrust(best)) continue;   // only fill blank / less-trusted keys here
+        try { await updateDoc(doc(db,"questions",q.docId), { correct_answer: String(best.correct_answer), keySrc: best.keySrc || "user", keyFrom: best.docId });
+              q.correct_answer = String(best.correct_answer); q.keySrc = best.keySrc || "user"; keyFilled++; } catch(e){}
+      }
+    }
+    const buckets = {}, pictureSeen = new Set();
+    let noKey = 0, dupPic = 0;
     allBankCache.forEach(q => {
       if (!q.examType || !q.subject) return;
+      // students only practise questions that have a key; the same picture is offered once
+      if (!hasKey(q)) { noKey++; return; }
+      if (q.imgHash) { const k = `${q.examType}|${q.imgHash}`; if (pictureSeen.has(k)) { dupPic++; return; } pictureSeen.add(k); }
       const key = `${q.examType}__${q.subject}`;
       (buckets[key] = buckets[key] || []).push({
         i: q.docId, t: (q.topic||"").trim(), d: q.difficulty || "Medium", s: q.section || "A"
@@ -4321,7 +4469,10 @@ $("tmIndexBtn").onclick = async () => {
       });
       setMsg($("tmMsg"), `Indexed ${subject} (${examType}) — ${buckets[k].length} questions…`, true);
     }
-    setMsg($("tmMsg"), `Practice index rebuilt for ${keys.length} bank(s), ${allBankCache.length} questions total.`, true);
+    setMsg($("tmMsg"), `Practice index rebuilt for ${keys.length} bank(s), ${allBankCache.length} questions total.` +
+      (keyFilled ? ` ${keyFilled} key(s) copied from the same picture elsewhere.` : "") +
+      (noKey ? ` ${noKey} question(s) without a key left out of practice.` : "") +
+      (dupPic ? ` ${dupPic} repeated picture(s) offered only once.` : ""), true);
   } catch(e){ setMsg($("tmMsg"), "Index rebuild failed: " + e.message + (String(e.message).includes("permission") ? " — publish the updated firestore.rules first." : "")); }
   finally { $("tmIndexBtn").disabled = false; }
 };
@@ -4916,22 +5067,42 @@ async function loadMyAttempts(){
   const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
   const mine = qs.docs.map(d=>({docId:d.id,...d.data()})).filter(a=>a.submitTime);
   mine.sort((a,b)=>(b.submitTime?.seconds||0)-(a.submitTime?.seconds||0));
-  // rank/percentile per attempt vs all attempts of same examType
-  const allQs = await getDocs(query(collection(db,"attempts"), where("examType","==",currentUser.examType)));
-  const allScores = allQs.docs.map(d=>d.data()).filter(a=>a.submitTime).map(a=>a.score);
+  // rank in each test: overall (all who wrote it) and in my batch
+  let byExam = {};
+  try {
+    const allQs = await getDocs(query(collection(db,"attempts"), where("examType","==",currentUser.examType)));
+    allQs.docs.map(d=>d.data()).filter(a=>a.submitTime).forEach(a => (byExam[a.examId] = byExam[a.examId] || []).push(a));
+  } catch(e){ byExam = {}; }
+  const myBatchOf = a => a.studentUid === currentUser.uid ? (a.studentBatch || currentUser.batch || "") : (a.studentBatch || "");
   $("attemptRows").innerHTML = mine.map(a => {
-    const {rank, pct} = rankAndPercentile(a.score, allScores);
+    const R = testRanks(byExam[a.examId] || [], a, myBatchOf);
     return `<tr><td>${fmtDate(a.submitTime)}</td><td>${esc(a.examTitle||a.examId)}${a.malpractice?' <span class="badge neg">MALPRACTICE</span>':''}</td>
       <td>${esc(a.examType)}</td><td><b>${a.score}</b> / ${attemptCfg(a).maxMarks}</td>
-      <td>${rank}</td><td>${pct}</td>
+      <td><b>${R.overall.rank}</b> / ${R.overall.n}</td><td>${R.batch ? `<b>${R.batch.rank}</b> / ${R.batch.n}` : "—"}</td><td>${R.overall.pct}</td>
       <td><button class="btn secondary" style="padding:3px 10px" data-viewat="${a.docId}">View Result</button></td></tr>`;
-  }).join("") || `<tr><td colspan="7">No attempts yet.</td></tr>`;
+  }).join("") || `<tr><td colspan="8">No attempts yet.</td></tr>`;
   $("attemptRows").querySelectorAll("[data-viewat]").forEach(b => b.onclick = async () => {
     const snap = await getDoc(doc(db,"attempts",b.dataset.viewat));
     if (snap.exists()) showResult({ docId:snap.id, ...snap.data() });
   });
 }
 
+// Two rankings for one test: overall (everyone who wrote it) and batch-wise (only students of the same batch).
+// Equal scores share a rank. One entry per student (their latest submission). batchOf(a) → batch name or "".
+const normBatch = b => String(b || "").trim().toLowerCase();
+function testRanks(atts, me, batchOf){
+  const byUid = new Map();
+  atts.filter(a => a.submitTime != null || a === me).forEach(a => {
+    const p = byUid.get(a.studentUid);
+    if (!p || atMs(a.submitTime) >= atMs(p.submitTime)) byUid.set(a.studentUid, a);
+  });
+  byUid.set(me.studentUid, me);
+  const all = [...byUid.values()];
+  const rankIn = list => ({ rank: 1 + list.filter(x => x.score > me.score).length, n: list.length,
+                            pct: (100 * list.filter(x => x.score <= me.score).length / list.length).toFixed(2) });
+  const myBatch = normBatch(batchOf(me));
+  return { overall: rankIn(all), batch: myBatch ? rankIn(all.filter(a => normBatch(batchOf(a)) === myBatch)) : null, batchName: batchOf(me) || "" };
+}
 function rankAndPercentile(score, allScores){
   if (!allScores.length) return { rank: 1, pct: "100.00" };
   const sorted = allScores.slice().sort((a,b)=>b-a);
@@ -5396,7 +5567,7 @@ async function submitExam(auto, flag={}){
 
   const totalTimeSec = Math.round((Date.now() - EX.startTime)/1000);
   const attemptData = {
-    studentUid: currentUser.uid, studentName: currentUser.name,
+    studentUid: currentUser.uid, studentName: currentUser.name, studentBatch: currentUser.batch || "",
     examId: activeExam?.docId ?? null, examTitle: EX.title, examType: EX.examType,
     startTime: Timestamp.fromMillis(EX.startTime), submitTime: serverTimestamp(),
     totalTimeSec: cfg.untimed ? totalTimeSec : Math.min(totalTimeSec, cfg.durationSec),
@@ -5435,7 +5606,12 @@ let prEntries = [];        // [{i,t,d,s}] from the topicIndex doc for the chosen
 let prSeen = new Set();    // question ids this student has already practised
 let PR = null;             // live session
 
-function initPractice(){
+let practiceOn = true;
+async function initPractice(){
+  practiceOn = await practiceEnabled();
+  $("practiceCard").classList.toggle("hidden", !practiceOn);
+  document.querySelectorAll("[data-nbretry]").forEach(b => b.classList.toggle("hidden", !practiceOn));
+  if (!practiceOn) return;
   const subs = EXAM_CONFIG[currentUser.examType]?.subjects || [];
   $("prSubject").innerHTML = subs.map(s=>`<option>${s}</option>`).join("");
   loadPracticeSeen().then(() => loadPracticeChapters());
@@ -5528,7 +5704,7 @@ $("prStartBtn").onclick = async () => {
   setMsg($("prSetupMsg"), `Loading ${picked.length} questions…`, true);
   try {
     const snaps = await Promise.all(picked.map(e => getDoc(doc(db,"questions",e.i))));
-    const questions = snaps.filter(s=>s.exists()).map(s=>({ docId:s.id, ...s.data() }));
+    const questions = snaps.filter(s=>s.exists()).map(s=>({ docId:s.id, ...s.data() })).filter(hasKey);   // no key = can't check the answer
     if (!questions.length) { setMsg($("prSetupMsg"), "Those questions could not be loaded."); return; }
     setMsg($("prSetupMsg"), "");
     startPracticeWith(questions, $("prSubject").value, prSelectedTopics());
@@ -5816,11 +5992,11 @@ async function showResult(attempt){
   });
   lastResultDetail = detail; lastResultAttempt = attempt;
   // everyone who sat this test (for "class" columns and staff speed flags)
-  let cls = null, clsN = 0;
+  let cls = null, clsN = 0, testAtts = null;
   if (attempt.examId) try {
     const as = (await getDocs(query(collection(db,"attempts"), where("examId","==",attempt.examId)))).docs.map(d=>d.data()).filter(a=>a.submitTime!=null);
     if (!as.some(a => a.studentUid === attempt.studentUid)) as.push(attempt);
-    cls = classStatsFor(as, detail.map(d=>d.q)); clsN = as.length;
+    cls = classStatsFor(as, detail.map(d=>d.q)); clsN = as.length; testAtts = as;
   } catch(e) { /* rules may restrict; class columns show dashes */ }
   const isStaffView = currentUser && (currentUser.role === "admin" || currentUser.role === "faculty");
   detail.forEach(d => {
@@ -5828,15 +6004,15 @@ async function showResult(attempt){
     d.fast = d.verdict === "correct" ? fastReasons(d.q, d.timeSec, d.idealSec, d.cls, true) : [];
   });
 
-  // percentile + rank among all attempts of same examType
-  let rank = "-", pct = "-";
-  try {
-    const allQs = await getDocs(query(collection(db,"attempts"), where("examType","==",attempt.examType)));
-    const allScores = allQs.docs.map(d=>d.data()).filter(a=>a.submitTime!=null).map(a=>a.score);
-    if (!allScores.includes(attempt.score)) allScores.push(attempt.score);
-    const rp = rankAndPercentile(attempt.score, allScores);
-    rank = rp.rank + " / " + allScores.length; pct = rp.pct;
-  } catch(e) { /* rules may restrict; show dashes */ }
+  // rank in THIS test: overall (everyone who wrote it) and within the student's batch; percentile = overall
+  let rank = "-", pct = "-", bRank = "-", bLabel = "Batch rank";
+  if (testAtts) {
+    const cache = Object.fromEntries((studentCache || []).map(s => [s.uid, s.batch || ""]));
+    const batchOf = a => a.studentBatch || cache[a.studentUid] || (a.studentUid === currentUser?.uid ? currentUser.batch || "" : "");
+    const R = testRanks(testAtts, attempt, batchOf);
+    rank = `${R.overall.rank} / ${R.overall.n}`; pct = R.overall.pct;
+    if (R.batch) { bRank = `${R.batch.rank} / ${R.batch.n}`; bLabel = `Batch rank (${esc(R.batchName)})`; }
+  }
 
   const subRows = cfg.subjects.map(s => `
     <tr><td>${s}</td><td><b>${(attempt.subjectScores||{})[s] ?? 0}</b></td>
@@ -5848,7 +6024,7 @@ async function showResult(attempt){
     <td><span class="badge ${d.delta>0?'pos':d.delta<0?'neg':'zero'}">${d.delta>0?'+':''}${d.delta}</span></td>
     <td style="${d.answer!=null && d.timeSec>d.idealSec?'color:#a4610b;font-weight:600':''}">${fmtSec(d.timeSec)}</td>
     <td>${fmtSec(d.idealSec)}</td>
-    <td style="white-space:nowrap">${d.cls?.n ? `<b>${d.cls.correctN}</b>/${d.cls.n} <span style="font-size:11px;color:var(--muted)">(${Math.round(100*d.cls.correctN/d.cls.n)}%)</span>` : "—"}</td>
+    <td style="white-space:nowrap">${clsSplit(d.cls)}</td>
     <td>${d.cls?.n ? fmtSec(d.cls.timeSum/d.cls.n) : "—"}</td>
     <td>${d.cls?.correctN ? fmtSec(d.cls.correctTimeSum/d.cls.correctN) : "—"}</td>
     <td>${d.answer==null ? "—" : vsLabel(d.timeSec, d.cls?.correctN ? d.cls.correctTimeSum/d.cls.correctN : (d.cls?.n ? d.cls.timeSum/d.cls.n : 0), d.verdict === "correct")}</td>
@@ -5940,7 +6116,8 @@ async function showResult(attempt){
       <div class="stat"><div class="v">${attempt.score}</div><div class="l">Score</div></div>
       <div class="stat"><div class="v">${cfg.maxMarks}</div><div class="l">Max Marks</div></div>
       <div class="stat"><div class="v">${pct}</div><div class="l">Percentile</div></div>
-      <div class="stat"><div class="v">${rank}</div><div class="l">Rank</div></div>
+      <div class="stat"><div class="v">${rank}</div><div class="l">Overall rank</div></div>
+      <div class="stat"><div class="v">${bRank}</div><div class="l">${bLabel}</div></div>
       <div class="stat"><div class="v">${fmtSec(attempt.totalTimeSec)}</div><div class="l">Total Time</div></div>
     </div>
     <button class="btn" id="csvReportBtn">Download Report (CSV)</button>
@@ -5966,7 +6143,7 @@ async function showResult(attempt){
     <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">A level is <b>cleared</b> at 60% or more correct.</p>
     <table class="tbl"><thead><tr><th>Level</th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy</th><th>Time taken</th><th>Ideal time</th><th></th></tr></thead><tbody>${levelRows}</tbody></table>
     <h2 class="sec">Question-by-question</h2>
-    <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Level</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th><th>Time Taken</th><th>Ideal</th><th title="Students who got it right / students who had this question">Class correct</th><th title="Average time of everyone who had this question">Class avg time</th><th title="Average time of the students who got it right">Avg time (correct)</th><th title="Your time vs the average of those who got it right">You vs class</th><th>Diagnosis</th><th>Why (student)</th></tr></thead><tbody>${qRows}</tbody></table>
+    <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Level</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th><th>Time Taken</th><th>Ideal</th><th title="Of everyone who wrote this test: % who got it right (✓), got it wrong (✗) and left it blank (–)">Class: correct / wrong / left</th><th title="Average time of everyone who had this question">Class avg time</th><th title="Average time of the students who got it right">Avg time (correct)</th><th title="Your time vs the average of those who got it right">You vs class</th><th>Diagnosis</th><th>Why (student)</th></tr></thead><tbody>${qRows}</tbody></table>
     <p style="font-size:12px;color:var(--muted);margin-top:4px">Class columns compare you with all ${clsN || "—"} student(s) who took this test.</p>
     <h2 class="sec">Error Log</h2>
     <div class="subTabs">
@@ -6018,10 +6195,20 @@ async function showResult(attempt){
 
 // ---- class comparison: how everyone who sat the same test did on each question ----
 // attended = the question was on the student's paper; avg times count only students who attended.
+// "everyone who wrote the test" split for one question: % correct / % wrong / % left, with a small stacked bar
+function clsSplit(c){
+  if (!c?.total) return "—";
+  const p = x => Math.round(100 * x / c.total);
+  const [pc, pw, pl] = [p(c.correctN), p(c.wrongN), p(c.leftN)];
+  return `<div style="display:flex;height:6px;width:110px;border-radius:3px;overflow:hidden;background:#e9edf1;margin-bottom:3px">
+      <div style="width:${pc}%;background:#2e9e5b"></div><div style="width:${pw}%;background:#d9534f"></div><div style="width:${pl}%;background:#b8c2cc"></div></div>
+    <span style="font-size:11.5px" title="${c.correctN} correct, ${c.wrongN} wrong, ${c.leftN} left — of ${c.total} who wrote the test"><b style="color:#1e7a44">✓${pc}%</b> <b style="color:#b03a2e">✗${pw}%</b> <span style="color:var(--muted)">–${pl}%</span></span>`;
+}
 function classStatsFor(atts, qs){
   const out = {};
   qs.forEach(q => {
-    const st = { n: 0, answered: 0, correctN: 0, timeSum: 0, correctTimeSum: 0 };
+    // total = everyone who wrote the test; n = those who had this question (opened it / have a response) — time averages use n
+    const st = { total: atts.length, n: 0, answered: 0, correctN: 0, wrongN: 0, leftN: 0, timeSum: 0, correctTimeSum: 0 };
     atts.forEach(a => {
       const tmap = a.questionTimeSec || {}, r = (a.responses || {})[q.docId];
       if (!(q.docId in tmap) && !r) return;
@@ -6029,6 +6216,7 @@ function classStatsFor(atts, qs){
       st.n++; st.timeSum += t;
       if (r?.answer != null) { st.answered++; if (isAnsCorrect(q, r.answer)) { st.correctN++; st.correctTimeSum += t; } }
     });
+    st.wrongN = st.answered - st.correctN; st.leftN = st.total - st.answered;
     out[q.docId] = st;
   });
   return out;
