@@ -7,6 +7,25 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — Difficulty ceiling for questions suggested after a mistake
+
+Rule (same in the portal and the AI job): a **concept gap** gets questions one level below the missed one (an Easy
+miss stays Easy, a Hard miss gets Moderate then Easy), an **accuracy slip** the same level, **speed** the same level
+or easier — **never harder**.
+
+- **🎯 Mistaken models to practice**: one row per chapter + model + allowed level (shown as "Level: …"), so an Easy
+  mistake never sits in a row offering harder questions; "⚠ only N at this level" instead of topping up with harder
+  ones; the student's other open mistakes are never suggested; teacher-confirmed keys first.
+- **Custom Practice**: same ceiling (accuracy slips used to have none); ranked by closest level, same model, confirmed
+  key; shortages shown ("⚠ N short", listed in View).
+- **AI follow-up**: prompt targets the ceiling level; a question the model labels harder is clamped down.
+- Practice index marks AI-proposed, unconfirmed keys (`u`) so they are offered last.
+
+**After deploying:** Topics → **Rebuild practice index** (for the new key flag). Answers ChatGPT's G-002 (see
+`CLAUDE_TO_GPT.md` C-002 – C-004 for G-001 and G-003).
+
+---
+
 ## 2026-10-11 — Claude ↔ ChatGPT channel in the repository
 
 - **`GPT_TO_CLAUDE.md`** — ChatGPT writes here (or gives Madhav a block to paste); template with id, IST timestamp,

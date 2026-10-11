@@ -1284,6 +1284,17 @@ const REASON_GROUP = { concept:"concept", formula:"concept", unknown:"concept", 
                        misread:"accuracy", calc:"accuracy", careless:"accuracy",
                        rushed:"speed", lengthy:"speed", time:"speed" };
 const REASON_TEXT = Object.fromEntries([...WHY_REASONS.wrong, ...WHY_REASONS.unanswered]);
+// Difficulty ceiling for NEW questions suggested after a mistake (Madhav's rule; same in ai/pipeline.mjs):
+//   concept gap → one level below the missed question (an Easy miss stays Easy; a Hard miss gets Moderate first, then Easy)
+//   accuracy slip → the same level · speed → the same level or easier.
+// Never above max. Suggestions are ordered by closeness to `prefer`; a shortage is shown, never filled with harder ones.
+function levelRule(group, missedLevel){
+  const L = Math.max(0, LEVELS.findIndex(x => x.key === normLevel(missedLevel)));
+  if (group === "accuracy" || group === "speed") return { max: L, prefer: L };
+  return { max: Math.max(0, L - 1), prefer: Math.max(0, L - 1) };
+}
+const levelRuleText = R => R.max === R.prefer && R.max === 0 ? `${LEVELS[0].short} only`
+  : R.prefer === R.max ? `${LEVELS[R.max].short}, then easier` : `up to ${LEVELS[R.max].short}`;
 const GROUP_LABEL = { concept: "Concept gap", accuracy: "Accuracy slip", speed: "Speed" };
 const BUCKET_LABEL = {
   mastered:    ["Mastered", "pos",  "correct within ideal time"],
@@ -1992,11 +2003,15 @@ async function renderMistakenModels(box, NB){
   if (!(await practiceEnabled())) { $("myModelsWrap").classList.add("hidden"); return; }
   const open = NB.list.filter(i => !i.cleared);
   if (!open.length) { box.innerHTML = `<div class="card"><p style="color:var(--muted)">No open mistakes — nothing to practise here yet.</p></div>`; return; }
+  // one row per chapter + model + allowed level: each mistake brings its own difficulty ceiling (levelRule), so an
+  // Easy mistake never sits in a row that offers harder questions
   const groups = {};
   open.forEach(it => {
-    const k = [it.subject, it.topic, it.model || ""].join("|");
-    const g = groups[k] || (groups[k] = { subject: it.subject, topic: it.topic, model: it.model || "", items: [], maxLvl: 0 });
-    g.items.push(it); g.maxLvl = Math.max(g.maxLvl, lvlIdx(it.level));
+    const grp = it.last.reason ? (REASON_GROUP[it.last.reason] || "concept") : "concept";   // no reason given: the cautious rule
+    const R = levelRule(grp, it.level);
+    const k = [it.subject, it.topic, it.model || "", R.max, R.prefer].join("|");
+    const g = groups[k] || (groups[k] = { subject: it.subject, topic: it.topic, model: it.model || "", R, items: [] });
+    g.items.push(it);
   });
   // similar questions from the practice index (keyed questions only; AI-written ones carry a:1)
   const subs = [...new Set(Object.values(groups).map(g => g.subject))];
@@ -2007,8 +2022,11 @@ async function renderMistakenModels(box, NB){
   const list = Object.values(groups).map(g => {
     const entries = _tiCache[`${currentUser.examType}__${g.subject}`]?.q || [];
     const mine = new Set(g.items.map(i => i.id));
-    const same = entries.filter(e => !mine.has(e.i) && (e.t || "") === g.topic &&
-      (g.model ? (e.m || "") === g.model : lvlIdx(e.d) <= g.maxLvl));   // no model set: same chapter, up to the level missed
+    const allMine = new Set(open.map(i => i.id));   // never suggest a question the student already got wrong
+    const same = entries.filter(e => !allMine.has(e.i) && !mine.has(e.i) && (e.t || "") === g.topic &&
+      (g.model ? (e.m || "") === g.model : true) && lvlIdx(e.d) <= g.R.max)
+      // closest to the preferred level first, teacher-confirmed keys before AI-proposed ones
+      .sort((a, b) => Math.abs(lvlIdx(a.d) - g.R.prefer) - Math.abs(lvlIdx(b.d) - g.R.prefer) || (a.u ? 1 : 0) - (b.u ? 1 : 0));
     return { ...g, pool: same, ai: same.filter(e => e.a).length, wrong: g.items.filter(i => i.last.verdict === "wrong").length };
   }).sort((a, b) => b.items.length - a.items.length || b.pool.length - a.pool.length);
   const showAll = box._showAll;
@@ -2019,9 +2037,10 @@ async function renderMistakenModels(box, NB){
     <table class="tbl"><thead><tr><th>Subject — Chapter</th><th>Model</th><th>My mistakes</th><th>Similar questions</th><th></th></tr></thead><tbody>
     ${shown.map((g, i) => `<tr>
       <td>${esc(g.subject)} — <b>${esc(g.topic)}</b></td>
-      <td>${g.model ? esc(g.model) : `<span style="color:var(--muted)">${esc(LEVELS[g.maxLvl]?.short || "")} level and below</span>`}</td>
+      <td>${g.model ? esc(g.model) : `<span style="color:var(--muted)">any model</span>`}<br><span class="badge zero" title="New questions are never harder than this">Level: ${esc(levelRuleText(g.R))}</span></td>
       <td><b>${g.items.length}</b> <span style="font-size:11.5px;color:var(--muted)">(${g.wrong} wrong, ${g.items.length - g.wrong} left)</span></td>
-      <td>${g.pool.length ? `${g.pool.length - g.ai} bank${g.ai ? ` + <b style="color:#2563a8">${g.ai} 🤖 AI</b>` : ""}` : `<span style="color:var(--muted)">none yet — ask your teacher</span>`}</td>
+      <td>${g.pool.length ? `${g.pool.length - g.ai} bank${g.ai ? ` + <b style="color:#2563a8">${g.ai} 🤖 AI</b>` : ""}` : `<span style="color:var(--muted)">none yet at this level — ask your teacher</span>`}
+        ${g.pool.length && g.pool.length < 5 ? `<br><span style="font-size:11px;color:#a4610b">⚠ only ${g.pool.length} at this level</span>` : ""}</td>
       <td>${g.pool.length ? `<button class="btn green" style="padding:3px 10px" data-mmprac="${list.indexOf(g)}">Practise ${Math.min(15, g.pool.length)}</button>` : ""}</td></tr>`).join("")}
     </tbody></table>
     ${list.length > 10 ? `<button class="btn secondary" style="margin-top:8px" data-mmall>${showAll ? "Show fewer" : `Show all ${list.length}`}</button>` : ""}</div>`;
@@ -2031,7 +2050,9 @@ async function renderMistakenModels(box, NB){
     const g = list[+b.dataset.mmprac];
     // unseen first; AI-written and bank questions taken in turn
     const fresh = e => !prSeen.has(e.i);
-    const order = arr => [...shuffled(arr.filter(fresh)), ...shuffled(arr.filter(e => !fresh(e)))];
+    // unseen first; within that, closest to the preferred level (the pool is already level-ordered)
+    const dist = e => Math.abs(lvlIdx(e.d) - g.R.prefer);
+    const order = arr => [...shuffled(arr.filter(fresh)).sort((a, b) => dist(a) - dist(b)), ...shuffled(arr.filter(e => !fresh(e))).sort((a, b) => dist(a) - dist(b))];
     const ai = order(g.pool.filter(e => e.a)), bank = order(g.pool.filter(e => !e.a));
     const pick = [];
     while (pick.length < 15 && (ai.length || bank.length)) { if (bank.length) pick.push(bank.shift()); if (ai.length && pick.length < 15) pick.push(ai.shift()); }
@@ -4193,19 +4214,22 @@ function cpPlan(att, opts){
   const order = { concept: 0, accuracy: 1, speed: 2 };
   needs.sort((a,b) => order[a.group]-order[b.group] || lvlIdx(a.q.difficulty)-lvlIdx(b.q.difficulty));
   const picked = new Map();   // id -> {s(subject), d, sec, why}
+  const shortages = [];       // mistakes with too few eligible questions (shown, never filled with harder ones)
   const add = (id, info) => { if (!picked.has(id) && picked.size < opts.max) picked.set(id, info); };
   needs.forEach(n => {
     if (picked.size >= opts.max) return;
     const L = lvlIdx(n.q.difficulty), topic = (n.q.topic||"").trim().toLowerCase();
     let pool = (bank[n.q.subject] || []).filter(e => (e.t||"").trim().toLowerCase() === topic && !examIds.has(e.i) && !picked.has(e.i));
-    if (n.group !== "accuracy") pool = pool.filter(e => lvlIdx(e.d) <= L);
-    const rank = n.group === "concept" ? e => lvlIdx(e.d)          // easiest first, climbing to the question's level
-               : n.group === "speed"   ? e => -lvlIdx(e.d)         // same level, then easier
-               :                         e => Math.abs(lvlIdx(e.d) - L);   // accuracy: same level first
+    const R = levelRule(n.group, n.q.difficulty), model = String(n.q.model || "").trim();
+    pool = pool.filter(e => lvlIdx(e.d) <= R.max);   // never harder than the rule allows
+    // closest to the preferred level, then the same question model, then teacher-confirmed keys
+    const rank = e => Math.abs(lvlIdx(e.d) - R.prefer) * 4 + (model && (e.m || "") !== model ? 2 : 0) + (e.u ? 1 : 0);
     // shuffle, then a stable sort: random only among equally-suitable questions, so two students
     // with the same gap don't get identical sets but nobody gets a worse-fitting level
     pool = shuffle(pool).sort((a,b) => rank(a) - rank(b));
-    pool.slice(0, opts.perQ).forEach(e => add(e.i, { s:n.q.subject, d:e.d, sec:e.s, topic:n.q.topic, why:n.group }));
+    const take = pool.slice(0, opts.perQ);
+    if (take.length < opts.perQ) shortages.push({ id: n.q.docId, topic: n.q.topic || "", model, rule: levelRuleText(R), missing: opts.perQ - take.length });
+    take.forEach(e => add(e.i, { s:n.q.subject, d:e.d, sec:e.s, topic:n.q.topic, why:n.group }));
     if (opts.retest && n.verdict !== "correct") add(n.q.docId, { s:n.q.subject, d:n.q.difficulty, sec:n.q.section||"A", topic:n.q.topic, why:n.group, original:true });
   });
   const items = [...picked.entries()].map(([id, x]) => ({ id, ...x }))
@@ -4213,7 +4237,7 @@ function cpPlan(att, opts){
   const groups = { concept:0, accuracy:0, speed:0 };
   needs.forEach(n => groups[n.group]++);
   const reasonsGiven = needs.filter(n => n.reason).length;
-  return { items, groups, needs: needs.length, reasonsGiven,
+  return { items, groups, needs: needs.length, reasonsGiven, shortages,
            topics: [...new Set(needs.filter(n=>n.group==="concept").map(n=>n.q.topic).filter(Boolean))] };
 }
 function cpOpts(){
@@ -4259,7 +4283,7 @@ function cpRender(){
       <td>${p.reasonsGiven}/${p.needs}${p.reasonsGiven < p.needs ? ` <span style="font-size:11px;color:var(--muted)">(rest guessed from timing)</span>`:""}</td>
       <td>${p.groups.concept}</td><td>${p.groups.accuracy}</td><td>${p.groups.speed}</td>
       <td style="font-size:12px">${esc(p.topics.join(", ")||"—")}</td>
-      <td><b>${p.items.length}</b> <span style="font-size:11px;color:var(--muted)">${p.items.filter(x=>x.original).length} re-test</span></td>
+      <td><b>${p.items.length}</b> <span style="font-size:11px;color:var(--muted)">${p.items.filter(x=>x.original).length} re-test</span>${p.shortages.length ? `<br><span style="font-size:11px;color:#a4610b" title="Not enough questions at the allowed level — add some to the bank">⚠ ${p.shortages.reduce((x, y) => x + y.missing, 0)} short</span>` : ""}</td>
       <td><button class="btn secondary" style="padding:2px 9px" data-cpview="${i}">View</button></td></tr>`; }).join("") +
     `</tbody></table>`;
   $("cpAll").onchange = () => { cpRows.forEach(r => r.include = $("cpAll").checked && r.plan.items.length > 0); cpRender(); };
@@ -4269,7 +4293,9 @@ function cpRender(){
     $("qpvBody").innerHTML = `<div style="font-size:13px;margin-bottom:8px"><b>${esc(r.att.studentName)}</b> — planned practice (${r.plan.items.length} Qs, easiest first)</div>
       <table class="tbl"><thead><tr><th>#</th><th>Question ID</th><th>Topic</th><th>Level</th><th>Why it's here</th></tr></thead><tbody>` +
       r.plan.items.map((x,k) => `<tr><td>${k+1}</td><td>${esc(x.id)}</td><td>${esc(x.topic||"")}</td><td>${esc(levelShort(x.d))}</td>
-        <td>${GROUP_LABEL[x.why]}${x.original?' <span class="badge zero">re-test</span>':""}</td></tr>`).join("") + `</tbody></table>`;
+        <td>${GROUP_LABEL[x.why]}${x.original?' <span class="badge zero">re-test</span>':""}</td></tr>`).join("") + `</tbody></table>` +
+      (r.plan.shortages.length ? `<div style="font-size:12.5px;margin-top:8px;color:#a4610b"><b>⚠ Too few questions at the allowed level</b> (not replaced with harder ones):<br>` +
+        r.plan.shortages.map(x => `${esc(x.topic)}${x.model ? " · " + esc(x.model) : ""} — ${esc(x.rule)}: ${x.missing} missing`).join("<br>") + `</div>` : "");
     $("qpvBack").classList.remove("hidden");
   });
 }
@@ -4729,7 +4755,8 @@ $("tmIndexBtn").onclick = async () => {
       const key = `${q.examType}__${q.subject}`;
       (buckets[key] = buckets[key] || []).push({
         i: q.docId, t: (q.topic||"").trim(), d: q.difficulty || "Medium", s: q.section || "A",
-        ...(q.model ? { m: String(q.model).trim() } : {}), ...(q.aiGenerated ? { a: 1 } : {})   // question model; AI-written
+        ...(q.model ? { m: String(q.model).trim() } : {}), ...(q.aiGenerated ? { a: 1 } : {}),   // question model; AI-written
+        ...(q.keySrc === "ai" ? { u: 1 } : {})   // key proposed by an AI, not yet confirmed by a teacher (ranked last in suggestions)
       });
     });
     const keys = Object.keys(buckets);

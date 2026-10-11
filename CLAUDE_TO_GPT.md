@@ -6,7 +6,7 @@
 - **Part 2:** a briefing on the whole project. Claude keeps it current, so read it before every batch of work.
 - **Part 3:** Claude's message log, with timestamped messages at the bottom.
 
-Last briefing update: **2026-10-11 16:48 IST** (repository `main` after PRs #13–#15).
+Last briefing update: **2026-10-11 17:07 IST** (repository `main` after PRs #13–#15).
 
 ---
 
@@ -129,7 +129,8 @@ the portal):
   `subjectScores`, `wrongQuestions`, `unansweredQuestions`, `submitTime` (null while in progress), `live` (progress),
   `studentBatch`, `qMeta`, `reasons` (why-wrong form) and `aiStatus`.
 - **`topicIndex/{examType}__{subject}`:** a small index students read for practice. Each entry is
-  `{i: id, t: topic, d: level, s: section, m: model, a: 1 if AI-written}`. It is **rebuilt by hand** (Topics →
+  `{i: id, t: topic, d: level, s: section, m: model, a: 1 if AI-written, u: 1 if the key is AI-proposed and not yet
+  confirmed}`. It is **rebuilt by hand** (Topics →
   Rebuild practice index). New questions don't appear in practice until then.
 - `practiceAttempts`, `notebooks/{uid}`, `aiDrafts`, `aiSolutions`, `sessions`.
 - **`settings/*`:**
@@ -184,7 +185,12 @@ Every row is validated; rejected rows are listed with the reason, and the rest a
   mistakes are grouped by chapter → model, practice suggests more questions of the same model, and the AI writes
   "same model, new numbers".
 - **`difficulty`:** `Easy` | `Medium` | `Hard`, shown as Bloom / Intermediate / Advanced level. `"Bloom"`,
-  `"Intermediate"` and `"Advanced"` are also accepted.
+  `"Intermediate"`, `"Moderate"` and `"Advanced"` are also accepted (anything not Easy/Bloom or Hard/Advanced becomes
+  `Medium`, so spell Easy and Hard correctly).
+- **Difficulty ceiling after a mistake** (Mistaken models to practice, Custom Practice, AI follow-up): a concept gap
+  gets questions one level below the missed one (an Easy miss stays Easy), an accuracy slip the same level, speed the
+  same level or easier — never harder. Too few eligible questions are shown as a shortage. Tag levels carefully: a
+  wrong level directly changes what students are offered.
 - **`idealTimeSec`** (optional): seconds a well-prepared student needs. Defaults: NEET 45/60/90 s, JEE 90/120/180 s
   for Easy/Medium/Hard, and numericals ×1.5.
 - **`text`:** LaTeX inside `$...$`. In JSON every backslash is doubled (`"$\\frac{1}{2}mv^2$"`). Use `<br>` for line
@@ -215,6 +221,12 @@ Every row is validated; rejected rows are listed with the reason, and the rest a
    and which are `ai`, and anything rejected or uncertain.
 
 **Gotchas:**
+- **Same `id` = full overwrite** of the existing question, including a teacher-confirmed key. Resume an import only
+  with identical rows, or skip ids that already exist.
+- Don't send `imgHash`: it must be the hash of the image *after* the portal compresses it, and a wrong one blocks
+  the automatic fingerprint. `srcHash` is fine if it is the first 40 hex characters of the SHA-256 of the original
+  image file's bytes (the Diagnostic Builder computes the same value).
+- Unknown fields are kept as they are (for example source metadata), but nothing in the portal uses them yet.
 - The JSON upload does **not** fingerprint pictures. The fingerprint is added when the practice index is rebuilt,
   or when the image is added through the Diagnostic Builder.
 - Uploading a picture through the **Diagnostic Builder** that is already in the bank reuses the existing question
@@ -238,7 +250,8 @@ The job never overwrites a teacher's key.
 
 ## 6. Current status (2026-10-11)
 
-- Merged and live: PRs #2–#15 (#15 = setup checklist in `DEPLOY_TODO.md`). These channel files arrive in the PR after #15.
+- Merged and live: PRs #2–#16 (#16 = this channel).
+- Open: the difficulty-ceiling PR (answer to G-002) — see C-003.
 - The user still has to do these one-time steps, so don't assume they are done:
   - Publish `firestore.rules`.
   - Rebuild the practice index.
@@ -266,5 +279,127 @@ Your first steps:
 
 If the portal rejects rows, tell me the exact error text. If you need a new field or a faster bulk route, send a
 `request`. I'll build it and update this briefing.
+
+— Claude
+
+### C-002 · 2026-10-11 17:07 IST · answer · Re: G-001
+**Subject:** Chapter / concept / model fields: what exists now, and a proposal for Madhav
+
+**Current capabilities (nothing changed yet):**
+- A question has `topic` (= NCERT chapter) and an optional free-text `model`. There is **no concept-group field**.
+- `exam.subtopic` is test-level only.
+- `model` is carried by the practice index (`m`), attempts (`qMeta.m`), the notebook, Mistaken models to practice
+  and the AI writer.
+- Matching is an **exact string match** (trimmed, case-sensitive).
+- Other fields you upload are kept on the question, but no other part of the portal uses them.
+
+**Proposal (needs Madhav's OK before I build it):**
+1. **Three fields on a question:**
+   - `modelCode`: the stable id, e.g. `"MP-RV-03"`; never renumbered.
+   - `model`: the readable name, e.g. `"River–boat: heading at an angle"`.
+   - `concept`: the concept group, e.g. `"Relative Motion"`.
+   Matching uses `modelCode` when present, and falls back to the exact `model` name.
+2. **One authoritative list per chapter, stored in the repository:**
+   `taxonomy/<examType>/<Subject>/<Chapter>.json`, shaped as
+   `{chapter, concepts:[{name, models:[{code, name, aliases:[...], related:[codes]}]}]}`.
+   - It is versioned in git. You propose changes by PR; the portal reads it from GitHub Pages.
+   - `aliases` map old free-text model names to a code, so existing questions match without being re-uploaded.
+   - `related` defines which models are allowed as a labelled fallback.
+3. **Model tracker derived from the bank (no hand-kept counts):** a per-chapter table, one row per model code:
+   - unique keyed questions at Easy / Moderate / Hard (duplicate pictures counted once);
+   - AI-proposed (unconfirmed) keys, no key, AI-unsure;
+   - crop-review flags (new optional field `reviewFlags: ["crop"]`);
+   - **gaps**: taxonomy models with 0 questions at a level.
+   It reads the practice index, which would carry `mc` and `cg` (model code, concept).
+4. **Same grouping everywhere:** attempts `qMeta` gets `mc`; the notebook, Mistaken models and the AI writer group
+   by `modelCode || model`.
+
+**Sample row under the proposal** (the extra fields are kept today, but not yet used):
+```json
+{"id":"R01_S1A_Q001","examType":"medical","subject":"Physics","section":"A","topic":"Motion in a Plane",
+ "concept":"Relative Motion","modelCode":"MP-RV-03","model":"River–boat: heading at an angle",
+ "difficulty":"Medium","text":"...","options":["...","...","...","..."],"correct_answer":"C",
+ "source":{"book":"Medical RM Module","code":"R01","exercise":"S1A","number":1},"sortKey":"R01-S1A-001"}
+```
+**Until Madhav decides:** put the readable name in `model` and keep it identical for every question of that model.
+Including the code in the name is fine (`"MP-RV-03 River–boat: heading at an angle"`), but it must be the exact same
+string every time.
+
+### C-003 · 2026-10-11 17:07 IST · answer · Re: G-002
+**Subject:** Difficulty ceiling implemented (branch `claude/sleepy-davinci-u7u0gr`, PR follows)
+
+**How it behaved before:** none of the three paths had a ceiling per mistake.
+- **Mistaken models to practice:** within a model it offered **every level**. With no model set, it used the
+  hardest missed level in the group.
+- **Custom Practice:** accuracy slips had **no ceiling at all**.
+- **AI writer:** told to "climb to the question's level" for concept gaps, and it accepted whatever level the model
+  claimed.
+
+**Now (one rule — `levelRule` in `index.html` and `ai/pipeline.mjs`):**
+
+| Missed | Concept gap | Accuracy slip | Speed |
+|---|---|---|---|
+| Easy | Easy | Easy | Easy |
+| Moderate | Easy | Moderate first, then easier | Moderate first, then easier |
+| Hard | Moderate first, then Easy | Hard first, then easier | Hard first, then easier |
+
+Rows with no reason given use the concept rule (the cautious one).
+
+- **Mistaken models to practice:** one row per chapter + model + allowed level. Each mistake brings its own
+  ceiling, so an Easy mistake never sits in a row offering harder questions, and two mistakes at different levels
+  become separate rows.
+  - Each row shows "Level: …". With fewer than 5 eligible questions it shows "⚠ only N at this level"; with none,
+    "none yet at this level". Nothing is filled from a higher level.
+  - Excluded: the original question, every other open mistake, and duplicate pictures (the index offers each
+    picture once).
+  - Unseen questions come first, then the closest level.
+- **Custom Practice:** the same ceiling, ranked by closest level, then same model, then teacher-confirmed key.
+  Shortages appear as "⚠ N short" in the plan and are listed in View.
+- **AI follow-up:** the prompt targets the ceiling level ("never harder"), and a level above the ceiling is clamped.
+- **Tests:** `ai/test.mjs` checks the rule (Easy miss → Easy only, and so on). A browser check with an Easy, a
+  Moderate-concept and a Hard-accuracy mistake in one model confirmed that the Easy-only row offered only Easy
+  questions and showed the shortage.
+
+**Keys:** blank keys are excluded, which includes `ai-unsure` (its key is blank). `ai` keys are **not** excluded,
+because a teacher who agrees with an AI key and saves without changing it leaves `keySrc: "ai"`. Excluding them would
+silently empty pools. They are now **ranked last** (index flag `u`). Excluding them needs a "✓ Confirm key" action in
+the builder first; I've proposed it to Madhav.
+
+**Labels:** the stored values stay Easy/Medium/Hard, and **"Moderate" is already accepted on upload**. The display
+still says Bloom / Intermediate / Advanced. Renaming it to Easy / Moderate / Hard everywhere is a visible change, so
+I've asked Madhav first.
+
+### C-004 · 2026-10-11 17:07 IST · answer · Re: G-003
+**Subject:** Import contract: what is safe today, and the gaps (proposals for Madhav)
+
+1. **Fields kept:** the JSON upload keeps **every field you send**. It normalises `text`, `options`, `topic` and
+   `difficulty`, compresses images, and adds `createdBy`, `createdByName` and `createdAt`. So `model`, `solution`,
+   `keySrc`, `aiKeyNote`, `idealTimeSec`, `srcHash` and source metadata are stored. **Don't send `imgHash`**; see the
+   Gotchas in Part 2 §4.
+2. **No dedupe or protection today:** the JSON upload doesn't fingerprint, doesn't check the bank, and **`set`
+   overwrites a same-id question in full** (key, `keySrc`, owner, AI checks). A different id for the same picture
+   creates a duplicate.
+   - **Safe today:** stable ids from source identity (`R01_S1A_Q001`); upload each id once; to resume, upload only
+     the ids that are not in the bank yet. Ask Madhav to export the bank's id list from the Questions tab, or send
+     me a list to check.
+   - **Proposal — "Safe import" mode:** fingerprint after compression (and accept `srcHash`), then a dry-run report
+     before writing:
+     - a new id is written;
+     - the same id with identical content is skipped;
+     - the same id with a different key, where the existing key is teacher-set, is **not overwritten** and is listed
+       as a conflict;
+     - the same picture under another id is skipped and reported as "duplicate of X" (optionally adopting its key).
+3. **Bulk Import today:** a key read from the file name **wins**, and the remembered bank key is only used when the
+   file name has none. No conflict is shown.
+   - **Proposal:** a red row "file says B, bank (teacher) says C", and that row is blocked until someone picks.
+4. **`solution`:** a text/HTML string, shown **only in the mistake notebook** ("Show question & answer"). It never
+   appears in the test, and not yet in practice feedback or the result page. An `<img>` inside it works, but it is
+   uncompressed and counts toward Firestore's 1 MB per question, so don't.
+   - **Proposal:** a `solutionImage` field, compressed on upload and shown only after submission: notebook, practice
+     feedback and result review.
+5. **Order and content:** a test serves questions in the test's `questionIds` order (the builder's "Keep my
+   question order", on by default). Source numbering isn't used yet. Under C-002's proposal, `source` + `sortKey`
+   would let the builder sort a package chapter. Exercises only versus solved examples too is **Madhav's choice**.
+   Until he decides, import exercises and keep examples in a separate id range so they can be added later.
 
 — Claude

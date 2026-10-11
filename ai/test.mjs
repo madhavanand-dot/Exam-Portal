@@ -253,4 +253,15 @@ import { solveRequestedExams } from "./estimate.mjs";
   ok(g.length === 2 && g.find(x => x.model === "Pulley").needs.length === 2, "mistakes grouped by question model within a topic");
 }
 
+// --- difficulty ceiling: an Easy miss never gets harder questions; concept gaps go one level down
+{
+  const { levelRule, genPrompt } = await import("./pipeline.mjs");
+  const lv = r => ["Easy", "Medium", "Hard"][r.max];
+  ok(lv(levelRule("concept", "Easy")) === "Easy" && lv(levelRule("accuracy", "Easy")) === "Easy" && lv(levelRule("speed", "Easy")) === "Easy", "Easy miss: Easy only, whatever the reason");
+  ok(lv(levelRule("concept", "Medium")) === "Easy" && lv(levelRule("accuracy", "Medium")) === "Medium", "Moderate miss: Easy for a concept gap, Moderate for an accuracy slip");
+  ok(lv(levelRule("concept", "Hard")) === "Medium" && lv(levelRule("accuracy", "Hard")) === "Hard" && lv(levelRule("speed", "Hard")) === "Hard", "Hard miss: Moderate for a concept gap, Hard allowed for accuracy / speed");
+  const p = genPrompt({ subject: "Physics", topic: "LoM", level: "Easy", group: "concept", count: 2, needs: [] }, { examType: "medical" }, []);
+  ok(/Target level: Bloom/.test(p[1].content) && !/Intermediate|Advanced level/.test(p[1].content.split("Target level")[1].split("\n")[0]), "concept prompt for an Easy miss targets Bloom only");
+}
+
 console.log(`\n${passed} passed`);
