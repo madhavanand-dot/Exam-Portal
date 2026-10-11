@@ -1,6 +1,6 @@
 # Deploy TODO
 
-What is still needed to finish the latest work. PRs #2–#11 are **merged** and the website is live — see [CHANGELOG.md](CHANGELOG.md).
+What is still needed to finish the latest work. PRs #2–#14 are **merged** and the website is live — see [CHANGELOG.md](CHANGELOG.md).
 Tick each box as you go.
 
 > **For a browser agent (e.g. Claude in Chrome):** steps marked 🔐 handle secrets. Pause and let the person do those themselves.
@@ -77,6 +77,30 @@ Needed for: ▶ Solve now, the mistake notebook, 🔍 AI working, Compare models
       then fill the **Why did these go wrong?** form.
 - [ ] As admin, check **● Live Monitor** (alert appeared), the result's **🛡 Integrity report**, and — after the next AI run —
       **Custom Practice → 🤖 AI follow-up drafts**.
+
+## 10. Set up the features from PRs #13–#14 (10 min)
+
+Do step 1 (publish the rules) first — students now read `settings/portal` (practice switch, programme codes).
+
+- [ ] **Topics → Rebuild practice index** (once). It links pictures that share a key, adds question models and the 🤖 flag,
+      and leaves questions without a key out of practice.
+- [ ] **Topics → "Students can use practice mode"**: leave ticked to keep practice on, untick to switch it off for everyone.
+- [ ] **Study Packages → "Which batches belong to which programme?"**: check TYM = TR, TW · OYM = OR, OW · RM = RM → **Save**.
+- [ ] **AI Settings → "Which tests should the AI work on?"**: *All tests* or *Only the tests I choose* → tick the tests →
+      **Save settings**. **Check:** after the next AI run, **AI job — live progress** mentions "only N chosen test(s)".
+- [ ] **Diagnostic Builder**: fill the **question model** (under Topic) for the questions of your diagnostic tests → **Save test**,
+      then rebuild the practice index again so students see the models.
+- [ ] **Study Packages → + New chapter**: upload one chapter of a module (Test type = Study Package Solving, programme TYM) → **Save test**.
+
+## 11. Check the new features as a student (needs the throwaway student from step 8)
+
+- [ ] Diagnostic test: let the expected time pass — it must **not** auto-submit; the clock counts up.
+- [ ] Result page: **Overall rank** and **Batch rank**, and the ✓ / ✗ / – split for each question.
+- [ ] **📒 Mistake Notebook** opens on chapter cards; tapping one shows only that chapter's questions.
+- [ ] **🎯 Mistaken models to practice** lists the open mistakes by chapter / model; **Practise** starts a set.
+- [ ] A TYM student sees the **📘 Study Package** chapter (Start → answer a few → leave → **Continue** resumes); the staff
+      **Study Packages** tracker shows ◐ then ✅ after submitting.
+- [ ] In the Diagnostic Builder, add a picture you already keyed in another test → it shows **♻ already in bank** with the key.
 
 ## 9. Clean up after testing
 
