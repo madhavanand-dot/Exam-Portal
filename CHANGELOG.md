@@ -7,6 +7,28 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — New test type: Study Package Solving (+ Momentum Booster), tracked per student
+
+**After deploying:** make sure `firestore.rules` from the earlier entry is published (students read `settings/portal`),
+then open **Study Packages → Which batches belong to which programme?** and check the batch codes
+(defaults: TYM = TR…, TW… · OYM = OR…, OW… · RM = RM…). Save once if you change them.
+
+- **Diagnostic Builder → Test type**: *Diagnostic test* · *Study Package Solving* (pick the programme TYM / OYM / RM) ·
+  *Momentum Booster* (everyone). Upload the module's questions exactly like a diagnostic (images, keys, ideal times,
+  question models, AI help). Use one test per chapter (fill in Chapter).
+- **One package per programme**: a Study Package reaches every batch of its programme — batches added later included —
+  and the Momentum Booster reaches everyone of that exam type. (New audience type "a whole programme" is also
+  available for ordinary diagnostic tests.)
+- **Students** get a **📘 Study Package / 🚀 Momentum Booster** section on their dashboard: chapters by subject, each
+  *Not started / In progress (answered / total) / Completed (score)*, with Start / Continue / View result / Solve again,
+  and an overall progress bar. Packages are homework: **no time limit, no fullscreen or tab-switch proctoring**,
+  progress saved, not shown on the Live Monitor.
+- **Staff → Study Packages tab**: choose package + programme (+ batch) → the package's chapters (publish / hide, edit
+  questions & key, + New chapter) and a **tracker**: every student × every chapter (✅ score % · ◐ answered · —),
+  completion per chapter and per student, totals, and CSV export.
+
+---
+
 ## 2026-10-11 — Mistake notebook: chapter cards, then that chapter's questions
 
 The notebook used to list every chapter's mistakes in one long page. Now it opens on **chapter cards** — subject,

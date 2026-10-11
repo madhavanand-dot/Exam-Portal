@@ -110,6 +110,11 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 .nbChap .nbBar span{display:block;height:100%;background:#2e9e5b}
 .nbModel{font-size:13px;font-weight:700;color:#345;margin:12px 0 2px;padding-bottom:3px;border-bottom:2px solid #eef1f4}
 .nbModel span{font-weight:400;color:var(--muted)}
+.pkGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.pkItem{border:1px solid var(--border);border-left:4px solid #b8c2cc;border-radius:8px;padding:8px 10px;background:#fff}
+.pkItem.doing{border-left-color:#e0a93b}
+.pkItem.done{border-left-color:#2e9e5b;background:#f6fbf8}
+.pkCell{text-align:center;font-size:12px;white-space:nowrap}
 #qIdeal{font-size:12px;font-weight:600;padding:2px 9px;border-radius:10px;background:#e2f5e9;color:#1e7a44;font-variant-numeric:tabular-nums}
 #qIdeal.over{background:#fff1dc;color:#a4610b}
 #qText{font-size:15.5px;line-height:1.65;margin-bottom:18px;user-select:none}
@@ -262,6 +267,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="live"><span style="color:#e25555">●</span> Live Monitor</button>
       <button data-atab="exams">Exams</button>
       <button data-atab="diagnostic">Diagnostic Builder</button>
+      <button data-atab="packages">Study Packages</button>
       <button data-atab="assign">Assign Tests</button>
       <button data-atab="custompractice">Custom Practice</button>
       <button data-atab="reports">Reports</button>
@@ -507,6 +513,41 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       </div>
     </div>
 
+    <div id="atab-packages" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">📘 Study Package Solving &amp; 🚀 Momentum Booster</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          One package per <b>programme</b>: every TYM batch gets the same Study Package, every OYM batch the same, every RM batch the same —
+          and <b>everyone</b> gets the same Momentum Booster. Upload each chapter's module questions in the <b>Diagnostic Builder</b> with
+          <i>Test type = Study Package Solving / Momentum Booster</i> (or use “+ New chapter” below). Students solve at their own pace —
+          no time limit, no proctoring, progress is saved — and you track each student's status here.</p>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Package</label><select id="pkKind"><option value="package">Study Package Solving</option><option value="booster">Momentum Booster</option></select></div>
+          <div class="field" id="pkProgWrap"><label>Programme</label><select id="pkProgram"><option value="TYM">TYM</option><option value="OYM">OYM</option><option value="RM">RM</option></select></div>
+          <div class="field"><label>Exam type</label><select id="pkType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <div class="field"><label>Batch (tracker)</label><select id="pkBatch"></select></div>
+          <button class="btn" id="pkLoadBtn">Show package &amp; tracker</button>
+          <button class="btn secondary" id="pkNewBtn">+ New chapter</button>
+          <button class="btn secondary" id="pkCsvBtn">Export tracker CSV</button>
+        </div>
+        <div id="pkMsg"></div>
+      </div>
+      <div id="pkChapters" style="margin-top:12px"></div>
+      <div id="pkTracker" style="margin-top:12px;overflow:auto"></div>
+      <details class="card" style="margin-top:12px">
+        <summary style="cursor:pointer;font-weight:700;color:var(--blue)">Which batches belong to which programme?</summary>
+        <p style="font-size:12.5px;color:var(--muted);margin:8px 0">A batch belongs to a programme when its code <b>starts with</b> one of these (comma-separated).
+          New batches are picked up automatically. Only an admin can change this.</p>
+        <div class="flexrow">
+          <div class="field"><label>TYM batch codes start with</label><input id="pkPrefTYM" placeholder="TR, TW"></div>
+          <div class="field"><label>OYM batch codes start with</label><input id="pkPrefOYM" placeholder="OR, OW"></div>
+          <div class="field"><label>RM batch codes start with</label><input id="pkPrefRM" placeholder="RM"></div>
+          <button class="btn secondary" id="pkPrefSave" style="align-self:flex-end">Save</button>
+        </div>
+        <div id="pkPrefMsg" style="font-size:12.5px"></div>
+      </details>
+    </div>
+
     <div id="atab-diagnostic" class="atab hidden">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Topic-wise Diagnostic Test <span id="dgMode" style="font-weight:400;font-size:13px;color:var(--muted)"></span></h2>
@@ -521,6 +562,12 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <button class="btn secondary" id="dgNewBtn">Start a new test</button>
         </div>
         <div class="flexrow" style="margin-top:6px">
+          <div class="field"><label>Test type</label><select id="dgKind">
+            <option value="diagnostic">Diagnostic test</option>
+            <option value="package">Study Package Solving</option>
+            <option value="booster">Momentum Booster</option></select></div>
+          <div class="field" id="dgProgWrap" style="display:none"><label>Programme (same package for all its batches)</label><select id="dgProgram">
+            <option value="TYM">TYM</option><option value="OYM">OYM</option><option value="RM">RM</option></select></div>
           <div class="field" style="min-width:240px"><label>Title</label><input id="dgTitle" placeholder="e.g. Diagnostic — Laws of Motion"></div>
           <div class="field"><label>Exam type</label><select id="dgType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
           <div class="field"><label>Subject (for new questions)</label><select id="dgSubject"></select></div>
@@ -546,11 +593,17 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px" title="After each submission an AI writes practice questions for the student's mistakes and a second AI checks them; you review in Custom Practice → AI drafts"><input type="checkbox" id="dgAiFollow" checked> 🤖 AI follow-up practice after each submission</label></div>
         </div>
         <div class="flexrow" style="margin-bottom:10px">
-          <div class="field"><label>Who can take this test?</label><select id="dgAudience">
+          <div class="field" id="dgPkgAud" style="display:none;max-width:420px"><label>Who gets it?</label>
+            <div id="dgPkgAudTxt" style="font-size:13px;padding:6px 0"></div>
+            <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgPkgPublish" checked> Publish to students when saved</label></div>
+          <div class="field" id="dgAudWrap"><label>Who can take this test?</label><select id="dgAudience">
             <option value="all">All students of this exam type</option>
+            <option value="program">A whole programme (every batch of it)</option>
             <option value="batch">Specific batch(es)</option>
             <option value="students">Specific students</option>
           </select></div>
+          <div class="field" id="dgAudProgWrap" style="display:none"><label>Programme</label><select id="dgAudProgram">
+            <option value="TYM">TYM</option><option value="OYM">OYM</option><option value="RM">RM</option></select></div>
           <div class="field" id="dgBatchWrap" style="display:none"><label>Batches</label><div id="dgBatchPick" class="checklist" style="max-height:170px"></div></div>
           <div class="field" id="dgStudentsWrap" style="display:none;max-width:340px"><label>Pick students</label><div id="dgStudentPick" class="checklist" style="max-height:170px"></div></div>
         </div>
@@ -848,6 +901,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 <div id="view-student" class="view hidden">
   <div class="topbar"><h1>Student Dashboard</h1><span class="who" id="studentWho"></span><button class="btn secondary" id="studentLogout">Logout</button></div>
   <div class="wrap">
+    <div id="pkgStudentCard" class="hidden" style="margin-bottom:16px"></div>
     <div id="activeExamCard">
       <h2 class="sec" style="margin-top:0">Available Exams</h2>
       <div id="activeExamInfo">Checking for available exams&hellip;</div>
@@ -1095,14 +1149,31 @@ function examCfg(exam){
     durationSec: exam?.durationMin ? exam.durationMin*60 : base.durationSec,
     // Diagnostic tests (and the practice tests made from them) only TRACK time against the ideal times:
     // no countdown, never auto-submitted when the duration passes. durationSec is then just the expected length.
-    untimed: exam?.untimed ?? !!(exam?.diagnostic || exam?.customPractice || exam?.aiPractice),
+    untimed: exam?.untimed ?? !!(exam?.diagnostic || exam?.customPractice || exam?.aiPractice || exam?.studyPackage),
     maxMarks: (exam?.maxMarks ?? null) !== null ? exam.maxMarks : base.maxMarks,
     marks: exam?.marks || base.marks,
     shuffleOptions: exam?.shuffleOptions ?? false,
     keepOrder: exam?.keepOrder ?? false,
     showIdealTime: exam?.showIdealTime ?? false,
-    idealTimes: exam?.idealTimes || {}
+    idealTimes: exam?.idealTimes || {},
+    // study packages are homework: no fullscreen, tab-switch warnings or malpractice auto-submit
+    proctored: !exam?.studyPackage
   };
+}
+/* ---- programmes: TYM / OYM / RM. A batch belongs to a programme when its code starts with one of the programme's
+   prefixes (settings/portal.programPrefixes, editable in Study Packages). Study packages target a whole programme,
+   so every batch of it — including batches added later — gets the same package. ---- */
+const PROGRAMS = ["TYM", "OYM", "RM"];
+const PKG_KIND = { package: "📘 Study Package", booster: "🚀 Momentum Booster" };
+let PORTAL = { programPrefixes: { TYM: ["TR", "TW"], OYM: ["OR", "OW"], RM: ["RM"] } };
+async function loadPortal(){
+  try { const sn = await getDoc(doc(db,"settings","portal")); if (sn.exists()) PORTAL = { ...PORTAL, ...sn.data() }; } catch(e){ /* rules not published: defaults */ }
+}
+function programOf(batch){
+  const b = String(batch || "").trim().toUpperCase();
+  if (!b) return "";
+  for (const p of PROGRAMS) if ((PORTAL.programPrefixes?.[p] || []).some(x => x && b.startsWith(String(x).trim().toUpperCase()))) return p;
+  return "";
 }
 // MCQ answer keys. One letter ("B") = single correct; several letters ("AC") = one or more correct — the exam then
 // shows tick boxes instead of radio buttons and the student must tick exactly the keyed set (all-or-nothing).
@@ -1403,6 +1474,7 @@ onAuthStateChanged(auth, async (user) => {
     currentUser = { uid: user.uid, ...snap.data() };
     // Admins may stay signed in on several devices; the one-device rule applies to faculty and students.
     if (currentUser.role !== "admin") await claimSession(user.uid);
+    await loadPortal();   // programme → batch prefixes (study packages)
     if (currentUser.role === "admin" || currentUser.role === "faculty") { enterAdmin(); } else { enterStudent(); }
   } catch(e) {
     setMsg($("loginMsg"), "Failed to load profile: " + e.message);
@@ -1457,6 +1529,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="live") initLive(); else lmStop();
     if (b.dataset.atab==="aisettings") { initAiSettings(); aiLiveStart(); } else aiLiveStop();
     if (b.dataset.atab==="topics") initTopics();
+    if (b.dataset.atab==="packages") initPackages();
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
     if (b.dataset.atab==="atrisk") initAtRisk();
@@ -1479,6 +1552,8 @@ function assignedStudents(exam){
   } else if (a && a.mode === "students") {
     const set = new Set(a.studentUids||[]);
     list = list.filter(s => set.has(s.uid));
+  } else if (a && a.mode === "program" && a.program !== "ALL") {
+    list = list.filter(s => programOf(s.batch) === a.program);
   }
   return list;
 }
@@ -3193,19 +3268,38 @@ function renderBatchPick(el, selected){
 function readBatchPick(el){ return [...el.querySelectorAll("input:checked")].map(c => c.value); }
 function dgAudToggle(){
   const m = $("dgAudience").value;
-  $("dgBatchWrap").style.display = m === "batch" ? "" : "none";
-  $("dgStudentsWrap").style.display = m === "students" ? "" : "none";
+  const kind = $("dgKind").value, pkg = kind !== "diagnostic";
+  $("dgProgWrap").style.display = kind === "package" ? "" : "none";
+  $("dgPkgAud").style.display = pkg ? "" : "none";
+  $("dgAudWrap").style.display = pkg ? "none" : "";
+  $("dgPkgAudTxt").innerHTML = kind === "booster" ? "<b>Everyone</b> of this exam type — the same Momentum Booster for all batches."
+    : `Every <b>${esc($("dgProgram").value)}</b> batch (${esc((PORTAL.programPrefixes?.[$("dgProgram").value] || []).join(", ") || "no prefixes set")}…) — the same package for all of them.`;
+  $("dgAudProgWrap").style.display = !pkg && m === "program" ? "" : "none";
+  $("dgBatchWrap").style.display = !pkg && m === "batch" ? "" : "none";
+  $("dgStudentsWrap").style.display = !pkg && m === "students" ? "" : "none";
 }
+$("dgKind").onchange = () => {
+  const k = $("dgKind").value;
+  if (k !== "diagnostic") { $("dgAiFollow").checked = false; $("dgShowIdeal").checked = false; }
+  $("dgTitle").placeholder = k === "package" ? "e.g. Study Package — Laws of Motion" : k === "booster" ? "e.g. Momentum Booster — Laws of Motion" : "e.g. Diagnostic — Laws of Motion";
+  dgAudToggle();
+};
+$("dgProgram").onchange = dgAudToggle;
 function dgAudRender(a){
   a = a || { mode: "all" };
   $("dgAudience").value = a.mode || "all";
+  if (a.mode === "program" && a.program && a.program !== "ALL") { $("dgAudProgram").value = a.program; $("dgProgram").value = a.program; }
   renderBatchPick($("dgBatchPick"), a.batches);
   const picked = new Set(a.studentUids || []);
   $("dgStudentPick").innerHTML = studentCache.map(s => `<label style="display:flex;gap:7px;align-items:center;font-weight:400;font-size:13px"><input type="checkbox" value="${s.uid}" ${picked.has(s.uid)?"checked":""}> ${esc(s.name)} <span style="color:var(--muted)">(${esc(s.examType)}${s.batch?", "+esc(s.batch):""})</span></label>`).join("") || `<span style="color:var(--muted);font-size:12px">No students.</span>`;
   dgAudToggle();
 }
 function dgReadAudience(){
+  const kind = $("dgKind").value;
+  if (kind === "booster") return { mode: "program", program: "ALL" };
+  if (kind === "package") return { mode: "program", program: $("dgProgram").value };
   const mode = $("dgAudience").value, a = { mode };
+  if (mode === "program") a.program = $("dgAudProgram").value;
   if (mode === "batch") { a.batches = readBatchPick($("dgBatchPick")); if (!a.batches.length) return { error: "Tick at least one batch (or choose another audience)." }; }
   else if (mode === "students") { a.studentUids = [...$("dgStudentPick").querySelectorAll("input:checked")].map(c => c.value); if (!a.studentUids.length) return { error: "Pick at least one student (or choose another audience)." }; }
   return a;
@@ -3280,7 +3374,7 @@ function initDiagnostic(){
 function dgNew(){
   DG = { examDocId: null, rows: [], origIds: [] }; dgImgTarget = null;
   $("dgTitle").value = ""; $("dgExisting").value = "";
-  $("dgChapter").value = ""; $("dgSubtopic").value = ""; dgAudRender({ mode: "all" });
+  $("dgChapter").value = ""; $("dgSubtopic").value = ""; $("dgKind").value = "diagnostic"; $("dgPkgPublish").checked = true; dgAudRender({ mode: "all" });
   $("dgAiFollow").checked = true;
   $("dgScoring").value = "preset"; $("dgCustomMarks").style.display = "none";
   $("dgKeepOrder").checked = true; $("dgShowIdeal").checked = true; $("dgShuffleOpt").checked = false;
@@ -3294,6 +3388,9 @@ async function dgOpenExam(docId){
   if (!ex) { setMsg($("dgMsg"), "Pick a test to open."); return; }
   setMsg($("dgMsg"), `Loading ${ex.questionIds?.length||0} questions…`, true);
   $("dgType").value = ex.examType; dgFillSubjects();
+  $("dgKind").value = ex.studyPackage?.kind || "diagnostic";
+  if (ex.studyPackage?.kind === "package") $("dgProgram").value = ex.studyPackage.program;
+  $("dgPkgPublish").checked = ex.isActive !== false;
   $("dgTitle").value = ex.title || "";
   $("dgChapter").value = ex.chapter || (ex.topics||[])[0] || ""; $("dgSubtopic").value = ex.subtopic || "";
   dgAudRender(ex.audience);
@@ -3813,6 +3910,11 @@ async function dgSave(){
       aiFollowUp: $("dgAiFollow").checked,
       chapter: $("dgChapter").value.trim() || (DG.rows.find(r => r.topic)?.topic || ""), subtopic: $("dgSubtopic").value.trim(),
       ...(DG.aiDraftId ? {} : { audience: dgReadAudience() }),
+      // Study Package Solving / Momentum Booster: one shared package per programme (booster: everyone)
+      ...(DG.aiDraftId ? {} : $("dgKind").value === "diagnostic"
+        ? (DG.examDocId && examsCache.find(e => e.docId === DG.examDocId)?.studyPackage ? { studyPackage: deleteField(), diagnostic: true } : {})
+        : { studyPackage: { kind: $("dgKind").value, program: $("dgKind").value === "booster" ? "ALL" : $("dgProgram").value },
+            diagnostic: false, isActive: $("dgPkgPublish").checked }),
       topics: [...new Set(DG.rows.map(r=>r.topic).filter(Boolean))],
       updatedAt: serverTimestamp()
     };
@@ -3822,9 +3924,9 @@ async function dgSave(){
       await updateDoc(doc(db,"exams",DG.examDocId), payload);
       say("Test updated.");
     } else {
-      const ref = await addDoc(collection(db,"exams"), { ...payload, diagnostic: !DG.aiDraftId, audience: DG.aiDraftId ? DG.audience : dgReadAudience(),
+      const ref = await addDoc(collection(db,"exams"), { diagnostic: !DG.aiDraftId, ...payload, audience: DG.aiDraftId ? DG.audience : dgReadAudience(),
         ...(DG.aiDraftId ? { aiPractice: { draftId: DG.aiDraftId, studentUid: DG.audience.studentUids[0] } } : {}),
-        startAt: null, endAt: null, isActive: false, createdAt: serverTimestamp(),
+        startAt: null, endAt: null, isActive: payload.isActive ?? false, createdAt: serverTimestamp(),
         createdBy: currentUser.uid, createdByName: currentUser.name });
       DG.examDocId = ref.id;
       if (DG.aiDraftId) {
@@ -4275,7 +4377,7 @@ function lmRender(){
   if ($("atab-live").classList.contains("hidden")) return;
   const now = Date.now(), f = $("lmExam").value;
   const all = Object.values(lmState).filter(a => !f || a._exam.docId === f);
-  const writing = all.filter(a => !a.submitTime && now - tsMs(a.startTime) < 12*3600e3);
+  const writing = all.filter(a => !a.submitTime && now - tsMs(a.startTime) < 12*3600e3 && !a._exam?.studyPackage);   // package homework isn't a live test
   const done = all.filter(a => a.submitTime && now - tsMs(a.submitTime) < 3*3600e3)
     .sort((a,b) => tsMs(b.submitTime) - tsMs(a.submitTime));
   const liveN = writing.filter(a => now - tsMs(a.live?.lastSeen) < 90e3).length;
@@ -5002,6 +5104,7 @@ function audienceLabel(e){
   if (!a || a.mode==="all") return "All "+e.examType;
   if (a.mode==="batch") return "Batch: "+(a.batches||[]).join(", ");
   if (a.mode==="students") return (a.studentUids||[]).length+" students";
+  if (a.mode==="program") return a.program === "ALL" ? "Everyone ("+e.examType+")" : "Programme: "+a.program+" (all its batches)";
   return "—";
 }
 
@@ -5013,7 +5116,7 @@ async function loadExams(){
   examsCache = exams;
   try { dgLibRender(); } catch(e) { console.warn(e); }
   // faculty only see/manage their own exams; super-admin sees all
-  const visible = (isSuper() ? exams : exams.filter(e => e.createdBy === currentUser.uid)).filter(e => !e.diagnostic);  // diagnostic tests live in the Assign Tests tab
+  const visible = (isSuper() ? exams : exams.filter(e => e.createdBy === currentUser.uid)).filter(e => !e.diagnostic && !e.studyPackage);  // diagnostic tests live in the Assign Tests tab, packages in Study Packages
   const schedBadge = e => {
     if (!e.startAt && !e.endAt) return "";
     const w = examWindow(e);
@@ -5190,6 +5293,7 @@ function examTargetsMe(e){
   if (!a || a.mode === "all") return true;
   if (a.mode === "batch")    return (a.batches||[]).map(x=>x.toLowerCase()).includes((currentUser.batch||"").toLowerCase());
   if (a.mode === "students") return (a.studentUids||[]).includes(currentUser.uid);
+  if (a.mode === "program")  return a.program === "ALL" || programOf(currentUser.batch) === a.program;
   return false;
 }
 let availableExams = [];
@@ -5197,7 +5301,9 @@ async function loadActiveExam(){
   activeExam = null;
   const qs = await getDocs(query(collection(db,"exams"),
     where("examType","==",currentUser.examType), where("isActive","==",true)));
-  const mine = qs.docs.map(d=>({ docId:d.id, ...d.data() })).filter(examTargetsMe);
+  const allMine = qs.docs.map(d=>({ docId:d.id, ...d.data() })).filter(examTargetsMe);
+  renderStudentPackages(allMine.filter(e => e.studyPackage));   // study packages get their own section
+  const mine = allMine.filter(e => !e.studyPackage);
   // split by schedule window
   availableExams = []; const upcoming = [];
   mine.forEach(ex => {
@@ -5235,6 +5341,158 @@ async function loadActiveExam(){
   });
 }
 
+/* ---- staff: Study Packages tab — the shared package per programme, and each student's status per chapter ---- */
+let PK = { chapters: [], students: [], att: {} };
+function initPackages(){
+  PROGRAMS.forEach(p => $("pkPref" + p).value = (PORTAL.programPrefixes?.[p] || []).join(", "));
+  $("pkPrefSave").disabled = !isSuper();
+  $("pkPrefMsg").textContent = isSuper() ? "" : "Only an admin can change this.";
+  pkToggle();
+}
+function pkToggle(){
+  $("pkProgWrap").style.display = $("pkKind").value === "package" ? "" : "none";
+  const kind = $("pkKind").value, prog = $("pkProgram").value, cur = $("pkBatch").value;
+  const bs = batchOptions().filter(b => kind === "booster" || programOf(b) === prog);
+  $("pkBatch").innerHTML = `<option value="">All ${kind === "booster" ? "" : esc(prog) + " "}batches</option>` + bs.map(b => `<option ${b === cur ? "selected" : ""}>${esc(b)}</option>`).join("");
+}
+$("pkKind").onchange = pkToggle;
+$("pkProgram").onchange = pkToggle;
+const pkProgLabel = () => $("pkKind").value === "booster" ? "everyone" : $("pkProgram").value;
+async function pkLoad(){
+  const kind = $("pkKind").value, prog = $("pkProgram").value, type = $("pkType").value, bf = normBatch($("pkBatch").value);
+  await loadExams();
+  const chapters = examsCache.filter(e => e.studyPackage?.kind === kind && e.examType === type && (kind === "booster" || e.studyPackage.program === prog))
+    .sort((a, b) => ALL_SUBJECTS.indexOf((a.subjects || [])[0]) - ALL_SUBJECTS.indexOf((b.subjects || [])[0]) || (a.chapter || a.title).localeCompare(b.chapter || b.title, undefined, { numeric: true }));
+  const students = studentCache.filter(st => st.examType === type && (kind === "booster" || programOf(st.batch) === prog) && (!bf || normBatch(st.batch) === bf))
+    .sort((a, b) => String(a.batch || "").localeCompare(String(b.batch || "")) || String(a.name).localeCompare(String(b.name)));
+  PK = { chapters, students, att: {}, kind, prog };
+  // chapter list
+  $("pkChapters").innerHTML = `<div class="card"><h3 style="margin:0 0 8px;font-size:15px">${PKG_KIND[kind]} — ${esc(pkProgLabel())} <span style="font-weight:400;color:var(--muted);font-size:13px">(${chapters.length} chapter${chapters.length === 1 ? "" : "s"})</span></h3>
+    ${chapters.length ? `<table class="tbl"><thead><tr><th>Subject</th><th>Chapter</th><th>Title</th><th>Questions</th><th>Students see it?</th><th></th></tr></thead><tbody>
+      ${chapters.map(e => `<tr><td>${esc((e.subjects || []).join(", "))}</td><td><b>${esc(e.chapter || "—")}</b></td><td>${esc(e.title)}</td><td>${(e.questionIds || []).length}</td>
+        <td>${e.isActive ? '<span class="badge pos">Published</span>' : '<span class="badge zero">Hidden</span>'}
+            <button class="btn secondary" style="padding:1px 8px;font-size:12px" data-pkpub="${e.docId}">${e.isActive ? "Hide" : "Publish"}</button></td>
+        <td><button class="btn secondary" style="padding:2px 10px" data-pkedit="${e.docId}">Edit questions / key</button></td></tr>`).join("")}</tbody></table>`
+      : `<p style="color:var(--muted)">No chapters yet — click <b>+ New chapter</b> to upload the first one.</p>`}</div>`;
+  $("pkChapters").querySelectorAll("[data-pkedit]").forEach(b => b.onclick = () => {
+    document.querySelector('[data-atab="diagnostic"]').click();
+    $("dgExisting").value = b.dataset.pkedit; dgOpenExam(b.dataset.pkedit);
+    $("dgTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  $("pkChapters").querySelectorAll("[data-pkpub]").forEach(b => b.onclick = async () => {
+    const e = chapters.find(x => x.docId === b.dataset.pkpub);
+    try { await updateDoc(doc(db,"exams",e.docId), { isActive: !e.isActive }); pkLoad(); }
+    catch(err) { setMsg($("pkMsg"), "Could not change it: " + (err.code === "permission-denied" ? "only its creator or an admin can" : err.message)); }
+  });
+  // tracker: every student of the programme × every chapter
+  if (!chapters.length || !students.length) {
+    $("pkTracker").innerHTML = chapters.length ? `<div class="card"><p style="color:var(--muted)">No students found for ${esc(pkProgLabel())}${bf ? " in that batch" : ""}. Check the batch → programme codes below.</p></div>` : "";
+    return;
+  }
+  setMsg($("pkMsg"), "Loading student progress…", true);
+  try {
+    const ids = chapters.map(e => e.docId);
+    for (let i = 0; i < ids.length; i += 30) {
+      const snap = await getDocs(query(collection(db,"attempts"), where("examId","in",ids.slice(i, i + 30))));
+      snap.docs.forEach(d => { const a = d.data(); PK.att[a.examId + "|" + a.studentUid] = a; });
+    }
+    setMsg($("pkMsg"), "");
+  } catch(e) { setMsg($("pkMsg"), "Could not load progress: " + e.message); }
+  const cell = (e, st) => {
+    const a = PK.att[e.docId + "|" + st.uid], n = (e.questionIds || []).length;
+    if (a?.submitTime) { const max = attemptCfg(a).maxMarks || 1, pct = Math.round(100 * Math.max(0, a.score) / max);
+      return `<td class="pkCell" style="background:${pct >= 70 ? "#e2f5e9" : pct >= 40 ? "#fff6e0" : "#fdecea"}" title="Completed ${fmtDate(a.submitTime)} — ${a.score}/${max}">✅ ${pct}%</td>`; }
+    if (a) { const ans = a.live?.answered ?? Object.values(a.responses || {}).filter(r => r?.answer != null).length;
+      return `<td class="pkCell" style="background:#fffaf0" title="In progress">◐ ${ans}/${n}</td>`; }
+    return `<td class="pkCell" style="color:#b8c2cc">—</td>`;
+  };
+  const doneOf = st => chapters.filter(e => PK.att[e.docId + "|" + st.uid]?.submitTime).length;
+  const allDone = students.reduce((x, st) => x + doneOf(st), 0);
+  $("pkTracker").innerHTML = `<div class="card">
+    <div class="statRow" style="margin-bottom:10px">
+      <div class="stat"><div class="v">${students.length}</div><div class="l">Students</div></div>
+      <div class="stat"><div class="v">${chapters.length}</div><div class="l">Chapters</div></div>
+      <div class="stat"><div class="v" style="color:#1e7a44">${Math.round(100 * allDone / (students.length * chapters.length))}%</div><div class="l">Chapters completed</div></div>
+      <div class="stat"><div class="v" style="color:#b03a2e">${students.filter(st => !chapters.some(e => PK.att[e.docId + "|" + st.uid])).length}</div><div class="l">Not started at all</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">✅ completed (score %) · ◐ in progress (answered / questions) · — not started. Hover a cell for details.</div>
+    <table class="tbl"><thead><tr><th>Student</th><th>Batch</th>${chapters.map(e => `<th class="pkCell" title="${esc(e.title)}">${esc(e.chapter || e.title)}<br><span style="font-weight:400;font-size:11px">${esc((e.subjects || [])[0] || "")}</span></th>`).join("")}<th>Done</th></tr>
+      <tr><td colspan="2" style="font-size:12px;color:var(--muted)">completed by</td>${chapters.map(e => `<td class="pkCell" style="font-size:11.5px;color:var(--muted)">${students.filter(st => PK.att[e.docId + "|" + st.uid]?.submitTime).length}/${students.length}</td>`).join("")}<td></td></tr></thead><tbody>
+    ${students.map(st => `<tr><td>${esc(st.name)}</td><td>${esc(st.batch || "—")}</td>${chapters.map(e => cell(e, st)).join("")}<td class="pkCell"><b>${doneOf(st)}</b>/${chapters.length}</td></tr>`).join("")}
+    </tbody></table></div>`;
+}
+$("pkLoadBtn").onclick = () => pkLoad().catch(e => setMsg($("pkMsg"), "Could not load: " + e.message));
+$("pkNewBtn").onclick = () => {
+  document.querySelector('[data-atab="diagnostic"]').click();
+  dgNew();
+  $("dgType").value = $("pkType").value; dgFillSubjects();
+  $("dgKind").value = $("pkKind").value; if ($("pkKind").value === "package") $("dgProgram").value = $("pkProgram").value;
+  $("dgKind").onchange();
+  $("dgTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+};
+$("pkCsvBtn").onclick = () => {
+  if (!PK.chapters.length) { setMsg($("pkMsg"), "Show a package first."); return; }
+  const rows = [["Student", "PSID", "Batch", ...PK.chapters.map(e => e.chapter || e.title), "ChaptersDone"]];
+  PK.students.forEach(st => rows.push([st.name, st.psid || "", st.batch || "", ...PK.chapters.map(e => {
+    const a = PK.att[e.docId + "|" + st.uid];
+    return a?.submitTime ? `done ${a.score}/${attemptCfg(a).maxMarks}` : a ? `in progress ${a.live?.answered ?? 0}/${(e.questionIds || []).length}` : "not started";
+  }), PK.chapters.filter(e => PK.att[e.docId + "|" + st.uid]?.submitTime).length]));
+  downloadCsv(`study_package_${PK.kind}_${PK.kind === "booster" ? "all" : PK.prog}.csv`, rows);
+};
+$("pkPrefSave").onclick = async () => {
+  const prefs = Object.fromEntries(PROGRAMS.map(p => [p, $("pkPref" + p).value.split(/[\s,]+/).map(x => x.trim().toUpperCase()).filter(Boolean)]));
+  try {
+    await setDoc(doc(db,"settings","portal"), { programPrefixes: prefs }, { merge: true });
+    PORTAL.programPrefixes = prefs; pkToggle();
+    $("pkPrefMsg").textContent = "Saved. " + batchOptions().map(b => `${b} → ${programOf(b) || "none"}`).join(" · ");
+  } catch(e) { $("pkPrefMsg").textContent = "Could not save: " + e.message + (e.code === "permission-denied" ? " — publish the updated firestore.rules first." : ""); }
+};
+/* ---- student: 📘 Study Package / 🚀 Momentum Booster — chapters by subject with my status ---- */
+async function renderStudentPackages(pkgs){
+  const box = $("pkgStudentCard");
+  if (!pkgs.length) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  let mine = {};
+  try {
+    const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
+    qs.docs.forEach(d => { const a = d.data(); mine[a.examId] = { docId: d.id, ...a }; });
+  } catch(e){}
+  const html = ["package", "booster"].map(kind => {
+    const list = pkgs.filter(e => e.studyPackage.kind === kind);
+    if (!list.length) return "";
+    const bySub = {};
+    list.forEach(e => { const sub = (e.subjects || [])[0] || "Other"; (bySub[sub] = bySub[sub] || []).push(e); });
+    const done = list.filter(e => mine[e.docId]?.submitTime).length;
+    return `<div class="card" style="margin-bottom:12px">
+      <h2 class="sec" style="margin-top:0">${PKG_KIND[kind]}${kind === "package" ? ` <span class="badge zero">${esc(programOf(currentUser.batch))}</span>` : ""}
+        <span style="font-weight:400;font-size:13px;color:var(--muted)">— ${done} of ${list.length} chapter(s) completed</span></h2>
+      <div style="height:7px;border-radius:4px;background:#eef1f4;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:${Math.round(100 * done / list.length)}%;background:#2e9e5b"></div></div>
+      ${Object.keys(bySub).sort((a, b) => ALL_SUBJECTS.indexOf(a) - ALL_SUBJECTS.indexOf(b)).map(sub => `
+        <div style="font-weight:700;color:#345;margin:8px 0 4px">${esc(sub)}</div>
+        <div class="pkGrid">${bySub[sub].sort((a, b) => (a.chapter || a.title).localeCompare(b.chapter || b.title, undefined, { numeric: true })).map(e => {
+          const a = mine[e.docId], n = (e.questionIds || []).length;
+          const st = a?.submitTime ? "done" : a ? "doing" : "todo";
+          const answered = a?.live?.answered ?? Object.values(a?.responses || {}).filter(r => r?.answer != null).length;
+          return `<div class="pkItem ${st}">
+            <div style="font-weight:700">${esc(e.chapter || e.title)}</div>
+            <div style="font-size:12px;color:var(--muted)">${n} question${n === 1 ? "" : "s"}</div>
+            <div style="font-size:12.5px;margin:4px 0">${st === "done" ? `✅ Completed — <b>${a.score}</b> / ${attemptCfg(a).maxMarks}`
+              : st === "doing" ? `◐ In progress — ${answered}/${n} answered` : `○ Not started`}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${st === "done" ? `<button class="btn secondary" style="padding:3px 10px" data-pkview="${a.docId}">View result</button>
+                 <button class="btn secondary" style="padding:3px 10px" data-pkgo="${e.docId}">Solve again</button>`
+               : `<button class="btn ${st === "doing" ? "green" : ""}" style="padding:3px 12px" data-pkgo="${e.docId}">${st === "doing" ? "Continue" : "Start"}</button>`}
+            </div></div>`;
+        }).join("")}</div>`).join("")}
+    </div>`;
+  }).join("");
+  box.innerHTML = html;
+  box.querySelectorAll("[data-pkgo]").forEach(b => b.onclick = () => { activeExam = pkgs.find(e => e.docId === b.dataset.pkgo); startExam(); });
+  box.querySelectorAll("[data-pkview]").forEach(b => b.onclick = async () => {
+    const sn = await getDoc(doc(db,"attempts",b.dataset.pkview));
+    if (sn.exists()) showResult({ docId: sn.id, ...sn.data() });
+  });
+}
 async function loadMyAttempts(){
   const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
   const mine = qs.docs.map(d=>({docId:d.id,...d.data()})).filter(a=>a.submitTime);
@@ -5292,8 +5550,8 @@ const STATUS = { NV:"notVisited", NA:"notAnswered", AN:"answered", MA:"markedAns
 
 async function startExam(){
   if (!activeExam) return;
-  try { await document.documentElement.requestFullscreen?.(); } catch(e){}  // must be in the click gesture
   const cfg = examCfg(activeExam);
+  if (cfg.proctored) try { await document.documentElement.requestFullscreen?.(); } catch(e){}  // must be in the click gesture
   const cacheKey = `exam_${activeExam.docId}_${currentUser.uid}`;
 
   let qlist;
@@ -5340,7 +5598,8 @@ async function startExam(){
     savedTimes = p.questionTimeSec || {};
     if (p.pledgedAt) pledgedAt = p.pledgedAt;
   } else if (prev.exists() && prev.data().submitTime) {
-    if (!confirm("You have already submitted this exam. Start a fresh attempt? (Previous result is kept in reports but will be overwritten on this attempt id.)")) {
+    if (!confirm(cfg.proctored ? "You have already submitted this exam. Start a fresh attempt? (Previous result is kept in reports but will be overwritten on this attempt id.)"
+                               : "You have already completed this chapter. Solve it again from the start? (Your previous result will be replaced.)")) {
       return;
     }
     sessionStorage.removeItem(cacheKey);
@@ -5400,7 +5659,7 @@ async function startExam(){
   clearInterval(tickInt); clearInterval(autosaveInt);
   tickInt = setInterval(tick, 250);
   autosaveInt = setInterval(()=>saveProgress().catch(()=>{}), AUTOSAVE_MS);
-  startProctoring();
+  if (cfg.proctored) startProctoring(); else stopProctoring();   // study packages: homework, not proctored
   tick();
   saveProgress().catch(()=>{});        // appear on the teacher's Live Monitor right away
   // teacher → student channel: live warnings and "stop this test"
@@ -5461,7 +5720,7 @@ function startProctoring(){
     }, 600);
   };
   const onFsChange = () => {
-    if (!document.fullscreenElement && EX && !EX.submitted)
+    if (!document.fullscreenElement && EX && !EX.submitted && EX.cfg.proctored)
       recordViolation("exit_fullscreen","You exited fullscreen mode.");
   };
   const block = e => { e.preventDefault(); };
