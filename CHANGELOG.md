@@ -7,6 +7,16 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — Mistake notebook: chapter cards, then that chapter's questions
+
+The notebook used to list every chapter's mistakes in one long page. Now it opens on **chapter cards** — subject,
+chapter, how many questions, wrong / skipped / repeated, and a bar of how many are cleared — with **subject tabs**
+(showing open mistakes per subject) and the Show / Type / "missed 2+" filters. **Tap a chapter** to see only its
+questions (grouped by question model when set), with "← All chapters" to go back. Retry works on the chapter you
+opened, or on everything from the card view. Same view for staff (read-only). Nothing to do after deploying.
+
+---
+
 ## 2026-10-11 — AI works only on the tests you choose; "Mistaken models to practice" for students
 
 **After deploying:** click **Topics → Rebuild practice index** (the index now carries each question's model and

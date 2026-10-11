@@ -94,6 +94,22 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 #qHead{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:14px;flex-wrap:wrap;gap:6px}
 #qHead .qno{font-weight:700;font-size:16px;color:var(--blue)}
 #qHead .qmeta{font-size:12px;color:var(--muted)}
+.nbTabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.nbTabs button{border:1px solid var(--border);background:#fff;border-radius:16px;padding:5px 12px;font-size:13px;cursor:pointer;color:#345}
+.nbTabs button span{display:inline-block;min-width:18px;margin-left:4px;padding:0 6px;border-radius:9px;background:#fdecea;color:#b03a2e;font-size:11.5px;font-weight:700}
+.nbTabs button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.nbTabs button.on span{background:rgba(255,255,255,.25);color:#fff}
+.nbGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.nbChap{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--border);border-left:4px solid #d9534f;border-radius:8px;background:#fff;padding:10px 12px;cursor:pointer;font:inherit;color:inherit;transition:box-shadow .15s,transform .15s}
+.nbChap:hover{box-shadow:0 3px 12px rgba(20,40,70,.12);transform:translateY(-1px)}
+.nbChap .nbSub{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+.nbChap .nbTitle{font-size:15px;font-weight:700;color:var(--blue);line-height:1.3}
+.nbChap .nbCount{font-size:13px}
+.nbChap .nbMeta{font-size:11.5px;color:var(--muted)}
+.nbChap .nbBar{display:block;height:5px;border-radius:3px;background:#eef1f4;overflow:hidden;margin-top:2px}
+.nbChap .nbBar span{display:block;height:100%;background:#2e9e5b}
+.nbModel{font-size:13px;font-weight:700;color:#345;margin:12px 0 2px;padding-bottom:3px;border-bottom:2px solid #eef1f4}
+.nbModel span{font-weight:400;color:var(--muted)}
 #qIdeal{font-size:12px;font-weight:600;padding:2px 9px;border-radius:10px;background:#e2f5e9;color:#1e7a44;font-variant-numeric:tabular-nums}
 #qIdeal.over{background:#fff1dc;color:#a4610b}
 #qText{font-size:15.5px;line-height:1.65;margin-bottom:18px;user-select:none}
@@ -1959,40 +1975,9 @@ function nbFiltered(NB){
     (f.show === "all" || (f.show === "open" ? !it.cleared : it.cleared)) &&
     (!f.kind || it.last.verdict === f.kind) && (!f.repeat || it.misses.length >= 2));
 }
-function nbRender(NB){
-  const { box, list, f, editable } = NB;
-  if (!list.length) { box.innerHTML = `<div class="card"><p>No mistakes recorded yet${editable ? " — every question you get wrong or leave blank in a test will appear here for revision" : ` for ${esc(NB.name)}`}.</p></div>`; return; }
-  const open = list.filter(i => !i.cleared), rep = list.filter(i => i.misses.length >= 2);
-  const subjects = [...new Set(list.map(i => i.subject))].sort();
-  const topics = [...new Set(list.filter(i => !f.subject || i.subject === f.subject).map(i => i.topic))].sort();
-  const shown = nbFiltered(NB);
-  const groups = {};
-  shown.forEach(it => (groups[it.subject + " — " + it.topic] = groups[it.subject + " — " + it.topic] || []).push(it));
-  const worst = Object.entries(list.filter(i => !i.cleared).reduce((m, i) => { const k = i.subject + " — " + i.topic; m[k] = (m[k] || 0) + 1; return m; }, {}))
-    .sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(label ?? v)}</option>`;
-  const retryN = shown.filter(i => !i.cleared).length;
-  box.innerHTML = `<div class="card">
-    <div class="statRow" style="margin-bottom:10px">
-      <div class="stat"><div class="v">${list.length}</div><div class="l">Mistakes recorded</div></div>
-      <div class="stat"><div class="v" style="color:#b03a2e">${open.length}</div><div class="l">Still open</div></div>
-      <div class="stat"><div class="v" style="color:#1e7a44">${list.length - open.length}</div><div class="l">Cleared</div></div>
-      <div class="stat"><div class="v">${rep.length}</div><div class="l">Missed 2+ times</div></div>
-    </div>
-    ${worst.length ? `<p style="font-size:13px;margin-bottom:8px"><b>Most open mistakes:</b> ${worst.map(([k, n]) => `${esc(k)} <b>(${n})</b>`).join(" · ")}</p>` : ""}
-    <div class="flexrow" style="align-items:flex-end;margin-bottom:6px">
-      <div class="field"><label>Subject</label><select data-nbf="subject">${opt("", f.subject, "All")}${subjects.map(x => opt(x, f.subject)).join("")}</select></div>
-      <div class="field"><label>Chapter</label><select data-nbf="topic">${opt("", f.topic, "All")}${topics.map(x => opt(x, f.topic)).join("")}</select></div>
-      <div class="field"><label>Show</label><select data-nbf="show">${opt("open", f.show, "Open")}${opt("cleared", f.show, "Cleared")}${opt("all", f.show, "All")}</select></div>
-      <div class="field"><label>Type</label><select data-nbf="kind">${opt("", f.kind, "Wrong + skipped")}${opt("wrong", f.kind, "Wrong only")}${opt("blank", f.kind, "Skipped only")}</select></div>
-      <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-bottom:14px"><input type="checkbox" data-nbf="repeat" ${f.repeat ? "checked" : ""}> Missed 2+ times</label>
-      ${editable && practiceOn ? `<button class="btn green" data-nbretry style="margin-bottom:14px" ${retryN ? "" : "disabled"}>🔁 Retry ${Math.min(retryN, 40)} open mistake(s)</button>` : ""}
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${shown.length} shown.${editable ? " Retry them untimed — each one you get right is cleared automatically. Or tick “Cleared” when you've revised it." : " Read-only view of the student's notebook."}</div>
-    ${Object.entries(groups).sort((a, b) => b[1].length - a[1].length).map(([g, its], gi) => `
-      <details ${gi === 0 || Object.keys(groups).length <= 3 ? "open" : ""} style="border:1px solid var(--border);border-radius:6px;margin-bottom:8px;padding:6px 10px">
-        <summary style="cursor:pointer;font-weight:700;color:var(--blue)">${esc(g)} <span style="font-weight:400;color:var(--muted)">— ${its.length}</span></summary>
-        ${its.sort((a, b) => b.last.at - a.last.at).map(it => `<div data-nbid="${esc(it.id)}" style="border-top:1px solid #eef1f4;padding:8px 0;${it.cleared ? "opacity:.65" : ""}">
+// one mistake (question) in the notebook
+function nbItemHtml(it, editable){
+  return `<div data-nbid="${esc(it.id)}" style="border-top:1px solid #eef1f4;padding:8px 0;${it.cleared ? "opacity:.65" : ""}">
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px">
             <span class="badge ${it.last.verdict === "wrong" ? "neg" : "zero"}">${it.last.verdict === "wrong" ? "wrong" : "skipped"}${it.misses.length > 1 ? ` ×${it.misses.length}` : ""}</span>
             <span>${esc(levelShort(it.level))}</span>
@@ -2009,12 +1994,87 @@ function nbRender(NB){
               : (it.note ? `<span style="font-size:12.5px">📝 ${esc(it.note)}</span>` : "")}
           </div>
           <div data-nbq style="margin-top:6px"></div>
-        </div>`).join("")}
-      </details>`).join("") || `<p style="color:var(--muted)">Nothing matches these filters.</p>`}
+        </div>`;
+}
+// Two levels: chapter cards first; clicking a chapter opens only that chapter's questions (f.topic + f.subject set).
+function nbRender(NB){
+  const { box, list, f, editable } = NB;
+  if (!list.length) { box.innerHTML = `<div class="card"><p>No mistakes recorded yet${editable ? " — every question you get wrong or leave blank in a test will appear here for revision" : ` for ${esc(NB.name)}`}.</p></div>`; return; }
+  const open = list.filter(i => !i.cleared), rep = list.filter(i => i.misses.length >= 2);
+  const subjects = [...new Set(list.map(i => i.subject))].sort();
+  const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(label ?? v)}</option>`;
+  const inChapter = !!f.topic;
+  const shown = nbFiltered(NB);
+  const retryN = shown.filter(i => !i.cleared).length;
+  const filters = `<div class="flexrow" style="align-items:flex-end;margin-bottom:6px">
+      <div class="field"><label>Show</label><select data-nbf="show">${opt("open", f.show, "Open")}${opt("cleared", f.show, "Cleared")}${opt("all", f.show, "All")}</select></div>
+      <div class="field"><label>Type</label><select data-nbf="kind">${opt("", f.kind, "Wrong + skipped")}${opt("wrong", f.kind, "Wrong only")}${opt("blank", f.kind, "Skipped only")}</select></div>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-bottom:14px"><input type="checkbox" data-nbf="repeat" ${f.repeat ? "checked" : ""}> Missed 2+ times</label>
+      ${editable && practiceOn ? `<button class="btn green" data-nbretry style="margin-bottom:14px" ${retryN ? "" : "disabled"}>🔁 Retry ${Math.min(retryN, 40)} open mistake(s)${inChapter ? " in this chapter" : ""}</button>` : ""}
+    </div>`;
+  let body;
+  if (!inChapter) {
+    // ---- level 1: chapter cards (respecting the subject tab and the Show / Type / 2+ filters) ----
+    const chaps = {};
+    shown.forEach(it => {
+      const k = it.subject + "|" + it.topic;
+      const c = chaps[k] || (chaps[k] = { subject: it.subject, topic: it.topic, items: [] });
+      c.items.push(it);
+    });
+    const all = {};   // totals per chapter regardless of filters, for the cleared bar
+    list.forEach(it => { const k = it.subject + "|" + it.topic; const a = all[k] || (all[k] = { n: 0, cleared: 0 }); a.n++; if (it.cleared) a.cleared++; });
+    const cards = Object.values(chaps).sort((a, b) => b.items.filter(i => !i.cleared).length - a.items.filter(i => !i.cleared).length || b.items.length - a.items.length || a.topic.localeCompare(b.topic));
+    body = cards.length ? `<div class="nbGrid">${cards.map(c => {
+      const k = c.subject + "|" + c.topic, a = all[k], pct = Math.round(100 * a.cleared / a.n);
+      const openN = c.items.filter(i => !i.cleared).length, wrongN = c.items.filter(i => i.last.verdict === "wrong").length, repN = c.items.filter(i => i.misses.length >= 2).length;
+      return `<button class="nbChap" data-nbchap="${esc(k)}" style="${openN ? "" : "border-left-color:#2e9e5b"}">
+        <span class="nbSub">${esc(c.subject)}</span>
+        <span class="nbTitle">${esc(c.topic)}</span>
+        <span class="nbCount"><b>${c.items.length}</b> question${c.items.length === 1 ? "" : "s"}${openN && f.show !== "open" ? ` · ${openN} open` : ""}</span>
+        <span class="nbMeta">${[wrongN ? `<span style="color:#b03a2e">✗ ${wrongN} wrong</span>` : "", c.items.length - wrongN ? `<span>– ${c.items.length - wrongN} skipped</span>` : "",
+          repN ? `<span style="color:#a4610b">↻ ${repN} repeated</span>` : ""].filter(Boolean).join(" · ")}</span>
+        <span class="nbBar"><span style="width:${pct}%"></span></span>
+        <span class="nbMeta">${a.cleared}/${a.n} cleared</span>
+      </button>`;
+    }).join("")}</div>` : `<p style="color:var(--muted)">Nothing matches these filters.</p>`;
+  } else {
+    // ---- level 2: the chosen chapter's questions, newest first (sub-grouped by question model when set) ----
+    const byModel = {};
+    shown.forEach(it => (byModel[it.model || ""] = byModel[it.model || ""] || []).push(it));
+    const models = Object.keys(byModel).sort((a, b) => (a === "") - (b === "") || byModel[b].length - byModel[a].length);
+    body = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0 10px">
+        <button class="btn secondary" data-nbback style="padding:4px 12px">← All chapters</button>
+        <h3 style="margin:0;font-size:17px;color:var(--blue)">${esc(f.topic)}</h3>
+        <span class="badge zero">${esc(f.subject)}</span>
+        <span style="font-size:12.5px;color:var(--muted)">${shown.length} question${shown.length === 1 ? "" : "s"} shown</span>
+      </div>
+      ${shown.length ? models.map(m => `${models.length > 1 || m ? `<div class="nbModel">${m ? `Model: ${esc(m)}` : "Other questions"} <span>— ${byModel[m].length}</span></div>` : ""}
+        ${byModel[m].sort((a, b) => b.last.at - a.last.at).map(it => nbItemHtml(it, editable)).join("")}`).join("")
+        : `<p style="color:var(--muted)">Nothing in this chapter matches these filters.</p>`}`;
+  }
+  box.innerHTML = `<div class="card">
+    <div class="statRow" style="margin-bottom:10px">
+      <div class="stat"><div class="v">${list.length}</div><div class="l">Mistakes recorded</div></div>
+      <div class="stat"><div class="v" style="color:#b03a2e">${open.length}</div><div class="l">Still open</div></div>
+      <div class="stat"><div class="v" style="color:#1e7a44">${list.length - open.length}</div><div class="l">Cleared</div></div>
+      <div class="stat"><div class="v">${rep.length}</div><div class="l">Missed 2+ times</div></div>
+    </div>
+    ${inChapter ? "" : `<div class="nbTabs">${["", ...subjects].map(x => `<button data-nbsub="${esc(x)}" class="${f.subject === x ? "on" : ""}">${x ? esc(x) : "All subjects"} <span>${list.filter(i => (!x || i.subject === x) && !i.cleared).length}</span></button>`).join("")}</div>`}
+    ${filters}
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${inChapter
+      ? (editable ? "Open “Show question &amp; answer” to revise. Retry gives these questions again untimed — each one you get right is cleared automatically. Or tick “Cleared” when you've revised it." : "Read-only view of the student's notebook.")
+      : "Tap a chapter to see its questions. Numbers on the subject tabs are open mistakes."}</div>
+    ${body}
   </div>`;
+  box.querySelectorAll("[data-nbsub]").forEach(b => b.onclick = () => { f.subject = b.dataset.nbsub; f.topic = ""; nbRender(NB); });
+  box.querySelectorAll("[data-nbchap]").forEach(b => b.onclick = () => {
+    const [sub, ...rest] = b.dataset.nbchap.split("|"); f.subject = sub; f.topic = rest.join("|"); nbRender(NB);
+    box.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  const back = box.querySelector("[data-nbback]");
+  if (back) back.onclick = () => { f.topic = ""; nbRender(NB); box.scrollIntoView({ behavior: "smooth", block: "start" }); };
   box.querySelectorAll("[data-nbf]").forEach(el => el.onchange = () => {
     const k = el.dataset.nbf; f[k] = el.type === "checkbox" ? el.checked : el.value;
-    if (k === "subject") f.topic = "";
     nbRender(NB);
   });
   const itemOf = el => NB.list.find(i => i.id === el.closest("[data-nbid]").dataset.nbid);
