@@ -517,7 +517,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           </select></div>
           <div class="field" id="dgCustomMarks" style="display:none"><label>+correct / −wrong</label>
             <div style="display:flex;gap:6px"><input id="dgMkA" type="number" value="4" style="width:70px"><input id="dgMkW" type="number" value="1" style="width:70px"></div></div>
-          <div class="field"><label>Duration (min)</label>
+          <div class="field"><label title="Diagnostic tests have no time limit: students are never auto-submitted. This is only the expected length shown to them.">Expected duration (min) — not enforced</label>
             <div style="display:flex;gap:6px"><input id="dgDuration" type="number" min="1" value="30" style="width:90px">
             <button class="btn secondary" id="dgAutoDurBtn" style="padding:4px 10px;font-size:12px" title="Sum of all ideal times + 10%, rounded up">= total ideal time</button></div></div>
           <div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;margin-bottom:4px;color:#345">Options</div>
@@ -1060,6 +1060,9 @@ function examCfg(exam){
     label: exam?.title || base.label,
     subjects: (exam?.subjects && exam.subjects.length) ? exam.subjects : base.subjects,
     durationSec: exam?.durationMin ? exam.durationMin*60 : base.durationSec,
+    // Diagnostic tests (and the practice tests made from them) only TRACK time against the ideal times:
+    // no countdown, never auto-submitted when the duration passes. durationSec is then just the expected length.
+    untimed: exam?.untimed ?? !!(exam?.diagnostic || exam?.customPractice || exam?.aiPractice),
     maxMarks: (exam?.maxMarks ?? null) !== null ? exam.maxMarks : base.maxMarks,
     marks: exam?.marks || base.marks,
     shuffleOptions: exam?.shuffleOptions ?? false,
@@ -4051,7 +4054,7 @@ function lmRender(){
         <td style="font-size:12.5px">${esc(a._exam.title)}</td>
         <td style="min-width:130px"><div style="background:#eef1f4;border-radius:4px;height:8px"><div style="width:${pct}%;background:var(--blue);height:8px;border-radius:4px"></div></div>
           <span style="font-size:11.5px">${L.answered||0}/${L.total||"?"} answered · on Q${L.q||"?"}</span></td>
-        <td>${fmtClock(left)}</td>
+        <td>${cfg.untimed ? `<span title="No time limit — time spent so far">⏱ ${fmtClock((now - tsMs(a.startTime))/1000)}</span>` : fmtClock(left)}</td>
         <td>${online ? `<span style="color:#2e8b57">● live</span>` : `<span style="color:var(--muted)" title="no heartbeat for ${Math.round(seen/60000)} min">○ ${tsMs(a.live?.lastSeen) ? Math.round(seen/60000)+" min" : "—"}</span>`}</td>
         <td>${w ? `<span class="badge ${w>=2?"neg":"zero"}">${w}/${MAX_WARNINGS}</span>` : "0"}</td>
         <td>${nq ? `<span class="badge zero">${nq}</span>` : "0"}</td>
@@ -4487,7 +4490,7 @@ async function previewExam(docId){
   }).join("");
   $("qpvBody").innerHTML =
     `<div style="font-size:13px;margin-bottom:6px"><b>${esc(ex.title)}</b><br>
-     <span style="color:var(--muted)">${fetched.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${Math.round(cfg.durationSec/60)} min &bull; Max ${cfg.maxMarks}</span></div>` + body;
+     <span style="color:var(--muted)">${fetched.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${cfg.untimed ? `no time limit (about ${Math.round(cfg.durationSec/60)} min)` : `${Math.round(cfg.durationSec/60)} min`} &bull; Max ${cfg.maxMarks}</span></div>` + body;
   typeset($("qpvBody"));
 }
 $("qbClearBtn").onclick = async () => {
@@ -4886,7 +4889,7 @@ async function loadActiveExam(){
       const cfg = examCfg(ex), w = examWindow(ex);
       return `<div class="card" style="margin-bottom:10px">
         <p style="margin-bottom:8px"><b>${esc(ex.title)}</b> &mdash; ${esc(EXAM_CONFIG[ex.examType].label)}<br>
-        <span style="color:var(--muted);font-size:13px">${ex.questionIds.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${Math.round(cfg.durationSec/60)} min &bull; Max ${cfg.maxMarks}${w.at?` &bull; closes ${fmtDate(new Date(w.at))}`:""}</span></p>
+        <span style="color:var(--muted);font-size:13px">${ex.questionIds.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${cfg.untimed ? `no time limit (about ${Math.round(cfg.durationSec/60)} min)` : `${Math.round(cfg.durationSec/60)} min`} &bull; Max ${cfg.maxMarks}${w.at?` &bull; closes ${fmtDate(new Date(w.at))}`:""}</span></p>
         <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:6px 0 10px;cursor:pointer"><input type="checkbox" data-pledge="${i}" style="margin-top:3px">
           <span><b>Honesty pledge:</b> I will take this test on my own — no switching tabs, no other device, no help from anyone, no blind guessing.
           I understand my teacher sees live when I switch tabs or answer tough questions too quickly.</span></label>
@@ -5150,11 +5153,14 @@ $("cheatOk").onclick = async () => {
 
 function tick(){
   if (!EX || EX.submitted) return;
+  const untimed = EX.cfg.untimed;
   const left = Math.max(0, Math.floor((EX.endTime - Date.now())/1000));
-  const m = Math.floor(left/60), s = left%60;
+  const shown = untimed ? Math.max(0, Math.floor((Date.now() - EX.startTime)/1000)) : left;   // untimed: elapsed, counting up
+  const m = Math.floor(shown/60), s = shown%60;
   const t = $("timer");
-  t.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
-  t.classList.toggle("low", left < 300);
+  t.textContent = `${untimed ? "⏱ " : ""}${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  t.title = untimed ? "Time spent so far — no time limit, the test is not submitted automatically" : "";
+  t.classList.toggle("low", !untimed && left < 300);
   if (EX.cfg.showIdealTime) {
     const q = EX.questions[EX.idx];
     const spent = EX.state[EX.idx].timeSec + (EX.shownAt != null ? (Date.now()-EX.shownAt)/1000 : 0);
@@ -5162,7 +5168,7 @@ function tick(){
     el.textContent = `⏱ ${fmtClock(spent)} / ideal ${fmtClock(q._idealSec)}`;
     el.classList.toggle("over", spent > q._idealSec);
   }
-  if (left <= 0) submitExam(true);
+  if (!untimed && left <= 0) submitExam(true);
 }
 function fmtClock(s){ s = Math.round(s||0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
 
@@ -5393,12 +5399,13 @@ async function submitExam(auto, flag={}){
     studentUid: currentUser.uid, studentName: currentUser.name,
     examId: activeExam?.docId ?? null, examTitle: EX.title, examType: EX.examType,
     startTime: Timestamp.fromMillis(EX.startTime), submitTime: serverTimestamp(),
-    totalTimeSec: Math.min(totalTimeSec, cfg.durationSec),
+    totalTimeSec: cfg.untimed ? totalTimeSec : Math.min(totalTimeSec, cfg.durationSec),
     subjectTimeSec, questionTimeSec,
     responses: buildResponses(),
     score, subjectScores, wrongQuestions, unansweredQuestions,
     // config snapshot so the result renders correctly regardless of exam edits
     examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks, examDurationSec: cfg.durationSec,
+    examUntimed: cfg.untimed,
     // subject / chapter / level of each question, so progress and the mistake notebook need no extra reads
     qMeta: Object.fromEntries(EX.questions.map(q => [q.docId, { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty) }])),
     idealTimes, quickAnswers, pledgedAt: EX.pledgedAt,
@@ -5990,8 +5997,9 @@ async function showResult(attempt){
   };
   $("pdfReportBtn").onclick = () => window.print();
   // test length: snapshot on the attempt (newer attempts), else the exam's setting
-  let durSec = attempt.examDurationSec || (_examForOrder?.durationMin || 0) * 60;
-  if (!durSec && attempt.examId) { try { durSec = ((await getDoc(doc(db,"exams",attempt.examId))).data()?.durationMin || 0) * 60; } catch(e){} }
+  // untimed (diagnostic) tests have no "time left unused" — the duration was only an estimate
+  let durSec = attempt.examUntimed ? 0 : attempt.examDurationSec || (_examForOrder?.durationMin || 0) * 60;
+  if (!durSec && !attempt.examUntimed && attempt.examId) { try { durSec = ((await getDoc(doc(db,"exams",attempt.examId))).data()?.durationMin || 0) * 60; } catch(e){} }
   renderTimeSummary(attempt, detail, durSec);
   // staff only: correct answers that came suspiciously fast
   const fastOnes = detail.filter(d => d.fast.length);
