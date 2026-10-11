@@ -589,6 +589,8 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
             <div style="display:flex;gap:6px"><input id="exMkA" type="number" value="4" style="width:70px"><input id="exMkW" type="number" value="1" style="width:70px" title="wrong penalty (positive number)"></div></div>
           <div class="field" style="max-width:230px"><label>Options</label>
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px;margin-top:6px"><input type="checkbox" id="exShuffleOpt"> Shuffle option order per student</label></div>
+          <div class="field"><label title="Warnings on screen and auto-submit as malpractice after 3. Off = switches are only recorded silently.">3 warnings → auto-submit</label><select id="exStrict">
+            <option value="">Portal setting</option><option value="on">On</option><option value="off">Off — track silently</option></select></div>
           <button class="btn secondary" id="exLoadBankBtn">Load Bank</button>
         </div>
         <div class="flexrow" style="margin-bottom:10px">
@@ -699,6 +701,8 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <button class="btn danger" id="dgDeleteBtn" title="Delete the open test, its attempts and (optionally) its own questions">🗑 Delete this test</button>
         </div>
         <div class="flexrow" style="margin-top:6px">
+          <div class="field"><label title="Warnings on screen and auto-submit as malpractice after 3. Off = switches are only recorded for you, silently.">3 warnings → auto-submit</label><select id="dgStrict">
+            <option value="">Portal setting (Live Monitor)</option><option value="on">On for this test</option><option value="off">Off — track silently</option></select></div>
           <div class="field" id="dgLevelWrap"><label title="Diagnostic tests can be split into Easy / Moderate / Hard tests and activated one by one">Test level</label><select id="dgLevel">
             <option value="">Mixed levels</option><option value="Easy">Easy</option><option value="Medium">Moderate</option><option value="Hard">Hard</option></select></div>
           <div class="field"><label>Test type</label><select id="dgKind">
@@ -854,9 +858,14 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <h2 class="sec" style="margin:0;flex:1">● Live Monitor <span id="lmDot" style="font-size:12px;font-weight:400;color:var(--muted)"></span></h2>
           <div class="field" style="margin:0"><select id="lmExam"></select></div>
           <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="lmSound"> 🔔 Sound on alerts</label>
+          <label style="font-size:13px;display:flex;gap:6px;align-items:center" title="Portal-wide default; a test can override it in the Diagnostic Builder / Exams"><input type="checkbox" id="lmStrict"> ⚠ 3 warnings → auto-submit</label>
           <button class="btn secondary" id="lmRefresh" style="padding:4px 10px">Refresh</button>
         </div>
+        <div id="lmStrictMsg" style="font-size:12.5px;color:var(--muted);margin-top:6px"></div>
         <div id="lmStats" class="statRow" style="margin-top:10px"></div>
+        <div style="font-size:12px;color:var(--muted)">📱 Note: tab-switch tracking can't see everything. On some phones Chrome can be used in <b>split screen, a floating
+          window or picture-in-picture without a tab switch</b> while fullscreen; the portal also flags the test window suddenly shrinking, and
+          marks phone attempts with 📱, but such use cannot always be detected.</div>
       </div>
       <div class="flexrow" style="align-items:flex-start;margin-top:12px">
         <div style="flex:3;min-width:520px">
@@ -1339,7 +1348,10 @@ function examCfg(exam){
     showIdealTime: exam?.showIdealTime ?? false,
     idealTimes: exam?.idealTimes || {},
     // study packages are homework: no fullscreen, tab-switch warnings or malpractice auto-submit
-    proctored: !exam?.studyPackage
+    proctored: !exam?.studyPackage,
+    // strict = on-screen warnings + auto-submit as malpractice after 3; off = switches are only recorded silently.
+    // Per test (exam.proctorStrict true/false), else the portal-wide switch (settings/portal.proctorStrict), else on.
+    strict: !exam?.studyPackage && (exam?.proctorStrict ?? PORTAL.proctorStrict ?? true)
   };
 }
 /* ---- programmes: TYM / OYM / RM. A batch belongs to a programme when its code starts with one of the programme's
@@ -1399,7 +1411,8 @@ function quickThreshold(q, idealSec){
   const r = QUICK_RULE[normLevel(q?.difficulty)];
   return r ? Math.max(r[1], r[0] * (idealSec || 0)) : 0;
 }
-const VIOLATION_TEXT = { tab_hidden: "switched tab", window_blur: "switched to another window/app", exit_fullscreen: "left fullscreen" };
+const VIOLATION_TEXT = { tab_hidden: "switched tab", window_blur: "switched to another window/app", exit_fullscreen: "left fullscreen",
+  window_resized: "test window shrunk (split screen / floating window?)" };
 // Ideal (target) time to solve one question, in seconds. Resolution order:
 // the exam's own per-question setting → the question's stored idealTimeSec → a default by difficulty.
 const IDEAL_DEFAULTS = {
@@ -3826,7 +3839,7 @@ function initDiagnostic(){
 function dgNew(){
   DG = { examDocId: null, rows: [], origIds: [] }; dgImgTarget = null;
   $("dgTitle").value = ""; $("dgExisting").value = "";
-  $("dgChapter").value = ""; $("dgSubtopic").value = ""; $("dgLevel").value = ""; setTimeout(dgFillChapterTopic); $("dgKind").value = "diagnostic"; $("dgPkgPublish").checked = true; dgAudRender({ mode: "all" });
+  $("dgChapter").value = ""; $("dgSubtopic").value = ""; $("dgLevel").value = ""; $("dgStrict").value = ""; setTimeout(dgFillChapterTopic); $("dgKind").value = "diagnostic"; $("dgPkgPublish").checked = true; dgAudRender({ mode: "all" });
   $("dgAiFollow").checked = true;
   $("dgScoring").value = "preset"; $("dgCustomMarks").style.display = "none";
   $("dgKeepOrder").checked = true; $("dgShowIdeal").checked = true; $("dgShuffleOpt").checked = false;
@@ -3844,7 +3857,7 @@ async function dgOpenExam(docId){
   if (ex.studyPackage?.kind === "package") $("dgProgram").value = ex.studyPackage.program;
   $("dgPkgPublish").checked = ex.isActive !== false;
   $("dgTitle").value = ex.title || "";
-  $("dgChapter").value = ex.chapter || (ex.topics||[])[0] || ""; $("dgSubtopic").value = ex.subtopic || ""; $("dgLevel").value = ex.level || ""; dgFillChapterTopic();
+  $("dgChapter").value = ex.chapter || (ex.topics||[])[0] || ""; $("dgSubtopic").value = ex.subtopic || ""; $("dgLevel").value = ex.level || ""; $("dgStrict").value = ex.proctorStrict === true ? "on" : ex.proctorStrict === false ? "off" : ""; dgFillChapterTopic();
   dgAudRender(ex.audience);
   $("dgDuration").value = ex.durationMin || 30;
   $("dgKeepOrder").checked = !!ex.keepOrder;
@@ -4398,7 +4411,8 @@ async function dgSave(){
       shuffleOptions: $("dgShuffleOpt").checked,
       aiFollowUp: $("dgAiFollow").checked,
       chapter: $("dgChapter").value.trim() || (DG.rows.find(r => r.topic)?.topic || ""), subtopic: $("dgSubtopic").value.trim(),
-      level: $("dgLevel").value || null,   // Easy / Medium / Hard test of a chapter-topic, or null = mixed
+      level: $("dgLevel").value || null,
+      proctorStrict: $("dgStrict").value === "on" ? true : $("dgStrict").value === "off" ? false : null,   // Easy / Medium / Hard test of a chapter-topic, or null = mixed
       ...(DG.aiDraftId ? {} : { audience: dgReadAudience() }),
       // Study Package Solving / Momentum Booster: one shared package per programme (booster: everyone)
       ...(DG.aiDraftId ? {} : $("dgKind").value === "diagnostic"
@@ -4867,7 +4881,23 @@ function lmAlert(kind, text){
   lmFeed = lmFeed.slice(0, 150);
   if (kind === "violation" || kind === "malpractice" || kind === "quick") lmBeep();
 }
+// Portal-wide "3 warnings → auto-submit" switch (settings/portal.proctorStrict; tests can override it)
+function lmStrictRender(){
+  const on = PORTAL.proctorStrict !== false;
+  $("lmStrict").checked = on; $("lmStrict").disabled = !isSuper();
+  $("lmStrictMsg").innerHTML = on
+    ? "⚠ <b>Strict</b>: students get an on-screen warning for each tab switch / fullscreen exit, and the test is auto-submitted as malpractice on the 3rd."
+    : "🤫 <b>Silent</b>: no warnings and no auto-submit — every tab switch, window switch, fullscreen exit and window shrink is still recorded and shown here and on the result.";
+  if (!isSuper()) $("lmStrictMsg").innerHTML += " <i>(only an admin can change this; a test can override it in the Diagnostic Builder)</i>";
+}
+$("lmStrict").onchange = async () => {
+  const on = $("lmStrict").checked;
+  try { await setDoc(doc(db,"settings","portal"), { proctorStrict: on }, { merge: true }); PORTAL.proctorStrict = on; }
+  catch(e) { $("lmStrict").checked = !on; uiAlert("Could not save: " + e.message); }
+  lmStrictRender();
+};
 async function initLive(){
+  lmStrictRender();
   lmStop();
   lmState = {}; lmSeeded = new Set(); lmFeed = [];
   await loadExams();
@@ -4935,7 +4965,7 @@ function lmRender(){
           <b>Too quick:</b> ${nq ? Object.values(a.quickLive).map(x => `Q${x.n} (${esc(LEVELS.find(l=>l.key===x.level)?.short||"")}) ${x.t}s / ideal ${fmtSec(x.ideal)}`).join(" · ") : "none"}
           ${a.staffWarning ? `<br><b>Last warning sent:</b> "${esc(a.staffWarning.msg)}" by ${esc(a.staffWarning.by||"")}` : ""}
           ${a.forceSubmit ? `<br><b style="color:#c0392b">Stop requested</b> by ${esc(a.forceSubmit.by||"")} — waiting for the student's device` : ""}</td></tr>` : "";
-      return `<tr style="${bg}"><td><b>${esc(a.studentName||"?")}</b><br><span style="font-size:11px;color:var(--muted)">${esc(byUid[a.studentUid]?.batch||"")}</span></td>
+      return `<tr style="${bg}"><td><b>${esc(a.studentName||"?")}</b>${a.device?.mobile ? ` <span title="On a phone/tablet: split screen or a floating window may go undetected">📱</span>` : ""}${a.proctorStrict === false ? ` <span class="badge zero" title="Silent tracking: no warnings, no auto-submit">silent</span>` : ""}<br><span style="font-size:11px;color:var(--muted)">${esc(byUid[a.studentUid]?.batch||"")}</span></td>
         <td style="font-size:12.5px">${esc(a._exam.title)}</td>
         <td style="min-width:130px"><div style="background:#eef1f4;border-radius:4px;height:8px"><div style="width:${pct}%;background:var(--blue);height:8px;border-radius:4px"></div></div>
           <span style="font-size:11.5px">${L.answered||0}/${L.total||"?"} answered · on Q${L.q||"?"}</span></td>
@@ -5636,6 +5666,7 @@ $("exCreateBtn").onclick = async () => {
     subjects, durationMin: duration, marks, maxMarks, audience,
     startAt, endAt,
     shuffleOptions: $("exShuffleOpt").checked,
+    proctorStrict: $("exStrict").value === "on" ? true : $("exStrict").value === "off" ? false : null,
     isActive: false, createdAt: serverTimestamp(),
     createdBy: currentUser.uid, createdByName: currentUser.name
   });
@@ -5924,6 +5955,7 @@ async function loadActiveExam(){
         <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:6px 0 10px;cursor:pointer"><input type="checkbox" data-pledge="${i}" style="margin-top:3px">
           <span><b>Honesty pledge:</b> I will take this test on my own — no switching tabs, no other device, no help from anyone, no blind guessing.
           I understand my teacher sees live when I switch tabs or answer tough questions too quickly.</span></label>
+        ${cfg.strict ? `<div style="font-size:12px;color:#a4271a;margin:-4px 0 8px">⚠ 3 warnings → auto-submit as malpractice</div>` : ""}
         <button class="btn green" data-startex="${i}" disabled title="Tick the honesty pledge first">Start Exam (Fullscreen)</button></div>`;
   };
   if (diag.length) {
@@ -5953,7 +5985,7 @@ async function loadActiveExam(){
   }
   if (availableExams.length) {
     html +=
-      `<p style="font-size:12.5px;color:#a4271a">⚠ These are proctored tests. They run in fullscreen. Your teacher sees <b>live</b> who is writing, every tab switch or exit from fullscreen, and tough questions answered suspiciously fast. After 3 warnings the test auto-submits as malpractice — and that stays on your record.</p>`;
+      `<p style="font-size:12.5px;color:#a4271a">⚠ These are proctored tests. They run in fullscreen. Your teacher sees <b>live</b> who is writing, every tab switch or exit from fullscreen, and tough questions answered suspiciously fast.${availableExams.some(e => examCfg(e).strict) ? " In tests marked ⚠, the 3rd warning auto-submits the test as malpractice — and that stays on your record." : ""}</p>`;
   }
   if (upcoming.length) {
     html += `<h4 style="color:var(--blue);margin:6px 0">Upcoming</h4>` + upcoming.map(u =>
@@ -6444,7 +6476,10 @@ async function startExam(){
       studentUid: currentUser.uid, studentName: currentUser.name,
       examId: activeExam.docId, examTitle: activeExam.title, examType: activeExam.examType,
       startTime: Timestamp.fromMillis(startTime), submitTime: null,
-      responses: {}, score: null, pledgedAt
+      responses: {}, score: null, pledgedAt,
+      // phone or computer (some phones allow split screen / floating windows that can't always be detected)
+      device: { mobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent), screen: `${screen.width}x${screen.height}`, ua: navigator.userAgent.slice(0, 120) },
+      proctorStrict: !!cfg.strict
     });
   }
 
@@ -6523,6 +6558,11 @@ let _lastViolAt = 0;
 function recordViolation(type, label){
   if (!EX || EX.submitted) return;
   const now = Date.now();
+  if (!EX.cfg.strict) {   // silent mode: record for the teacher (live monitor, result), no warning, no auto-submit
+    if (now - _lastViolAt >= 1500) { _lastViolAt = now; EX.violations.push({ type, at: now }); saveProgress().catch(()=>{}); }
+    else EX.violations.push({ type, at: now });
+    return;
+  }
   if (now - _lastViolAt < 1500) { EX.violations.push({ type, at: now }); return; } // same incident, log but don't double-warn
   _lastViolAt = now;
   EX.violations.push({ type, at: now });
@@ -6564,6 +6604,22 @@ function startProctoring(){
     if (e.key === "F12") e.preventDefault();
     if ((e.ctrlKey||e.metaKey) && e.shiftKey && ["i","j","c"].includes(e.key.toLowerCase())) e.preventDefault();
   };
+  // Phones can run Chrome in split screen / a floating window / picture-in-picture without a tab switch: the page
+  // stays "visible", so watch for the test area suddenly shrinking (ignored while typing — the keyboard shrinks it too).
+  let baseArea = window.innerWidth * window.innerHeight, rzT = null;
+  const onResize = () => {
+    clearTimeout(rzT);
+    rzT = setTimeout(() => {
+      if (!EX || EX.submitted) return;
+      const a = window.innerWidth * window.innerHeight, el = document.activeElement;
+      const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+      if (!typing && a < 0.7 * baseArea) recordViolation("window_resized", "The test window was made smaller (split screen or a floating window).");
+      if (a > baseArea) baseArea = a;
+    }, 900);
+  };
+  const onOrient = () => { setTimeout(() => { baseArea = window.innerWidth * window.innerHeight; }, 700); };
+  window.addEventListener("resize", onResize);
+  window.addEventListener("orientationchange", onOrient);
   document.addEventListener("visibilitychange", onHide);
   window.addEventListener("blur", onBlur);
   document.addEventListener("fullscreenchange", onFsChange);
@@ -6572,6 +6628,8 @@ function startProctoring(){
   document.addEventListener("paste", block);
   document.addEventListener("keydown", onKey, true);
   proctorHandlers = [
+    ()=>window.removeEventListener("resize", onResize),
+    ()=>window.removeEventListener("orientationchange", onOrient),
     ()=>document.removeEventListener("visibilitychange", onHide),
     ()=>window.removeEventListener("blur", onBlur),
     ()=>document.removeEventListener("fullscreenchange", onFsChange),
@@ -7589,16 +7647,21 @@ function renderIntegrity(attempt, detail){
   const isStaffView = currentUser && (currentUser.role === "admin" || currentUser.role === "faculty");
   const viol = (attempt.violations || []).map(v => ({ type: v.type, at: v.at?.toMillis ? v.at.toMillis() : (v.at?.seconds ? v.at.seconds*1000 : v.at) }));
   // de-duplicate the burst of events one switch produces (blur + hidden within 1.5 s)
-  const incidents = viol.filter((v,i) => i === 0 || v.at - viol[i-1].at > 1500);
+  const allIncidents = viol.filter((v,i) => i === 0 || v.at - viol[i-1].at > 1500);
+  // silent tracking: the student is not told about switches (not during the test, not here); staff always see them
+  const silent = attempt.proctorStrict === false;
+  const incidents = silent && !isStaffView ? [] : allIncidents;
   const quick = detail.map((d,i) => ({ d, i })).filter(({d}) => d.answer != null && d.timeSec < quickThreshold(d.q, d.idealSec));
   const note = attempt.integrityNote;
-  const clean = !incidents.length && !quick.length && !attempt.malpractice;
+  const clean = !incidents.length && !quick.length && !attempt.malpractice && !(silent && !isStaffView);
   const attemptId = attempt.docId || `${attempt.examId}_${attempt.studentUid}`;
   box.innerHTML = `<div class="card" style="margin:16px 0;border-color:${clean ? "#2e8b57" : attempt.malpractice ? "#c0392b" : "var(--orange)"}">
     <h3 style="color:var(--blue);margin-bottom:6px">🛡 Integrity report</h3>
     ${clean ? `<p style="color:#1e7a44"><b>✅ Honest attempt.</b> No tab switches, no tough questions answered suspiciously fast. Well done — this is how real progress is measured.</p>` : ""}
     ${attempt.pledgedAt ? `<p style="font-size:12px;color:var(--muted)">Honesty pledge taken ${fmtDate(attempt.pledgedAt)}.</p>` : ""}
-    ${incidents.length ? `<p style="margin-top:6px"><b>🚨 Left the test screen ${incidents.length} time(s)</b> — your teacher was notified each time:</p>
+    ${isStaffView && silent ? `<p style="font-size:12.5px;margin-top:4px">🤫 <b>Silent tracking</b> was on: the student got no warnings and the test was not auto-submitted. Recorded below.</p>` : ""}
+    ${isStaffView && attempt.device?.mobile ? `<p style="font-size:12.5px;margin-top:4px">📱 Written on a <b>phone/tablet</b> (${esc(attempt.device.screen || "")}). Split screen, floating windows or picture-in-picture may not register as a switch; shrinking of the test window is flagged.</p>` : ""}
+    ${incidents.length ? `<p style="margin-top:6px"><b>🚨 Left the test screen ${incidents.length} time(s)</b>${silent ? " (recorded silently)" : " — your teacher was notified each time"}:</p>
       <ul style="font-size:13px;margin:4px 0 0 18px">${incidents.map(v => `<li>${new Date(v.at).toLocaleTimeString("en-IN")} — ${esc(VIOLATION_TEXT[v.type] || v.type)}</li>`).join("")}</ul>` : ""}
     ${quick.length ? `<p style="margin-top:8px"><b>⚡ ${quick.length} tough question(s) answered too quickly.</b>
       <span style="font-size:12.5px;color:var(--muted)">A Hard/Moderate question answered in a small fraction of its ideal time usually means a blind guess or outside help. Your teacher reviews these.</span></p>

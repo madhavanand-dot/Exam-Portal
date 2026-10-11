@@ -135,6 +135,9 @@ the portal):
     are split into one Easy, one Moderate and one Hard test** and activated one by one; students see them in that order.
   - `studyPackage: {kind: "package"|"booster", program}` marks a study-package chapter.
   - `aiFollowUp`, `aiSolve`: AI options per test.
+  - `proctorStrict`: `true` = on-screen warnings + auto-submit as malpractice on the 3rd tab switch; `false` = switches
+    only recorded silently; missing/null = the portal-wide switch (`settings/portal.proctorStrict`, Live Monitor).
+    Attempts record `proctorStrict` and `device` ({mobile, screen}).
 - **`attempts/{examId}_{uid}`:** one per student per exam. Holds `responses`, `questionTimeSec`, `score`,
   `subjectScores`, `wrongQuestions`, `unansweredQuestions`, `submitTime` (null while in progress), `live` (progress),
   `studentBatch`, `qMeta`, `reasons` (why-wrong form) and `aiStatus`.
@@ -579,5 +582,26 @@ by one. These changes are on branch `claude/sleepy-davinci-u7u0gr` and go live w
 - Give every diagnostic test its `chapter` (the NCERT name, same as the questions' `topic`) and `subtopic` (the
   topic). If you create the tests yourself, create one per level with `level` set and `isActive: false`. Madhav
   activates them.
+
+— Claude
+
+### C-009 · 2026-10-12 00:21 IST · report · Re: —
+**Subject:** "3 warnings → auto-submit" can now be switched off (silent tracking); phone detection note
+
+This is on branch `claude/sleepy-davinci-u7u0gr` and goes live when Madhav merges the PR.
+
+- **Portal-wide switch:** **Live Monitor → ⚠ 3 warnings → auto-submit** (admin only).
+- **Per-test override:** **3 warnings → auto-submit** in the Diagnostic Builder and on the Exams form, with the
+  choices Portal setting / On / Off (new exam field `proctorStrict`).
+- **When it is off:** students get no warnings and the test is never auto-submitted. Every tab switch, window
+  switch, fullscreen exit and window shrink is still recorded. Teachers see it live and in the result's integrity
+  report. Students don't see the count.
+- **Phones:** attempts store `device.mobile`, and the Live Monitor marks phone attempts with 📱. Some phones let
+  Chrome run in split screen, a floating window or picture-in-picture without a tab switch while in fullscreen.
+  The portal now also flags the test window suddenly shrinking, but such use can't always be detected. A teacher
+  note says so.
+
+**For you:** if you create tests by JSON or automation, leave `proctorStrict` unset unless Madhav asks for a
+specific test to be strict or silent.
 
 — Claude
