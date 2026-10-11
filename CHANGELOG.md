@@ -7,6 +7,57 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — New test type: Study Package Solving (+ Momentum Booster), tracked per student
+
+**After deploying:** make sure `firestore.rules` from the earlier entry is published (students read `settings/portal`),
+then open **Study Packages → Which batches belong to which programme?** and check the batch codes
+(defaults: TYM = TR…, TW… · OYM = OR…, OW… · RM = RM…). Save once if you change them.
+
+- **Diagnostic Builder → Test type**: *Diagnostic test* · *Study Package Solving* (pick the programme TYM / OYM / RM) ·
+  *Momentum Booster* (everyone). Upload the module's questions exactly like a diagnostic (images, keys, ideal times,
+  question models, AI help). Use one test per chapter (fill in Chapter).
+- **One package per programme**: a Study Package reaches every batch of its programme — batches added later included —
+  and the Momentum Booster reaches everyone of that exam type. (New audience type "a whole programme" is also
+  available for ordinary diagnostic tests.)
+- **Students** get a **📘 Study Package / 🚀 Momentum Booster** section on their dashboard: chapters by subject, each
+  *Not started / In progress (answered / total) / Completed (score)*, with Start / Continue / View result / Solve again,
+  and an overall progress bar. Packages are homework: **no time limit, no fullscreen or tab-switch proctoring**,
+  progress saved, not shown on the Live Monitor.
+- **Staff → Study Packages tab**: choose package + programme (+ batch) → the package's chapters (publish / hide, edit
+  questions & key, + New chapter) and a **tracker**: every student × every chapter (✅ score % · ◐ answered · —),
+  completion per chapter and per student, totals, and CSV export.
+
+---
+
+## 2026-10-11 — Mistake notebook: chapter cards, then that chapter's questions
+
+The notebook used to list every chapter's mistakes in one long page. Now it opens on **chapter cards** — subject,
+chapter, how many questions, wrong / skipped / repeated, and a bar of how many are cleared — with **subject tabs**
+(showing open mistakes per subject) and the Show / Type / "missed 2+" filters. **Tap a chapter** to see only its
+questions (grouped by question model when set), with "← All chapters" to go back. Retry works on the chapter you
+opened, or on everything from the card view. Same view for staff (read-only). Nothing to do after deploying.
+
+---
+
+## 2026-10-11 — AI works only on the tests you choose; "Mistaken models to practice" for students
+
+**After deploying:** click **Topics → Rebuild practice index** (the index now carries each question's model and
+whether it was AI-written). No rules change.
+
+- **AI Settings → "Which tests should the AI work on?"**: *All tests* (as before) or *Only the tests I choose*, with a
+  drop-down checklist of every test (questions, follow-up on/off, solve status). In "chosen" mode every step of the
+  hourly job — solving, proposing keys / ideal times, double-checking your keys, follow-up practice — touches only those
+  tests. Follow-ups queued from other tests are marked "notSelected" and skipped.
+- **Question model**: an optional "model" (the question type / pattern inside a chapter, e.g. "Pulley — two blocks") per
+  question, typed under the topic in the Diagnostic Builder. Saved on attempts, carried into the practice index, and
+  the AI writer now writes follow-up questions per chapter + model ("same model, new numbers").
+- **🎯 Mistaken models to practice** (student dashboard, above the mistake notebook): the student's open mistakes grouped
+  by chapter → model (or by level when no model is set), how many similar questions exist (bank + 🤖 AI-written ones
+  teachers approved), and a **Practise** button that builds a set of up to 15 new questions of that model — unseen
+  first, bank and AI questions mixed. Hidden when practice mode is switched off.
+
+---
+
 ## 2026-10-11 — Keys remembered per picture, practice on/off, batch + overall rank, per-question correct/wrong/left
 
 **After deploying: publish the updated `firestore.rules`** (new `settings/portal` doc that students read for the practice switch).

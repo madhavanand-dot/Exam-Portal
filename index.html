@@ -94,6 +94,27 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 #qHead{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:14px;flex-wrap:wrap;gap:6px}
 #qHead .qno{font-weight:700;font-size:16px;color:var(--blue)}
 #qHead .qmeta{font-size:12px;color:var(--muted)}
+.nbTabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.nbTabs button{border:1px solid var(--border);background:#fff;border-radius:16px;padding:5px 12px;font-size:13px;cursor:pointer;color:#345}
+.nbTabs button span{display:inline-block;min-width:18px;margin-left:4px;padding:0 6px;border-radius:9px;background:#fdecea;color:#b03a2e;font-size:11.5px;font-weight:700}
+.nbTabs button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.nbTabs button.on span{background:rgba(255,255,255,.25);color:#fff}
+.nbGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.nbChap{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--border);border-left:4px solid #d9534f;border-radius:8px;background:#fff;padding:10px 12px;cursor:pointer;font:inherit;color:inherit;transition:box-shadow .15s,transform .15s}
+.nbChap:hover{box-shadow:0 3px 12px rgba(20,40,70,.12);transform:translateY(-1px)}
+.nbChap .nbSub{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+.nbChap .nbTitle{font-size:15px;font-weight:700;color:var(--blue);line-height:1.3}
+.nbChap .nbCount{font-size:13px}
+.nbChap .nbMeta{font-size:11.5px;color:var(--muted)}
+.nbChap .nbBar{display:block;height:5px;border-radius:3px;background:#eef1f4;overflow:hidden;margin-top:2px}
+.nbChap .nbBar span{display:block;height:100%;background:#2e9e5b}
+.nbModel{font-size:13px;font-weight:700;color:#345;margin:12px 0 2px;padding-bottom:3px;border-bottom:2px solid #eef1f4}
+.nbModel span{font-weight:400;color:var(--muted)}
+.pkGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.pkItem{border:1px solid var(--border);border-left:4px solid #b8c2cc;border-radius:8px;padding:8px 10px;background:#fff}
+.pkItem.doing{border-left-color:#e0a93b}
+.pkItem.done{border-left-color:#2e9e5b;background:#f6fbf8}
+.pkCell{text-align:center;font-size:12px;white-space:nowrap}
 #qIdeal{font-size:12px;font-weight:600;padding:2px 9px;border-radius:10px;background:#e2f5e9;color:#1e7a44;font-variant-numeric:tabular-nums}
 #qIdeal.over{background:#fff1dc;color:#a4610b}
 #qText{font-size:15.5px;line-height:1.65;margin-bottom:18px;user-select:none}
@@ -246,6 +267,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       <button data-atab="live"><span style="color:#e25555">●</span> Live Monitor</button>
       <button data-atab="exams">Exams</button>
       <button data-atab="diagnostic">Diagnostic Builder</button>
+      <button data-atab="packages">Study Packages</button>
       <button data-atab="assign">Assign Tests</button>
       <button data-atab="custompractice">Custom Practice</button>
       <button data-atab="reports">Reports</button>
@@ -491,6 +513,41 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       </div>
     </div>
 
+    <div id="atab-packages" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">📘 Study Package Solving &amp; 🚀 Momentum Booster</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          One package per <b>programme</b>: every TYM batch gets the same Study Package, every OYM batch the same, every RM batch the same —
+          and <b>everyone</b> gets the same Momentum Booster. Upload each chapter's module questions in the <b>Diagnostic Builder</b> with
+          <i>Test type = Study Package Solving / Momentum Booster</i> (or use “+ New chapter” below). Students solve at their own pace —
+          no time limit, no proctoring, progress is saved — and you track each student's status here.</p>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Package</label><select id="pkKind"><option value="package">Study Package Solving</option><option value="booster">Momentum Booster</option></select></div>
+          <div class="field" id="pkProgWrap"><label>Programme</label><select id="pkProgram"><option value="TYM">TYM</option><option value="OYM">OYM</option><option value="RM">RM</option></select></div>
+          <div class="field"><label>Exam type</label><select id="pkType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <div class="field"><label>Batch (tracker)</label><select id="pkBatch"></select></div>
+          <button class="btn" id="pkLoadBtn">Show package &amp; tracker</button>
+          <button class="btn secondary" id="pkNewBtn">+ New chapter</button>
+          <button class="btn secondary" id="pkCsvBtn">Export tracker CSV</button>
+        </div>
+        <div id="pkMsg"></div>
+      </div>
+      <div id="pkChapters" style="margin-top:12px"></div>
+      <div id="pkTracker" style="margin-top:12px;overflow:auto"></div>
+      <details class="card" style="margin-top:12px">
+        <summary style="cursor:pointer;font-weight:700;color:var(--blue)">Which batches belong to which programme?</summary>
+        <p style="font-size:12.5px;color:var(--muted);margin:8px 0">A batch belongs to a programme when its code <b>starts with</b> one of these (comma-separated).
+          New batches are picked up automatically. Only an admin can change this.</p>
+        <div class="flexrow">
+          <div class="field"><label>TYM batch codes start with</label><input id="pkPrefTYM" placeholder="TR, TW"></div>
+          <div class="field"><label>OYM batch codes start with</label><input id="pkPrefOYM" placeholder="OR, OW"></div>
+          <div class="field"><label>RM batch codes start with</label><input id="pkPrefRM" placeholder="RM"></div>
+          <button class="btn secondary" id="pkPrefSave" style="align-self:flex-end">Save</button>
+        </div>
+        <div id="pkPrefMsg" style="font-size:12.5px"></div>
+      </details>
+    </div>
+
     <div id="atab-diagnostic" class="atab hidden">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Topic-wise Diagnostic Test <span id="dgMode" style="font-weight:400;font-size:13px;color:var(--muted)"></span></h2>
@@ -505,10 +562,16 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <button class="btn secondary" id="dgNewBtn">Start a new test</button>
         </div>
         <div class="flexrow" style="margin-top:6px">
+          <div class="field"><label>Test type</label><select id="dgKind">
+            <option value="diagnostic">Diagnostic test</option>
+            <option value="package">Study Package Solving</option>
+            <option value="booster">Momentum Booster</option></select></div>
+          <div class="field" id="dgProgWrap" style="display:none"><label>Programme (same package for all its batches)</label><select id="dgProgram">
+            <option value="TYM">TYM</option><option value="OYM">OYM</option><option value="RM">RM</option></select></div>
           <div class="field" style="min-width:240px"><label>Title</label><input id="dgTitle" placeholder="e.g. Diagnostic — Laws of Motion"></div>
           <div class="field"><label>Exam type</label><select id="dgType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
           <div class="field"><label>Subject (for new questions)</label><select id="dgSubject"></select></div>
-          <div class="field" style="min-width:220px"><label>Topic (for new questions)</label><input id="dgTopic" list="dgTopicList" placeholder="e.g. Laws of Motion"><datalist id="dgTopicList"></datalist></div>
+          <div class="field" style="min-width:220px"><label>Topic (for new questions)</label><input id="dgTopic" list="dgTopicList" placeholder="e.g. Laws of Motion"><datalist id="dgTopicList"></datalist><datalist id="dgModelList"></datalist></div>
           <div class="field" style="min-width:200px"><label>Chapter (for the test library)</label><input id="dgChapter" list="dgChapterList" placeholder="e.g. Laws of Motion"><datalist id="dgChapterList"></datalist></div>
           <div class="field" style="min-width:200px"><label>Subtopic</label><input id="dgSubtopic" placeholder="e.g. Friction"></div>
         </div>
@@ -530,11 +593,17 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px" title="After each submission an AI writes practice questions for the student's mistakes and a second AI checks them; you review in Custom Practice → AI drafts"><input type="checkbox" id="dgAiFollow" checked> 🤖 AI follow-up practice after each submission</label></div>
         </div>
         <div class="flexrow" style="margin-bottom:10px">
-          <div class="field"><label>Who can take this test?</label><select id="dgAudience">
+          <div class="field" id="dgPkgAud" style="display:none;max-width:420px"><label>Who gets it?</label>
+            <div id="dgPkgAudTxt" style="font-size:13px;padding:6px 0"></div>
+            <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="dgPkgPublish" checked> Publish to students when saved</label></div>
+          <div class="field" id="dgAudWrap"><label>Who can take this test?</label><select id="dgAudience">
             <option value="all">All students of this exam type</option>
+            <option value="program">A whole programme (every batch of it)</option>
             <option value="batch">Specific batch(es)</option>
             <option value="students">Specific students</option>
           </select></div>
+          <div class="field" id="dgAudProgWrap" style="display:none"><label>Programme</label><select id="dgAudProgram">
+            <option value="TYM">TYM</option><option value="OYM">OYM</option><option value="RM">RM</option></select></div>
           <div class="field" id="dgBatchWrap" style="display:none"><label>Batches</label><div id="dgBatchPick" class="checklist" style="max-height:170px"></div></div>
           <div class="field" id="dgStudentsWrap" style="display:none;max-width:340px"><label>Pick students</label><div id="dgStudentPick" class="checklist" style="max-height:170px"></div></div>
         </div>
@@ -670,6 +739,16 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         </p>
         <div class="flexrow">
           <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-bottom:14px"><input type="checkbox" id="aiEnabled" checked> AI job enabled</label>
+          <div style="margin-bottom:14px">
+            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">Which tests should the AI work on?</label>
+            <select id="aiScope"><option value="all">All tests</option><option value="selected">Only the tests I choose</option></select>
+            <details id="aiExamDd" class="hidden" style="margin-top:6px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;max-width:640px">
+              <summary id="aiExamSum" style="cursor:pointer;font-size:13px">Choose tests…</summary>
+              <input id="aiExamSearch" placeholder="Search tests…" style="width:100%;margin:6px 0">
+              <div id="aiExamList" style="max-height:280px;overflow:auto;font-size:13px"></div>
+            </details>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px">With "only the tests I choose", the AI solves, proposes keys / ideal times, double-checks your keys and writes follow-up practice <b>only</b> for those tests. Follow-ups from other tests are skipped.</div>
+          </div>
         </div>
         <div class="flexrow">
           <div class="field" style="min-width:320px"><label>API base URL</label><input id="aiBaseUrl" placeholder="https://integrate.api.nvidia.com/v1"></div>
@@ -822,6 +901,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 <div id="view-student" class="view hidden">
   <div class="topbar"><h1>Student Dashboard</h1><span class="who" id="studentWho"></span><button class="btn secondary" id="studentLogout">Logout</button></div>
   <div class="wrap">
+    <div id="pkgStudentCard" class="hidden" style="margin-bottom:16px"></div>
     <div id="activeExamCard">
       <h2 class="sec" style="margin-top:0">Available Exams</h2>
       <div id="activeExamInfo">Checking for available exams&hellip;</div>
@@ -857,6 +937,10 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 
     <h2 class="sec">Past Attempts</h2>
     <table class="tbl"><thead><tr><th>Date</th><th>Exam</th><th>Type</th><th>Score</th><th title="Among everyone who wrote this test">Overall rank</th><th title="Among students of your batch who wrote this test">Batch rank</th><th>Percentile</th><th></th></tr></thead><tbody id="attemptRows"></tbody></table>
+    <div id="myModelsWrap">
+      <h2 class="sec">🎯 Mistaken models to practice</h2>
+      <div id="myModels">&hellip;</div>
+    </div>
     <h2 class="sec">📒 My Mistake Notebook</h2>
     <div id="myNotebook">&hellip;</div>
     <h2 class="sec">My Progress</h2>
@@ -1065,14 +1149,31 @@ function examCfg(exam){
     durationSec: exam?.durationMin ? exam.durationMin*60 : base.durationSec,
     // Diagnostic tests (and the practice tests made from them) only TRACK time against the ideal times:
     // no countdown, never auto-submitted when the duration passes. durationSec is then just the expected length.
-    untimed: exam?.untimed ?? !!(exam?.diagnostic || exam?.customPractice || exam?.aiPractice),
+    untimed: exam?.untimed ?? !!(exam?.diagnostic || exam?.customPractice || exam?.aiPractice || exam?.studyPackage),
     maxMarks: (exam?.maxMarks ?? null) !== null ? exam.maxMarks : base.maxMarks,
     marks: exam?.marks || base.marks,
     shuffleOptions: exam?.shuffleOptions ?? false,
     keepOrder: exam?.keepOrder ?? false,
     showIdealTime: exam?.showIdealTime ?? false,
-    idealTimes: exam?.idealTimes || {}
+    idealTimes: exam?.idealTimes || {},
+    // study packages are homework: no fullscreen, tab-switch warnings or malpractice auto-submit
+    proctored: !exam?.studyPackage
   };
+}
+/* ---- programmes: TYM / OYM / RM. A batch belongs to a programme when its code starts with one of the programme's
+   prefixes (settings/portal.programPrefixes, editable in Study Packages). Study packages target a whole programme,
+   so every batch of it — including batches added later — gets the same package. ---- */
+const PROGRAMS = ["TYM", "OYM", "RM"];
+const PKG_KIND = { package: "📘 Study Package", booster: "🚀 Momentum Booster" };
+let PORTAL = { programPrefixes: { TYM: ["TR", "TW"], OYM: ["OR", "OW"], RM: ["RM"] } };
+async function loadPortal(){
+  try { const sn = await getDoc(doc(db,"settings","portal")); if (sn.exists()) PORTAL = { ...PORTAL, ...sn.data() }; } catch(e){ /* rules not published: defaults */ }
+}
+function programOf(batch){
+  const b = String(batch || "").trim().toUpperCase();
+  if (!b) return "";
+  for (const p of PROGRAMS) if ((PORTAL.programPrefixes?.[p] || []).some(x => x && b.startsWith(String(x).trim().toUpperCase()))) return p;
+  return "";
 }
 // MCQ answer keys. One letter ("B") = single correct; several letters ("AC") = one or more correct — the exam then
 // shows tick boxes instead of radio buttons and the student must tick exactly the keyed set (all-or-nothing).
@@ -1373,6 +1474,7 @@ onAuthStateChanged(auth, async (user) => {
     currentUser = { uid: user.uid, ...snap.data() };
     // Admins may stay signed in on several devices; the one-device rule applies to faculty and students.
     if (currentUser.role !== "admin") await claimSession(user.uid);
+    await loadPortal();   // programme → batch prefixes (study packages)
     if (currentUser.role === "admin" || currentUser.role === "faculty") { enterAdmin(); } else { enterStudent(); }
   } catch(e) {
     setMsg($("loginMsg"), "Failed to load profile: " + e.message);
@@ -1427,6 +1529,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="live") initLive(); else lmStop();
     if (b.dataset.atab==="aisettings") { initAiSettings(); aiLiveStart(); } else aiLiveStop();
     if (b.dataset.atab==="topics") initTopics();
+    if (b.dataset.atab==="packages") initPackages();
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
     if (b.dataset.atab==="atrisk") initAtRisk();
@@ -1449,6 +1552,8 @@ function assignedStudents(exam){
   } else if (a && a.mode === "students") {
     const set = new Set(a.studentUids||[]);
     list = list.filter(s => set.has(s.uid));
+  } else if (a && a.mode === "program" && a.program !== "ALL") {
+    list = list.filter(s => programOf(s.batch) === a.program);
   }
   return list;
 }
@@ -1827,18 +1932,20 @@ async function qMetaFor(attempts){
   const meta = {};
   attempts.forEach(a => Object.assign(meta, a.qMeta || {}));
   const need = new Set();
-  attempts.forEach(a => Object.keys(a.questionTimeSec || a.responses || {}).forEach(id => { if (!meta[id]) need.add(id); }));
-  if (!need.size) return meta;
+  attempts.forEach(a => Object.keys(a.questionTimeSec || a.responses || {}).forEach(id => { if (!meta[id] || meta[id].m === undefined) need.add(id); }));
+  if (!need.size) return meta;   // (older attempts saved no question model: fill it from the practice index below)
   const keys = new Set();
   attempts.forEach(a => ((a.examSubjects && a.examSubjects.length) ? a.examSubjects : (EXAM_CONFIG[a.examType] || EXAM_CONFIG.medical).subjects).forEach(sub => keys.add(`${a.examType}__${sub}`)));
   for (const k of keys) {
     if (!(k in _tiCache)) { try { const s = await getDoc(doc(db,"topicIndex",k)); _tiCache[k] = s.exists() ? s.data() : null; } catch(e) { _tiCache[k] = null; } }
     const sub = k.split("__")[1];
-    (_tiCache[k]?.q || []).forEach(e => { if (need.has(e.i) && !meta[e.i]) meta[e.i] = { s: sub, t: e.t || "", d: e.d || "Medium" }; });
+    (_tiCache[k]?.q || []).forEach(e => { if (!need.has(e.i)) return;
+      if (!meta[e.i]) meta[e.i] = { s: sub, t: e.t || "", d: e.d || "Medium", m: e.m || "" };
+      else if (meta[e.i].m === undefined) meta[e.i] = { ...meta[e.i], m: e.m || "" }; });
   }
   const still = [...need].filter(id => !meta[id]).slice(0, 300);
   const snaps = await Promise.all(still.map(id => getDoc(doc(db,"questions",id)).catch(() => null)));
-  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty) }; } });
+  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), m: String(q.model || "").trim() }; } });
   return meta;
 }
 
@@ -1868,7 +1975,7 @@ async function openNotebook(box, uid, name, editable){
   });
   const list = Object.values(items).map(it => {
     const m = meta[it.id] || {}, last = it.misses[it.misses.length - 1];
-    return { ...it, subject: m.s || "Other", topic: m.t || "No chapter", level: m.d || "Medium", last,
+    return { ...it, subject: m.s || "Other", topic: m.t || "No chapter", level: m.d || "Medium", model: m.m || "", last,
              cleared: !!saved[it.id]?.cleared || it.laterRight, clearedHow: saved[it.id]?.cleared ? (saved[it.id].clearedBy === "retry" ? "retry" : "you") : it.laterRight ? "later-test" : "",
              note: saved[it.id]?.note || "" };
   });
@@ -1876,46 +1983,76 @@ async function openNotebook(box, uid, name, editable){
   box._nb = NB;
   nbRender(NB);
 }
+/* ---------- 🎯 Mistaken models to practice ----------
+   The student's open mistakes grouped by chapter → question model (or by level when the teacher set no model), each
+   with a practice set of SIMILAR questions: same chapter + same model from the bank, including the AI-written questions
+   teachers approved. The exact questions they got wrong stay in the notebook's "Retry" instead. */
+async function renderMistakenModels(box, NB){
+  if (!box || !NB) return;
+  if (!(await practiceEnabled())) { $("myModelsWrap").classList.add("hidden"); return; }
+  const open = NB.list.filter(i => !i.cleared);
+  if (!open.length) { box.innerHTML = `<div class="card"><p style="color:var(--muted)">No open mistakes — nothing to practise here yet.</p></div>`; return; }
+  const groups = {};
+  open.forEach(it => {
+    const k = [it.subject, it.topic, it.model || ""].join("|");
+    const g = groups[k] || (groups[k] = { subject: it.subject, topic: it.topic, model: it.model || "", items: [], maxLvl: 0 });
+    g.items.push(it); g.maxLvl = Math.max(g.maxLvl, lvlIdx(it.level));
+  });
+  // similar questions from the practice index (keyed questions only; AI-written ones carry a:1)
+  const subs = [...new Set(Object.values(groups).map(g => g.subject))];
+  for (const sub of subs) {
+    const k = `${currentUser.examType}__${sub}`;
+    if (!(k in _tiCache)) { try { const sn = await getDoc(doc(db,"topicIndex",k)); _tiCache[k] = sn.exists() ? sn.data() : null; } catch(e) { _tiCache[k] = null; } }
+  }
+  const list = Object.values(groups).map(g => {
+    const entries = _tiCache[`${currentUser.examType}__${g.subject}`]?.q || [];
+    const mine = new Set(g.items.map(i => i.id));
+    const same = entries.filter(e => !mine.has(e.i) && (e.t || "") === g.topic &&
+      (g.model ? (e.m || "") === g.model : lvlIdx(e.d) <= g.maxLvl));   // no model set: same chapter, up to the level missed
+    return { ...g, pool: same, ai: same.filter(e => e.a).length, wrong: g.items.filter(i => i.last.verdict === "wrong").length };
+  }).sort((a, b) => b.items.length - a.items.length || b.pool.length - a.pool.length);
+  const showAll = box._showAll;
+  const shown = showAll ? list : list.slice(0, 10);
+  box.innerHTML = `<div class="card">
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 8px">Your open mistakes grouped by chapter and question model. <b>Practise</b> gives you
+      <b>new</b> questions of the same model — from the question bank and AI-written questions checked by your teacher — with the answer explained after each one.</p>
+    <table class="tbl"><thead><tr><th>Subject — Chapter</th><th>Model</th><th>My mistakes</th><th>Similar questions</th><th></th></tr></thead><tbody>
+    ${shown.map((g, i) => `<tr>
+      <td>${esc(g.subject)} — <b>${esc(g.topic)}</b></td>
+      <td>${g.model ? esc(g.model) : `<span style="color:var(--muted)">${esc(LEVELS[g.maxLvl]?.short || "")} level and below</span>`}</td>
+      <td><b>${g.items.length}</b> <span style="font-size:11.5px;color:var(--muted)">(${g.wrong} wrong, ${g.items.length - g.wrong} left)</span></td>
+      <td>${g.pool.length ? `${g.pool.length - g.ai} bank${g.ai ? ` + <b style="color:#2563a8">${g.ai} 🤖 AI</b>` : ""}` : `<span style="color:var(--muted)">none yet — ask your teacher</span>`}</td>
+      <td>${g.pool.length ? `<button class="btn green" style="padding:3px 10px" data-mmprac="${list.indexOf(g)}">Practise ${Math.min(15, g.pool.length)}</button>` : ""}</td></tr>`).join("")}
+    </tbody></table>
+    ${list.length > 10 ? `<button class="btn secondary" style="margin-top:8px" data-mmall>${showAll ? "Show fewer" : `Show all ${list.length}`}</button>` : ""}</div>`;
+  const all = box.querySelector("[data-mmall]");
+  if (all) all.onclick = () => { box._showAll = !showAll; renderMistakenModels(box, NB); };
+  box.querySelectorAll("[data-mmprac]").forEach(b => b.onclick = async () => {
+    const g = list[+b.dataset.mmprac];
+    // unseen first; AI-written and bank questions taken in turn
+    const fresh = e => !prSeen.has(e.i);
+    const order = arr => [...shuffled(arr.filter(fresh)), ...shuffled(arr.filter(e => !fresh(e)))];
+    const ai = order(g.pool.filter(e => e.a)), bank = order(g.pool.filter(e => !e.a));
+    const pick = [];
+    while (pick.length < 15 && (ai.length || bank.length)) { if (bank.length) pick.push(bank.shift()); if (ai.length && pick.length < 15) pick.push(ai.shift()); }
+    b.disabled = true; b.textContent = "Loading…";
+    try {
+      const snaps = await Promise.all(pick.map(e => getDoc(doc(db,"questions",e.i))));
+      const qs = snaps.filter(sn => sn.exists()).map(sn => ({ docId: sn.id, ...sn.data() })).filter(hasKey);
+      if (!qs.length) { alert("Those questions could not be loaded."); renderMistakenModels(box, NB); return; }
+      startPracticeWith(shuffled(qs), g.subject, [g.topic], "model");
+    } catch(e) { alert("Could not start: " + e.message); renderMistakenModels(box, NB); }
+  });
+}
 function nbFiltered(NB){
   const f = NB.f;
   return NB.list.filter(it => (!f.subject || it.subject === f.subject) && (!f.topic || it.topic === f.topic) &&
     (f.show === "all" || (f.show === "open" ? !it.cleared : it.cleared)) &&
     (!f.kind || it.last.verdict === f.kind) && (!f.repeat || it.misses.length >= 2));
 }
-function nbRender(NB){
-  const { box, list, f, editable } = NB;
-  if (!list.length) { box.innerHTML = `<div class="card"><p>No mistakes recorded yet${editable ? " — every question you get wrong or leave blank in a test will appear here for revision" : ` for ${esc(NB.name)}`}.</p></div>`; return; }
-  const open = list.filter(i => !i.cleared), rep = list.filter(i => i.misses.length >= 2);
-  const subjects = [...new Set(list.map(i => i.subject))].sort();
-  const topics = [...new Set(list.filter(i => !f.subject || i.subject === f.subject).map(i => i.topic))].sort();
-  const shown = nbFiltered(NB);
-  const groups = {};
-  shown.forEach(it => (groups[it.subject + " — " + it.topic] = groups[it.subject + " — " + it.topic] || []).push(it));
-  const worst = Object.entries(list.filter(i => !i.cleared).reduce((m, i) => { const k = i.subject + " — " + i.topic; m[k] = (m[k] || 0) + 1; return m; }, {}))
-    .sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(label ?? v)}</option>`;
-  const retryN = shown.filter(i => !i.cleared).length;
-  box.innerHTML = `<div class="card">
-    <div class="statRow" style="margin-bottom:10px">
-      <div class="stat"><div class="v">${list.length}</div><div class="l">Mistakes recorded</div></div>
-      <div class="stat"><div class="v" style="color:#b03a2e">${open.length}</div><div class="l">Still open</div></div>
-      <div class="stat"><div class="v" style="color:#1e7a44">${list.length - open.length}</div><div class="l">Cleared</div></div>
-      <div class="stat"><div class="v">${rep.length}</div><div class="l">Missed 2+ times</div></div>
-    </div>
-    ${worst.length ? `<p style="font-size:13px;margin-bottom:8px"><b>Most open mistakes:</b> ${worst.map(([k, n]) => `${esc(k)} <b>(${n})</b>`).join(" · ")}</p>` : ""}
-    <div class="flexrow" style="align-items:flex-end;margin-bottom:6px">
-      <div class="field"><label>Subject</label><select data-nbf="subject">${opt("", f.subject, "All")}${subjects.map(x => opt(x, f.subject)).join("")}</select></div>
-      <div class="field"><label>Chapter</label><select data-nbf="topic">${opt("", f.topic, "All")}${topics.map(x => opt(x, f.topic)).join("")}</select></div>
-      <div class="field"><label>Show</label><select data-nbf="show">${opt("open", f.show, "Open")}${opt("cleared", f.show, "Cleared")}${opt("all", f.show, "All")}</select></div>
-      <div class="field"><label>Type</label><select data-nbf="kind">${opt("", f.kind, "Wrong + skipped")}${opt("wrong", f.kind, "Wrong only")}${opt("blank", f.kind, "Skipped only")}</select></div>
-      <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-bottom:14px"><input type="checkbox" data-nbf="repeat" ${f.repeat ? "checked" : ""}> Missed 2+ times</label>
-      ${editable && practiceOn ? `<button class="btn green" data-nbretry style="margin-bottom:14px" ${retryN ? "" : "disabled"}>🔁 Retry ${Math.min(retryN, 40)} open mistake(s)</button>` : ""}
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${shown.length} shown.${editable ? " Retry them untimed — each one you get right is cleared automatically. Or tick “Cleared” when you've revised it." : " Read-only view of the student's notebook."}</div>
-    ${Object.entries(groups).sort((a, b) => b[1].length - a[1].length).map(([g, its], gi) => `
-      <details ${gi === 0 || Object.keys(groups).length <= 3 ? "open" : ""} style="border:1px solid var(--border);border-radius:6px;margin-bottom:8px;padding:6px 10px">
-        <summary style="cursor:pointer;font-weight:700;color:var(--blue)">${esc(g)} <span style="font-weight:400;color:var(--muted)">— ${its.length}</span></summary>
-        ${its.sort((a, b) => b.last.at - a.last.at).map(it => `<div data-nbid="${esc(it.id)}" style="border-top:1px solid #eef1f4;padding:8px 0;${it.cleared ? "opacity:.65" : ""}">
+// one mistake (question) in the notebook
+function nbItemHtml(it, editable){
+  return `<div data-nbid="${esc(it.id)}" style="border-top:1px solid #eef1f4;padding:8px 0;${it.cleared ? "opacity:.65" : ""}">
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px">
             <span class="badge ${it.last.verdict === "wrong" ? "neg" : "zero"}">${it.last.verdict === "wrong" ? "wrong" : "skipped"}${it.misses.length > 1 ? ` ×${it.misses.length}` : ""}</span>
             <span>${esc(levelShort(it.level))}</span>
@@ -1932,12 +2069,87 @@ function nbRender(NB){
               : (it.note ? `<span style="font-size:12.5px">📝 ${esc(it.note)}</span>` : "")}
           </div>
           <div data-nbq style="margin-top:6px"></div>
-        </div>`).join("")}
-      </details>`).join("") || `<p style="color:var(--muted)">Nothing matches these filters.</p>`}
+        </div>`;
+}
+// Two levels: chapter cards first; clicking a chapter opens only that chapter's questions (f.topic + f.subject set).
+function nbRender(NB){
+  const { box, list, f, editable } = NB;
+  if (!list.length) { box.innerHTML = `<div class="card"><p>No mistakes recorded yet${editable ? " — every question you get wrong or leave blank in a test will appear here for revision" : ` for ${esc(NB.name)}`}.</p></div>`; return; }
+  const open = list.filter(i => !i.cleared), rep = list.filter(i => i.misses.length >= 2);
+  const subjects = [...new Set(list.map(i => i.subject))].sort();
+  const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(label ?? v)}</option>`;
+  const inChapter = !!f.topic;
+  const shown = nbFiltered(NB);
+  const retryN = shown.filter(i => !i.cleared).length;
+  const filters = `<div class="flexrow" style="align-items:flex-end;margin-bottom:6px">
+      <div class="field"><label>Show</label><select data-nbf="show">${opt("open", f.show, "Open")}${opt("cleared", f.show, "Cleared")}${opt("all", f.show, "All")}</select></div>
+      <div class="field"><label>Type</label><select data-nbf="kind">${opt("", f.kind, "Wrong + skipped")}${opt("wrong", f.kind, "Wrong only")}${opt("blank", f.kind, "Skipped only")}</select></div>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-bottom:14px"><input type="checkbox" data-nbf="repeat" ${f.repeat ? "checked" : ""}> Missed 2+ times</label>
+      ${editable && practiceOn ? `<button class="btn green" data-nbretry style="margin-bottom:14px" ${retryN ? "" : "disabled"}>🔁 Retry ${Math.min(retryN, 40)} open mistake(s)${inChapter ? " in this chapter" : ""}</button>` : ""}
+    </div>`;
+  let body;
+  if (!inChapter) {
+    // ---- level 1: chapter cards (respecting the subject tab and the Show / Type / 2+ filters) ----
+    const chaps = {};
+    shown.forEach(it => {
+      const k = it.subject + "|" + it.topic;
+      const c = chaps[k] || (chaps[k] = { subject: it.subject, topic: it.topic, items: [] });
+      c.items.push(it);
+    });
+    const all = {};   // totals per chapter regardless of filters, for the cleared bar
+    list.forEach(it => { const k = it.subject + "|" + it.topic; const a = all[k] || (all[k] = { n: 0, cleared: 0 }); a.n++; if (it.cleared) a.cleared++; });
+    const cards = Object.values(chaps).sort((a, b) => b.items.filter(i => !i.cleared).length - a.items.filter(i => !i.cleared).length || b.items.length - a.items.length || a.topic.localeCompare(b.topic));
+    body = cards.length ? `<div class="nbGrid">${cards.map(c => {
+      const k = c.subject + "|" + c.topic, a = all[k], pct = Math.round(100 * a.cleared / a.n);
+      const openN = c.items.filter(i => !i.cleared).length, wrongN = c.items.filter(i => i.last.verdict === "wrong").length, repN = c.items.filter(i => i.misses.length >= 2).length;
+      return `<button class="nbChap" data-nbchap="${esc(k)}" style="${openN ? "" : "border-left-color:#2e9e5b"}">
+        <span class="nbSub">${esc(c.subject)}</span>
+        <span class="nbTitle">${esc(c.topic)}</span>
+        <span class="nbCount"><b>${c.items.length}</b> question${c.items.length === 1 ? "" : "s"}${openN && f.show !== "open" ? ` · ${openN} open` : ""}</span>
+        <span class="nbMeta">${[wrongN ? `<span style="color:#b03a2e">✗ ${wrongN} wrong</span>` : "", c.items.length - wrongN ? `<span>– ${c.items.length - wrongN} skipped</span>` : "",
+          repN ? `<span style="color:#a4610b">↻ ${repN} repeated</span>` : ""].filter(Boolean).join(" · ")}</span>
+        <span class="nbBar"><span style="width:${pct}%"></span></span>
+        <span class="nbMeta">${a.cleared}/${a.n} cleared</span>
+      </button>`;
+    }).join("")}</div>` : `<p style="color:var(--muted)">Nothing matches these filters.</p>`;
+  } else {
+    // ---- level 2: the chosen chapter's questions, newest first (sub-grouped by question model when set) ----
+    const byModel = {};
+    shown.forEach(it => (byModel[it.model || ""] = byModel[it.model || ""] || []).push(it));
+    const models = Object.keys(byModel).sort((a, b) => (a === "") - (b === "") || byModel[b].length - byModel[a].length);
+    body = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0 10px">
+        <button class="btn secondary" data-nbback style="padding:4px 12px">← All chapters</button>
+        <h3 style="margin:0;font-size:17px;color:var(--blue)">${esc(f.topic)}</h3>
+        <span class="badge zero">${esc(f.subject)}</span>
+        <span style="font-size:12.5px;color:var(--muted)">${shown.length} question${shown.length === 1 ? "" : "s"} shown</span>
+      </div>
+      ${shown.length ? models.map(m => `${models.length > 1 || m ? `<div class="nbModel">${m ? `Model: ${esc(m)}` : "Other questions"} <span>— ${byModel[m].length}</span></div>` : ""}
+        ${byModel[m].sort((a, b) => b.last.at - a.last.at).map(it => nbItemHtml(it, editable)).join("")}`).join("")
+        : `<p style="color:var(--muted)">Nothing in this chapter matches these filters.</p>`}`;
+  }
+  box.innerHTML = `<div class="card">
+    <div class="statRow" style="margin-bottom:10px">
+      <div class="stat"><div class="v">${list.length}</div><div class="l">Mistakes recorded</div></div>
+      <div class="stat"><div class="v" style="color:#b03a2e">${open.length}</div><div class="l">Still open</div></div>
+      <div class="stat"><div class="v" style="color:#1e7a44">${list.length - open.length}</div><div class="l">Cleared</div></div>
+      <div class="stat"><div class="v">${rep.length}</div><div class="l">Missed 2+ times</div></div>
+    </div>
+    ${inChapter ? "" : `<div class="nbTabs">${["", ...subjects].map(x => `<button data-nbsub="${esc(x)}" class="${f.subject === x ? "on" : ""}">${x ? esc(x) : "All subjects"} <span>${list.filter(i => (!x || i.subject === x) && !i.cleared).length}</span></button>`).join("")}</div>`}
+    ${filters}
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${inChapter
+      ? (editable ? "Open “Show question &amp; answer” to revise. Retry gives these questions again untimed — each one you get right is cleared automatically. Or tick “Cleared” when you've revised it." : "Read-only view of the student's notebook.")
+      : "Tap a chapter to see its questions. Numbers on the subject tabs are open mistakes."}</div>
+    ${body}
   </div>`;
+  box.querySelectorAll("[data-nbsub]").forEach(b => b.onclick = () => { f.subject = b.dataset.nbsub; f.topic = ""; nbRender(NB); });
+  box.querySelectorAll("[data-nbchap]").forEach(b => b.onclick = () => {
+    const [sub, ...rest] = b.dataset.nbchap.split("|"); f.subject = sub; f.topic = rest.join("|"); nbRender(NB);
+    box.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  const back = box.querySelector("[data-nbback]");
+  if (back) back.onclick = () => { f.topic = ""; nbRender(NB); box.scrollIntoView({ behavior: "smooth", block: "start" }); };
   box.querySelectorAll("[data-nbf]").forEach(el => el.onchange = () => {
     const k = el.dataset.nbf; f[k] = el.type === "checkbox" ? el.checked : el.value;
-    if (k === "subject") f.topic = "";
     nbRender(NB);
   });
   const itemOf = el => NB.list.find(i => i.id === el.closest("[data-nbid]").dataset.nbid);
@@ -3056,19 +3268,38 @@ function renderBatchPick(el, selected){
 function readBatchPick(el){ return [...el.querySelectorAll("input:checked")].map(c => c.value); }
 function dgAudToggle(){
   const m = $("dgAudience").value;
-  $("dgBatchWrap").style.display = m === "batch" ? "" : "none";
-  $("dgStudentsWrap").style.display = m === "students" ? "" : "none";
+  const kind = $("dgKind").value, pkg = kind !== "diagnostic";
+  $("dgProgWrap").style.display = kind === "package" ? "" : "none";
+  $("dgPkgAud").style.display = pkg ? "" : "none";
+  $("dgAudWrap").style.display = pkg ? "none" : "";
+  $("dgPkgAudTxt").innerHTML = kind === "booster" ? "<b>Everyone</b> of this exam type — the same Momentum Booster for all batches."
+    : `Every <b>${esc($("dgProgram").value)}</b> batch (${esc((PORTAL.programPrefixes?.[$("dgProgram").value] || []).join(", ") || "no prefixes set")}…) — the same package for all of them.`;
+  $("dgAudProgWrap").style.display = !pkg && m === "program" ? "" : "none";
+  $("dgBatchWrap").style.display = !pkg && m === "batch" ? "" : "none";
+  $("dgStudentsWrap").style.display = !pkg && m === "students" ? "" : "none";
 }
+$("dgKind").onchange = () => {
+  const k = $("dgKind").value;
+  if (k !== "diagnostic") { $("dgAiFollow").checked = false; $("dgShowIdeal").checked = false; }
+  $("dgTitle").placeholder = k === "package" ? "e.g. Study Package — Laws of Motion" : k === "booster" ? "e.g. Momentum Booster — Laws of Motion" : "e.g. Diagnostic — Laws of Motion";
+  dgAudToggle();
+};
+$("dgProgram").onchange = dgAudToggle;
 function dgAudRender(a){
   a = a || { mode: "all" };
   $("dgAudience").value = a.mode || "all";
+  if (a.mode === "program" && a.program && a.program !== "ALL") { $("dgAudProgram").value = a.program; $("dgProgram").value = a.program; }
   renderBatchPick($("dgBatchPick"), a.batches);
   const picked = new Set(a.studentUids || []);
   $("dgStudentPick").innerHTML = studentCache.map(s => `<label style="display:flex;gap:7px;align-items:center;font-weight:400;font-size:13px"><input type="checkbox" value="${s.uid}" ${picked.has(s.uid)?"checked":""}> ${esc(s.name)} <span style="color:var(--muted)">(${esc(s.examType)}${s.batch?", "+esc(s.batch):""})</span></label>`).join("") || `<span style="color:var(--muted);font-size:12px">No students.</span>`;
   dgAudToggle();
 }
 function dgReadAudience(){
+  const kind = $("dgKind").value;
+  if (kind === "booster") return { mode: "program", program: "ALL" };
+  if (kind === "package") return { mode: "program", program: $("dgProgram").value };
   const mode = $("dgAudience").value, a = { mode };
+  if (mode === "program") a.program = $("dgAudProgram").value;
   if (mode === "batch") { a.batches = readBatchPick($("dgBatchPick")); if (!a.batches.length) return { error: "Tick at least one batch (or choose another audience)." }; }
   else if (mode === "students") { a.studentUids = [...$("dgStudentPick").querySelectorAll("input:checked")].map(c => c.value); if (!a.studentUids.length) return { error: "Pick at least one student (or choose another audience)." }; }
   return a;
@@ -3143,7 +3374,7 @@ function initDiagnostic(){
 function dgNew(){
   DG = { examDocId: null, rows: [], origIds: [] }; dgImgTarget = null;
   $("dgTitle").value = ""; $("dgExisting").value = "";
-  $("dgChapter").value = ""; $("dgSubtopic").value = ""; dgAudRender({ mode: "all" });
+  $("dgChapter").value = ""; $("dgSubtopic").value = ""; $("dgKind").value = "diagnostic"; $("dgPkgPublish").checked = true; dgAudRender({ mode: "all" });
   $("dgAiFollow").checked = true;
   $("dgScoring").value = "preset"; $("dgCustomMarks").style.display = "none";
   $("dgKeepOrder").checked = true; $("dgShowIdeal").checked = true; $("dgShuffleOpt").checked = false;
@@ -3157,6 +3388,9 @@ async function dgOpenExam(docId){
   if (!ex) { setMsg($("dgMsg"), "Pick a test to open."); return; }
   setMsg($("dgMsg"), `Loading ${ex.questionIds?.length||0} questions…`, true);
   $("dgType").value = ex.examType; dgFillSubjects();
+  $("dgKind").value = ex.studyPackage?.kind || "diagnostic";
+  if (ex.studyPackage?.kind === "package") $("dgProgram").value = ex.studyPackage.program;
+  $("dgPkgPublish").checked = ex.isActive !== false;
   $("dgTitle").value = ex.title || "";
   $("dgChapter").value = ex.chapter || (ex.topics||[])[0] || ""; $("dgSubtopic").value = ex.subtopic || "";
   dgAudRender(ex.audience);
@@ -3191,6 +3425,7 @@ function dgRowFromQuestion(q, idealTimes){
     correct_answer: String(q.correct_answer ?? ""), createdBy: q.createdBy
   };
   r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section;
+  r.model = r.origModel = String(q.model || "").trim();
   r.idealSec = idealTimes?.[q.docId] ?? q.idealTimeSec ?? dgDefaultIdeal(r);
   r.keySrc = q.keySrc || ""; r.idealSrc = q.idealTimeSrc || ""; r.aiKeyNote = q.aiKeyNote || "";
   r.imgHash = q.imgHash || null; r.srcHash = q.srcHash || null;
@@ -3344,7 +3579,7 @@ async function dgAiSolveRefresh(){
 }
 $("dgAiSolveBtn").onclick = async () => {
   if (!DG.examDocId) { setMsg($("dgMsg"), "Save the test first — the AI solves the saved version."); return; }
-  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff || r.section !== r.origSection);
+  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.section !== r.origSection);
   if (unsaved) { setMsg($("dgMsg"), "You have unsaved changes — press Save test first, then ask the AI."); return; }
   if (DG.aiSolve?.status === "queued" || DG.aiSolve?.status === "processing") { setMsg($("dgMsg"), "The AI has already been asked to solve this test — wait for it, then Refresh.", true); return; }
   if (!confirm(`Ask the AI to solve all ${DG.rows.length} question(s) of this test?\n\nTwo AI models solve each question independently and suggest an answer key and an ideal time. ` +
@@ -3488,7 +3723,7 @@ function dgRender(){
       (isMultiKey(r.correct_answer) ? `<div style="font-size:11px;color:#7a4d00;font-weight:600">☑ multiple correct</div>` : "")
     : `<input data-dgf="correct_answer" value="${esc(r.correct_answer)}" style="width:70px;text-align:center;font-weight:700" placeholder="number">`;
   $("dgWrap").innerHTML = `<table class="tbl"><thead><tr>
-      <th>#</th><th>Question</th><th>Subject</th><th>Topic</th><th>Level</th><th>Sec</th><th>Answer</th><th>Ideal time (sec)</th><th>Order</th><th></th>
+      <th>#</th><th>Question</th><th>Subject</th><th title="Model = the question type / pattern inside the topic (e.g. 'Pulley — two blocks'). Students see their mistakes grouped by it.">Topic / Model</th><th>Level</th><th>Sec</th><th>Answer</th><th>Ideal time (sec)</th><th>Order</th><th></th>
     </tr></thead><tbody>` + rows.map((r,i) => {
       const pendKey = r.keySrc === "pending-ai" && r.correct_answer === "";
       const missing = !pendKey && (r.section==="A" ? !validMcqKey(r.correct_answer) : (r.correct_answer==="" || isNaN(parseFloat(r.correct_answer))));
@@ -3503,7 +3738,8 @@ function dgRender(){
         <td><b>${i+1}</b></td>
         <td style="max-width:460px">${preview}${r.ai ? "" : `<div><button class="btn secondary" style="padding:1px 7px;font-size:11.5px;margin-top:3px" data-dgimg="${i}" title="Swap in a new picture for this question; key, topic and times stay as they are">🖼 ${r.image?"Replace image":"Add image"}</button>${r.imgChanged?` <span class="badge zero">new image — not saved yet</span>`:""}</div>`}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||(r.ai?"AI draft":""))} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
         <td style="font-size:12.5px">${esc(r.subject)}</td>
-        <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px"></td>
+        <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px">
+            <input data-dgf="model" value="${esc(r.model||"")}" list="dgModelList" placeholder="question model (optional)" style="width:150px;margin-top:3px;font-size:12px"></td>
         <td><select data-dgf="difficulty">${levelOptions(r.difficulty)}</select></td>
         <td>${r.ai ? esc(r.section) : `<select data-dgf="section" title="MCQ = student picks option(s); Numerical = student types the answer"><option value="A" ${r.section==="A"?"selected":""}>MCQ</option><option value="B" ${r.section==="B"?"selected":""}>Numerical</option></select>`}</td>
         <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}${reusedBadge(r)}${dgAiSolveKeyChip(r)}${r.isNew ? "" : `<div><button class="btn secondary" style="padding:0 6px;font-size:11px;margin-top:3px" data-dgaiview="${i}" title="What each AI model read, answered and why">🔍 AI working</button></div>`}</td>
@@ -3513,6 +3749,9 @@ function dgRender(){
         <td><button class="btn danger" style="padding:2px 8px" data-dgrm="${i}" title="Remove from this test (the question stays in the bank)">✕</button></td>
       </tr>`;
     }).join("") + `</tbody></table>`;
+  // model suggestions: models already used in this test and in the practice index
+  $("dgModelList").innerHTML = [...new Set([...DG.rows.map(r => r.model), ...Object.values(_tiCache).flatMap(x => (x?.q || []).map(e => e.m))].filter(Boolean))]
+    .sort().map(m => `<option value="${esc(m)}">`).join("");
   $("dgWrap").querySelectorAll("[data-dg]").forEach(tr => {
     const r = DG.rows[+tr.dataset.dg];
     tr.querySelectorAll("[data-dgf]").forEach(inp => inp.onchange = () => {
@@ -3582,7 +3821,7 @@ async function dgSave(){
   const errs = dgValidate();
   if (errs.length) { setMsg($("dgMsg"), errs.slice(0,6).join("  ") + (errs.length>6?` …and ${errs.length-6} more.`:"")); log.classList.add("hidden"); return; }
   const newRows = DG.rows.filter(r => r.isNew);
-  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
+  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
   const imgEdits = edits.filter(r => r.imgChanged);
   const keyEdits = edits.filter(r => r.correct_answer !== r.origAnswer || r.section !== r.origSection);
   const shared = keyEdits.filter(r => examsCache.some(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId))).length;
@@ -3608,6 +3847,7 @@ async function dgSave(){
         id: r.docId, examType, subject: r.subject, section: r.section,
         text: r.text || "", options: r.section === "A" ? (r.options || ["","","",""]) : [],
         correct_answer: String(r.correct_answer), topic: r.topic, difficulty: r.difficulty,
+        ...(r.model ? { model: r.model } : {}),
         ...(r.image ? { image: r.image } : {}), idealTimeSec: +r.idealSec,
         ...(r.imgHash ? { imgHash: r.imgHash } : {}), ...(r.srcHash ? { srcHash: r.srcHash } : {}),
         ...(r.keySrc ? { keySrc: r.keySrc } : {}), ...(r.idealSrc ? { idealTimeSrc: r.idealSrc } : {}),
@@ -3619,7 +3859,7 @@ async function dgSave(){
       await batch.commit();
       say(`Uploaded ${Math.min(i+25, newRows.length)}/${newRows.length} new question(s)…`);
     }
-    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; });
+    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.origModel = r.model || ""; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; });
     // 2) key / topic / difficulty edits on existing questions (one by one so a permission error names the question)
     let failed = 0, keysSaved = 0;
     const keyShare = newRows.filter(r => hasKey(r) && (r.imgHash || r.srcHash));   // keys to copy onto the same picture elsewhere
@@ -3627,6 +3867,7 @@ async function dgSave(){
       const upd = {};
       if (r.correct_answer !== r.origAnswer) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
       if (r.topic !== r.origTopic) upd.topic = r.topic;
+      if ((r.model||"") !== (r.origModel||"")) upd.model = r.model || "";
       if (r.difficulty !== r.origDiff) upd.difficulty = r.difficulty;
       if (r.section !== r.origSection) {
         upd.section = r.section; upd.correct_answer = String(r.correct_answer); upd.keySrc = "user";
@@ -3639,7 +3880,7 @@ async function dgSave(){
         await updateDoc(doc(db,"questions",r.docId), upd);
         if (upd.correct_answer !== undefined) { keysSaved++; keyShare.push(r); }
         if (r.imgChanged) { r.imgHash = typeof upd.imgHash === "string" ? upd.imgHash : null; r.srcHash = null; }
-        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false;
+        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origModel = r.model || ""; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false;
         say(`Updated ${r.q?.id||r.docId}: ${Object.entries(upd).filter(([k])=>!["image","imageUpdatedAt","aiVerify"].includes(k)).map(([k,v])=>`${k} → ${v}`).concat(upd.image?["new image"]:[]).join(", ")}`);
       } catch(e) {
         failed++;
@@ -3669,6 +3910,11 @@ async function dgSave(){
       aiFollowUp: $("dgAiFollow").checked,
       chapter: $("dgChapter").value.trim() || (DG.rows.find(r => r.topic)?.topic || ""), subtopic: $("dgSubtopic").value.trim(),
       ...(DG.aiDraftId ? {} : { audience: dgReadAudience() }),
+      // Study Package Solving / Momentum Booster: one shared package per programme (booster: everyone)
+      ...(DG.aiDraftId ? {} : $("dgKind").value === "diagnostic"
+        ? (DG.examDocId && examsCache.find(e => e.docId === DG.examDocId)?.studyPackage ? { studyPackage: deleteField(), diagnostic: true } : {})
+        : { studyPackage: { kind: $("dgKind").value, program: $("dgKind").value === "booster" ? "ALL" : $("dgProgram").value },
+            diagnostic: false, isActive: $("dgPkgPublish").checked }),
       topics: [...new Set(DG.rows.map(r=>r.topic).filter(Boolean))],
       updatedAt: serverTimestamp()
     };
@@ -3678,9 +3924,9 @@ async function dgSave(){
       await updateDoc(doc(db,"exams",DG.examDocId), payload);
       say("Test updated.");
     } else {
-      const ref = await addDoc(collection(db,"exams"), { ...payload, diagnostic: !DG.aiDraftId, audience: DG.aiDraftId ? DG.audience : dgReadAudience(),
+      const ref = await addDoc(collection(db,"exams"), { diagnostic: !DG.aiDraftId, ...payload, audience: DG.aiDraftId ? DG.audience : dgReadAudience(),
         ...(DG.aiDraftId ? { aiPractice: { draftId: DG.aiDraftId, studentUid: DG.audience.studentUids[0] } } : {}),
-        startAt: null, endAt: null, isActive: false, createdAt: serverTimestamp(),
+        startAt: null, endAt: null, isActive: payload.isActive ?? false, createdAt: serverTimestamp(),
         createdBy: currentUser.uid, createdByName: currentUser.name });
       DG.examDocId = ref.id;
       if (DG.aiDraftId) {
@@ -3893,7 +4139,7 @@ function dgLoadAiDraft(d){
   const order = { verified: 0, disputed: 1 };
   (d.items||[]).filter(it => it.verdict !== "rejected").sort((a,b)=>order[a.verdict]-order[b.verdict]).forEach(it => {
     const r = { key: ++dgSeq, docId: null, isNew: true, image: null, text: it.stem, options: it.options.slice(),
-      subject: it.subject, section: "A", topic: it.topic, difficulty: normLevel(it.level), correct_answer: it.key,
+      subject: it.subject, section: "A", topic: it.topic, model: it.model || "", difficulty: normLevel(it.level), correct_answer: it.key,
       solution: it.solution || "", ai: { ...it, models: d.models } };
     r.idealSec = it.idealSec || dgDefaultIdeal(r);
     DG.rows.push(r);
@@ -4131,7 +4377,7 @@ function lmRender(){
   if ($("atab-live").classList.contains("hidden")) return;
   const now = Date.now(), f = $("lmExam").value;
   const all = Object.values(lmState).filter(a => !f || a._exam.docId === f);
-  const writing = all.filter(a => !a.submitTime && now - tsMs(a.startTime) < 12*3600e3);
+  const writing = all.filter(a => !a.submitTime && now - tsMs(a.startTime) < 12*3600e3 && !a._exam?.studyPackage);   // package homework isn't a live test
   const done = all.filter(a => a.submitTime && now - tsMs(a.submitTime) < 3*3600e3)
     .sort((a,b) => tsMs(b.submitTime) - tsMs(a.submitTime));
   const liveN = writing.filter(a => now - tsMs(a.live?.lastSeen) < 90e3).length;
@@ -4214,6 +4460,9 @@ async function initAiSettings(){
     const c = cfg.exists() ? cfg.data() : {};
     Object.entries(AI_FIELDS).forEach(([el, k]) => { $(el).value = c[k] ?? ""; });
     $("aiEnabled").checked = c.enabled !== false;
+    $("aiScope").value = c.examScope === "selected" ? "selected" : "all";
+    aiExamSel = new Set(c.examIds || []);
+    aiScopeRender();
     $("aiKey").value = "";
     const k = sec.exists() ? sec.data() : null;
     $("aiKeyState").textContent = k?.apiKey ? `— stored key …${k.last4 || ""} (set ${fmtDate(k.setAt)} by ${k.setBy || "?"})` : "— none stored here (job uses the GitHub secret)";
@@ -4252,8 +4501,30 @@ function aiLiveStart(){
 }
 function aiLiveStop(){ if (aiLiveUnsub) { aiLiveUnsub(); aiLiveUnsub = null; } if (aiLiveTimer) { clearInterval(aiLiveTimer); aiLiveTimer = null; } }
 $("aiPresetBtn").onclick = () => Object.entries(AI_FIELDS).forEach(([el, k]) => { $(el).value = AI_PRESET[k]; });
+// "Which tests should the AI work on?" — a drop-down checklist of every test, with what the AI does for each
+let aiExamSel = new Set();
+function aiScopeRender(){
+  const sel = $("aiScope").value === "selected";
+  $("aiExamDd").classList.toggle("hidden", !sel);
+  const f = $("aiExamSearch").value.trim().toLowerCase();
+  const exams = examsCache.slice().sort((a, b) => (b.diagnostic ? 1 : 0) - (a.diagnostic ? 1 : 0) || tsMs(b.createdAt) - tsMs(a.createdAt));
+  const known = new Set(exams.map(e => e.docId));
+  $("aiExamSum").textContent = aiExamSel.size ? `${[...aiExamSel].filter(id => known.has(id)).length} test(s) chosen — click to change` : "Choose tests… (none chosen: the AI will do nothing)";
+  $("aiExamList").innerHTML = exams.filter(e => !f || (e.title || "").toLowerCase().includes(f)).map(e => {
+    const what = [`${(e.questionIds || []).length} Qs`, e.aiFollowUp ? "follow-up practice on" : "follow-up off",
+      e.aiSolve?.status ? `solve: ${e.aiSolve.status}` : "", e.isActive ? "active" : ""].filter(Boolean).join(" · ");
+    return `<label style="display:flex;gap:8px;align-items:flex-start;padding:3px 0;cursor:pointer">
+      <input type="checkbox" value="${e.docId}" ${aiExamSel.has(e.docId) ? "checked" : ""} style="margin-top:3px">
+      <span>${e.diagnostic ? "🩺 " : e.customPractice || e.aiPractice ? "🎯 " : ""}${esc(e.title || e.docId)} <span style="color:var(--muted);font-size:11.5px">(${esc(e.examType || "")} · ${what})</span></span></label>`;
+  }).join("") || `<div style="color:var(--muted)">No tests match.</div>`;
+  $("aiExamList").querySelectorAll("input").forEach(cb => cb.onchange = () => { cb.checked ? aiExamSel.add(cb.value) : aiExamSel.delete(cb.value); aiScopeRender(); });
+}
+$("aiScope").onchange = aiScopeRender;
+$("aiExamSearch").oninput = aiScopeRender;
 $("aiSaveBtn").onclick = async () => {
-  const c = { enabled: $("aiEnabled").checked, updatedBy: currentUser.name, updatedAt: serverTimestamp() };
+  const c = { enabled: $("aiEnabled").checked, updatedBy: currentUser.name, updatedAt: serverTimestamp(),
+              examScope: $("aiScope").value, examIds: [...aiExamSel] };
+  if (c.examScope === "selected" && !c.examIds.length && !confirm("No test is chosen, so the AI job will do nothing. Save anyway?")) return;
   for (const [el, k] of Object.entries(AI_FIELDS)) {
     const v = $(el).value.trim();
     if (!v) continue;
@@ -4457,7 +4728,8 @@ $("tmIndexBtn").onclick = async () => {
       if (q.imgHash) { const k = `${q.examType}|${q.imgHash}`; if (pictureSeen.has(k)) { dupPic++; return; } pictureSeen.add(k); }
       const key = `${q.examType}__${q.subject}`;
       (buckets[key] = buckets[key] || []).push({
-        i: q.docId, t: (q.topic||"").trim(), d: q.difficulty || "Medium", s: q.section || "A"
+        i: q.docId, t: (q.topic||"").trim(), d: q.difficulty || "Medium", s: q.section || "A",
+        ...(q.model ? { m: String(q.model).trim() } : {}), ...(q.aiGenerated ? { a: 1 } : {})   // question model; AI-written
       });
     });
     const keys = Object.keys(buckets);
@@ -4832,6 +5104,7 @@ function audienceLabel(e){
   if (!a || a.mode==="all") return "All "+e.examType;
   if (a.mode==="batch") return "Batch: "+(a.batches||[]).join(", ");
   if (a.mode==="students") return (a.studentUids||[]).length+" students";
+  if (a.mode==="program") return a.program === "ALL" ? "Everyone ("+e.examType+")" : "Programme: "+a.program+" (all its batches)";
   return "—";
 }
 
@@ -4843,7 +5116,7 @@ async function loadExams(){
   examsCache = exams;
   try { dgLibRender(); } catch(e) { console.warn(e); }
   // faculty only see/manage their own exams; super-admin sees all
-  const visible = (isSuper() ? exams : exams.filter(e => e.createdBy === currentUser.uid)).filter(e => !e.diagnostic);  // diagnostic tests live in the Assign Tests tab
+  const visible = (isSuper() ? exams : exams.filter(e => e.createdBy === currentUser.uid)).filter(e => !e.diagnostic && !e.studyPackage);  // diagnostic tests live in the Assign Tests tab, packages in Study Packages
   const schedBadge = e => {
     if (!e.startAt && !e.endAt) return "";
     const w = examWindow(e);
@@ -5008,7 +5281,9 @@ async function enterStudent(){
   loadActiveExam(); loadMyAttempts();
   initPractice(); loadPracticeHistory();
   progressHtml(currentUser.uid, currentUser.name).then(h => { const el=$("myProgress"); if(el) el.innerHTML=h; }).catch(()=>{});
-  openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true).catch(e => { $("myNotebook").textContent = "Could not load: " + e.message; });
+  openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true)
+    .then(() => renderMistakenModels($("myModels"), $("myNotebook")._nb))
+    .catch(e => { $("myNotebook").textContent = "Could not load: " + e.message; $("myModels").textContent = ""; });
 }
 
 // does this exam target the current student?
@@ -5018,6 +5293,7 @@ function examTargetsMe(e){
   if (!a || a.mode === "all") return true;
   if (a.mode === "batch")    return (a.batches||[]).map(x=>x.toLowerCase()).includes((currentUser.batch||"").toLowerCase());
   if (a.mode === "students") return (a.studentUids||[]).includes(currentUser.uid);
+  if (a.mode === "program")  return a.program === "ALL" || programOf(currentUser.batch) === a.program;
   return false;
 }
 let availableExams = [];
@@ -5025,7 +5301,9 @@ async function loadActiveExam(){
   activeExam = null;
   const qs = await getDocs(query(collection(db,"exams"),
     where("examType","==",currentUser.examType), where("isActive","==",true)));
-  const mine = qs.docs.map(d=>({ docId:d.id, ...d.data() })).filter(examTargetsMe);
+  const allMine = qs.docs.map(d=>({ docId:d.id, ...d.data() })).filter(examTargetsMe);
+  renderStudentPackages(allMine.filter(e => e.studyPackage));   // study packages get their own section
+  const mine = allMine.filter(e => !e.studyPackage);
   // split by schedule window
   availableExams = []; const upcoming = [];
   mine.forEach(ex => {
@@ -5063,6 +5341,158 @@ async function loadActiveExam(){
   });
 }
 
+/* ---- staff: Study Packages tab — the shared package per programme, and each student's status per chapter ---- */
+let PK = { chapters: [], students: [], att: {} };
+function initPackages(){
+  PROGRAMS.forEach(p => $("pkPref" + p).value = (PORTAL.programPrefixes?.[p] || []).join(", "));
+  $("pkPrefSave").disabled = !isSuper();
+  $("pkPrefMsg").textContent = isSuper() ? "" : "Only an admin can change this.";
+  pkToggle();
+}
+function pkToggle(){
+  $("pkProgWrap").style.display = $("pkKind").value === "package" ? "" : "none";
+  const kind = $("pkKind").value, prog = $("pkProgram").value, cur = $("pkBatch").value;
+  const bs = batchOptions().filter(b => kind === "booster" || programOf(b) === prog);
+  $("pkBatch").innerHTML = `<option value="">All ${kind === "booster" ? "" : esc(prog) + " "}batches</option>` + bs.map(b => `<option ${b === cur ? "selected" : ""}>${esc(b)}</option>`).join("");
+}
+$("pkKind").onchange = pkToggle;
+$("pkProgram").onchange = pkToggle;
+const pkProgLabel = () => $("pkKind").value === "booster" ? "everyone" : $("pkProgram").value;
+async function pkLoad(){
+  const kind = $("pkKind").value, prog = $("pkProgram").value, type = $("pkType").value, bf = normBatch($("pkBatch").value);
+  await loadExams();
+  const chapters = examsCache.filter(e => e.studyPackage?.kind === kind && e.examType === type && (kind === "booster" || e.studyPackage.program === prog))
+    .sort((a, b) => ALL_SUBJECTS.indexOf((a.subjects || [])[0]) - ALL_SUBJECTS.indexOf((b.subjects || [])[0]) || (a.chapter || a.title).localeCompare(b.chapter || b.title, undefined, { numeric: true }));
+  const students = studentCache.filter(st => st.examType === type && (kind === "booster" || programOf(st.batch) === prog) && (!bf || normBatch(st.batch) === bf))
+    .sort((a, b) => String(a.batch || "").localeCompare(String(b.batch || "")) || String(a.name).localeCompare(String(b.name)));
+  PK = { chapters, students, att: {}, kind, prog };
+  // chapter list
+  $("pkChapters").innerHTML = `<div class="card"><h3 style="margin:0 0 8px;font-size:15px">${PKG_KIND[kind]} — ${esc(pkProgLabel())} <span style="font-weight:400;color:var(--muted);font-size:13px">(${chapters.length} chapter${chapters.length === 1 ? "" : "s"})</span></h3>
+    ${chapters.length ? `<table class="tbl"><thead><tr><th>Subject</th><th>Chapter</th><th>Title</th><th>Questions</th><th>Students see it?</th><th></th></tr></thead><tbody>
+      ${chapters.map(e => `<tr><td>${esc((e.subjects || []).join(", "))}</td><td><b>${esc(e.chapter || "—")}</b></td><td>${esc(e.title)}</td><td>${(e.questionIds || []).length}</td>
+        <td>${e.isActive ? '<span class="badge pos">Published</span>' : '<span class="badge zero">Hidden</span>'}
+            <button class="btn secondary" style="padding:1px 8px;font-size:12px" data-pkpub="${e.docId}">${e.isActive ? "Hide" : "Publish"}</button></td>
+        <td><button class="btn secondary" style="padding:2px 10px" data-pkedit="${e.docId}">Edit questions / key</button></td></tr>`).join("")}</tbody></table>`
+      : `<p style="color:var(--muted)">No chapters yet — click <b>+ New chapter</b> to upload the first one.</p>`}</div>`;
+  $("pkChapters").querySelectorAll("[data-pkedit]").forEach(b => b.onclick = () => {
+    document.querySelector('[data-atab="diagnostic"]').click();
+    $("dgExisting").value = b.dataset.pkedit; dgOpenExam(b.dataset.pkedit);
+    $("dgTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  $("pkChapters").querySelectorAll("[data-pkpub]").forEach(b => b.onclick = async () => {
+    const e = chapters.find(x => x.docId === b.dataset.pkpub);
+    try { await updateDoc(doc(db,"exams",e.docId), { isActive: !e.isActive }); pkLoad(); }
+    catch(err) { setMsg($("pkMsg"), "Could not change it: " + (err.code === "permission-denied" ? "only its creator or an admin can" : err.message)); }
+  });
+  // tracker: every student of the programme × every chapter
+  if (!chapters.length || !students.length) {
+    $("pkTracker").innerHTML = chapters.length ? `<div class="card"><p style="color:var(--muted)">No students found for ${esc(pkProgLabel())}${bf ? " in that batch" : ""}. Check the batch → programme codes below.</p></div>` : "";
+    return;
+  }
+  setMsg($("pkMsg"), "Loading student progress…", true);
+  try {
+    const ids = chapters.map(e => e.docId);
+    for (let i = 0; i < ids.length; i += 30) {
+      const snap = await getDocs(query(collection(db,"attempts"), where("examId","in",ids.slice(i, i + 30))));
+      snap.docs.forEach(d => { const a = d.data(); PK.att[a.examId + "|" + a.studentUid] = a; });
+    }
+    setMsg($("pkMsg"), "");
+  } catch(e) { setMsg($("pkMsg"), "Could not load progress: " + e.message); }
+  const cell = (e, st) => {
+    const a = PK.att[e.docId + "|" + st.uid], n = (e.questionIds || []).length;
+    if (a?.submitTime) { const max = attemptCfg(a).maxMarks || 1, pct = Math.round(100 * Math.max(0, a.score) / max);
+      return `<td class="pkCell" style="background:${pct >= 70 ? "#e2f5e9" : pct >= 40 ? "#fff6e0" : "#fdecea"}" title="Completed ${fmtDate(a.submitTime)} — ${a.score}/${max}">✅ ${pct}%</td>`; }
+    if (a) { const ans = a.live?.answered ?? Object.values(a.responses || {}).filter(r => r?.answer != null).length;
+      return `<td class="pkCell" style="background:#fffaf0" title="In progress">◐ ${ans}/${n}</td>`; }
+    return `<td class="pkCell" style="color:#b8c2cc">—</td>`;
+  };
+  const doneOf = st => chapters.filter(e => PK.att[e.docId + "|" + st.uid]?.submitTime).length;
+  const allDone = students.reduce((x, st) => x + doneOf(st), 0);
+  $("pkTracker").innerHTML = `<div class="card">
+    <div class="statRow" style="margin-bottom:10px">
+      <div class="stat"><div class="v">${students.length}</div><div class="l">Students</div></div>
+      <div class="stat"><div class="v">${chapters.length}</div><div class="l">Chapters</div></div>
+      <div class="stat"><div class="v" style="color:#1e7a44">${Math.round(100 * allDone / (students.length * chapters.length))}%</div><div class="l">Chapters completed</div></div>
+      <div class="stat"><div class="v" style="color:#b03a2e">${students.filter(st => !chapters.some(e => PK.att[e.docId + "|" + st.uid])).length}</div><div class="l">Not started at all</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">✅ completed (score %) · ◐ in progress (answered / questions) · — not started. Hover a cell for details.</div>
+    <table class="tbl"><thead><tr><th>Student</th><th>Batch</th>${chapters.map(e => `<th class="pkCell" title="${esc(e.title)}">${esc(e.chapter || e.title)}<br><span style="font-weight:400;font-size:11px">${esc((e.subjects || [])[0] || "")}</span></th>`).join("")}<th>Done</th></tr>
+      <tr><td colspan="2" style="font-size:12px;color:var(--muted)">completed by</td>${chapters.map(e => `<td class="pkCell" style="font-size:11.5px;color:var(--muted)">${students.filter(st => PK.att[e.docId + "|" + st.uid]?.submitTime).length}/${students.length}</td>`).join("")}<td></td></tr></thead><tbody>
+    ${students.map(st => `<tr><td>${esc(st.name)}</td><td>${esc(st.batch || "—")}</td>${chapters.map(e => cell(e, st)).join("")}<td class="pkCell"><b>${doneOf(st)}</b>/${chapters.length}</td></tr>`).join("")}
+    </tbody></table></div>`;
+}
+$("pkLoadBtn").onclick = () => pkLoad().catch(e => setMsg($("pkMsg"), "Could not load: " + e.message));
+$("pkNewBtn").onclick = () => {
+  document.querySelector('[data-atab="diagnostic"]').click();
+  dgNew();
+  $("dgType").value = $("pkType").value; dgFillSubjects();
+  $("dgKind").value = $("pkKind").value; if ($("pkKind").value === "package") $("dgProgram").value = $("pkProgram").value;
+  $("dgKind").onchange();
+  $("dgTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+};
+$("pkCsvBtn").onclick = () => {
+  if (!PK.chapters.length) { setMsg($("pkMsg"), "Show a package first."); return; }
+  const rows = [["Student", "PSID", "Batch", ...PK.chapters.map(e => e.chapter || e.title), "ChaptersDone"]];
+  PK.students.forEach(st => rows.push([st.name, st.psid || "", st.batch || "", ...PK.chapters.map(e => {
+    const a = PK.att[e.docId + "|" + st.uid];
+    return a?.submitTime ? `done ${a.score}/${attemptCfg(a).maxMarks}` : a ? `in progress ${a.live?.answered ?? 0}/${(e.questionIds || []).length}` : "not started";
+  }), PK.chapters.filter(e => PK.att[e.docId + "|" + st.uid]?.submitTime).length]));
+  downloadCsv(`study_package_${PK.kind}_${PK.kind === "booster" ? "all" : PK.prog}.csv`, rows);
+};
+$("pkPrefSave").onclick = async () => {
+  const prefs = Object.fromEntries(PROGRAMS.map(p => [p, $("pkPref" + p).value.split(/[\s,]+/).map(x => x.trim().toUpperCase()).filter(Boolean)]));
+  try {
+    await setDoc(doc(db,"settings","portal"), { programPrefixes: prefs }, { merge: true });
+    PORTAL.programPrefixes = prefs; pkToggle();
+    $("pkPrefMsg").textContent = "Saved. " + batchOptions().map(b => `${b} → ${programOf(b) || "none"}`).join(" · ");
+  } catch(e) { $("pkPrefMsg").textContent = "Could not save: " + e.message + (e.code === "permission-denied" ? " — publish the updated firestore.rules first." : ""); }
+};
+/* ---- student: 📘 Study Package / 🚀 Momentum Booster — chapters by subject with my status ---- */
+async function renderStudentPackages(pkgs){
+  const box = $("pkgStudentCard");
+  if (!pkgs.length) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  let mine = {};
+  try {
+    const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
+    qs.docs.forEach(d => { const a = d.data(); mine[a.examId] = { docId: d.id, ...a }; });
+  } catch(e){}
+  const html = ["package", "booster"].map(kind => {
+    const list = pkgs.filter(e => e.studyPackage.kind === kind);
+    if (!list.length) return "";
+    const bySub = {};
+    list.forEach(e => { const sub = (e.subjects || [])[0] || "Other"; (bySub[sub] = bySub[sub] || []).push(e); });
+    const done = list.filter(e => mine[e.docId]?.submitTime).length;
+    return `<div class="card" style="margin-bottom:12px">
+      <h2 class="sec" style="margin-top:0">${PKG_KIND[kind]}${kind === "package" ? ` <span class="badge zero">${esc(programOf(currentUser.batch))}</span>` : ""}
+        <span style="font-weight:400;font-size:13px;color:var(--muted)">— ${done} of ${list.length} chapter(s) completed</span></h2>
+      <div style="height:7px;border-radius:4px;background:#eef1f4;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:${Math.round(100 * done / list.length)}%;background:#2e9e5b"></div></div>
+      ${Object.keys(bySub).sort((a, b) => ALL_SUBJECTS.indexOf(a) - ALL_SUBJECTS.indexOf(b)).map(sub => `
+        <div style="font-weight:700;color:#345;margin:8px 0 4px">${esc(sub)}</div>
+        <div class="pkGrid">${bySub[sub].sort((a, b) => (a.chapter || a.title).localeCompare(b.chapter || b.title, undefined, { numeric: true })).map(e => {
+          const a = mine[e.docId], n = (e.questionIds || []).length;
+          const st = a?.submitTime ? "done" : a ? "doing" : "todo";
+          const answered = a?.live?.answered ?? Object.values(a?.responses || {}).filter(r => r?.answer != null).length;
+          return `<div class="pkItem ${st}">
+            <div style="font-weight:700">${esc(e.chapter || e.title)}</div>
+            <div style="font-size:12px;color:var(--muted)">${n} question${n === 1 ? "" : "s"}</div>
+            <div style="font-size:12.5px;margin:4px 0">${st === "done" ? `✅ Completed — <b>${a.score}</b> / ${attemptCfg(a).maxMarks}`
+              : st === "doing" ? `◐ In progress — ${answered}/${n} answered` : `○ Not started`}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${st === "done" ? `<button class="btn secondary" style="padding:3px 10px" data-pkview="${a.docId}">View result</button>
+                 <button class="btn secondary" style="padding:3px 10px" data-pkgo="${e.docId}">Solve again</button>`
+               : `<button class="btn ${st === "doing" ? "green" : ""}" style="padding:3px 12px" data-pkgo="${e.docId}">${st === "doing" ? "Continue" : "Start"}</button>`}
+            </div></div>`;
+        }).join("")}</div>`).join("")}
+    </div>`;
+  }).join("");
+  box.innerHTML = html;
+  box.querySelectorAll("[data-pkgo]").forEach(b => b.onclick = () => { activeExam = pkgs.find(e => e.docId === b.dataset.pkgo); startExam(); });
+  box.querySelectorAll("[data-pkview]").forEach(b => b.onclick = async () => {
+    const sn = await getDoc(doc(db,"attempts",b.dataset.pkview));
+    if (sn.exists()) showResult({ docId: sn.id, ...sn.data() });
+  });
+}
 async function loadMyAttempts(){
   const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
   const mine = qs.docs.map(d=>({docId:d.id,...d.data()})).filter(a=>a.submitTime);
@@ -5120,8 +5550,8 @@ const STATUS = { NV:"notVisited", NA:"notAnswered", AN:"answered", MA:"markedAns
 
 async function startExam(){
   if (!activeExam) return;
-  try { await document.documentElement.requestFullscreen?.(); } catch(e){}  // must be in the click gesture
   const cfg = examCfg(activeExam);
+  if (cfg.proctored) try { await document.documentElement.requestFullscreen?.(); } catch(e){}  // must be in the click gesture
   const cacheKey = `exam_${activeExam.docId}_${currentUser.uid}`;
 
   let qlist;
@@ -5168,7 +5598,8 @@ async function startExam(){
     savedTimes = p.questionTimeSec || {};
     if (p.pledgedAt) pledgedAt = p.pledgedAt;
   } else if (prev.exists() && prev.data().submitTime) {
-    if (!confirm("You have already submitted this exam. Start a fresh attempt? (Previous result is kept in reports but will be overwritten on this attempt id.)")) {
+    if (!confirm(cfg.proctored ? "You have already submitted this exam. Start a fresh attempt? (Previous result is kept in reports but will be overwritten on this attempt id.)"
+                               : "You have already completed this chapter. Solve it again from the start? (Your previous result will be replaced.)")) {
       return;
     }
     sessionStorage.removeItem(cacheKey);
@@ -5228,7 +5659,7 @@ async function startExam(){
   clearInterval(tickInt); clearInterval(autosaveInt);
   tickInt = setInterval(tick, 250);
   autosaveInt = setInterval(()=>saveProgress().catch(()=>{}), AUTOSAVE_MS);
-  startProctoring();
+  if (cfg.proctored) startProctoring(); else stopProctoring();   // study packages: homework, not proctored
   tick();
   saveProgress().catch(()=>{});        // appear on the teacher's Live Monitor right away
   // teacher → student channel: live warnings and "stop this test"
@@ -5289,7 +5720,7 @@ function startProctoring(){
     }, 600);
   };
   const onFsChange = () => {
-    if (!document.fullscreenElement && EX && !EX.submitted)
+    if (!document.fullscreenElement && EX && !EX.submitted && EX.cfg.proctored)
       recordViolation("exit_fullscreen","You exited fullscreen mode.");
   };
   const block = e => { e.preventDefault(); };
@@ -5578,7 +6009,7 @@ async function submitExam(auto, flag={}){
     examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks, examDurationSec: cfg.durationSec,
     examUntimed: cfg.untimed,
     // subject / chapter / level of each question, so progress and the mistake notebook need no extra reads
-    qMeta: Object.fromEntries(EX.questions.map(q => [q.docId, { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty) }])),
+    qMeta: Object.fromEntries(EX.questions.map(q => [q.docId, { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), ...(q.model ? { m: String(q.model).trim() } : {}) }])),
     idealTimes, quickAnswers, pledgedAt: EX.pledgedAt,
     // queue for the hourly AI follow-up job (ai/ + .github/workflows/ai-followup.yml)
     ...(activeExam?.aiFollowUp ? { aiStatus: "queued", aiTries: 0 } : {}),

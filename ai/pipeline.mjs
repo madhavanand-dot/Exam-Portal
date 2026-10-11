@@ -39,7 +39,10 @@ export function resolveConfig(env = {}, ai = {}, secret = {}){
     perNeed: num(ai.perNeed, env.AI_PER_NEED, D.perNeed, 1, 5),
     maxPerStudent: num(ai.maxPerStudent, env.AI_MAX_PER_STUDENT, D.maxPerStudent, 3, 60),
     reasonWaitMin: num(ai.reasonWaitMin, env.AI_REASON_WAIT_MIN, D.reasonWaitMin, 0, 1440),
-    runMinutes: num(undefined, env.AI_RUN_MINUTES, D.runMinutes, 5, 350)
+    runMinutes: num(undefined, env.AI_RUN_MINUTES, D.runMinutes, 5, 350),
+    // "all" tests, or only the tests the admin ticked in AI Settings
+    examScope: ai.examScope === "selected" ? "selected" : "all",
+    examIds: Array.isArray(ai.examIds) ? ai.examIds.filter(x => typeof x === "string" && x) : []
   };
   const apiKey = secret?.apiKey || env.AI_API_KEY || "";
   return { cfg, apiKey, keySource: secret?.apiKey ? "AI Settings tab" : env.AI_API_KEY ? "GitHub secret" : "none" };
@@ -105,12 +108,13 @@ export function studentNeeds(att, exam, qById){
   }
   return needs;
 }
-// one generation call per (subject, topic, level, group)
+// one generation call per (subject, topic, question model, level, group)
 export function groupNeeds(needs, cfg){
   const m = new Map();
   for (const n of needs) {
-    const k = [n.q.subject, (n.q.topic || "").trim().toLowerCase(), normLevel(n.q.difficulty), n.group].join("|");
-    if (!m.has(k)) m.set(k, { subject: n.q.subject, topic: n.q.topic || "General", level: normLevel(n.q.difficulty), group: n.group, needs: [] });
+    const model = String(n.q.model || "").trim();
+    const k = [n.q.subject, (n.q.topic || "").trim().toLowerCase(), model.toLowerCase(), normLevel(n.q.difficulty), n.group].join("|");
+    if (!m.has(k)) m.set(k, { subject: n.q.subject, topic: n.q.topic || "General", model, level: normLevel(n.q.difficulty), group: n.group, needs: [] });
     m.get(k).needs.push(n);
   }
   const order = { concept: 0, accuracy: 1, speed: 2 };
@@ -152,7 +156,7 @@ export function genPrompt(g, exam, examples){
   return [
     { role: "system", content: `You are an expert ${EXAM_NAME[exam.examType] || "NEET"} ${g.subject} question setter for an Indian coaching institute. You write original, syllabus-accurate (NCERT) single-correct MCQs. You reply with JSON only.` },
     { role: "user", content:
-`Topic: ${g.topic} (${g.subject})
+`Topic: ${g.topic} (${g.subject})${g.model ? `\nQuestion model: ${g.model} — every new question must be of this same model (same type of problem), with new numbers/context` : ""}
 Target level: ${L.name} — ${L.desc}
 Purpose: ${purpose}
 
@@ -202,7 +206,7 @@ function cleanItem(raw, g){
   const stem = String(raw?.stem || "").trim();
   if (!stem || opts.length !== 4 || opts.some(o => !o) || new Set(opts.map(o => o.toLowerCase())).size !== 4 || !ans) return null;
   const level = normLevel(raw.level || g.level);
-  return { subject: g.subject, topic: g.topic, level, group: g.group, stem, options: opts, key: ans,
+  return { subject: g.subject, topic: g.topic, model: g.model || "", level, group: g.group, stem, options: opts, key: ans,
            solution: String(raw.solution || "").trim(),
            idealSec: Math.max(20, Math.min(600, parseInt(raw.idealSec) || 0)) || null };
 }
@@ -274,7 +278,7 @@ export async function run({ store, llm, cfg: cfgIn = {}, log = console.log, now 
         attemptId: id, examId: att.examId, examTitle: exam.title || "", examType: exam.examType,
         studentUid: att.studentUid, studentName: att.studentName || "",
         status: "ready", createdAt: now(), counts, items,
-        needs: needs.map(n => ({ questionId: n.q.docId, topic: n.q.topic || "", level: normLevel(n.q.difficulty), group: n.group, reason: n.reason, verdict: n.verdict })),
+        needs: needs.map(n => ({ questionId: n.q.docId, topic: n.q.topic || "", model: n.q.model || "", level: normLevel(n.q.difficulty), group: n.group, reason: n.reason, verdict: n.verdict })),
         models: { gen: cfg.genModel, verify: cfg.verifyModel, vision: cfg.visionModel }
       });
       await store.updateAttempt(id, { aiStatus: "ready", aiDoneAt: now(), aiError: null });
@@ -320,6 +324,36 @@ export function makeLlm({ baseUrl, apiKey, rpm, fetchImpl = fetch, sleep = ms =>
       const res = await fetchImpl(`${baseUrl}/models`, { headers: { "Authorization": `Bearer ${apiKey}` } });
       if (!res.ok) { const e = new Error(`HTTP ${res.status} listing models`); e.status = res.status; throw e; }
       return ((await res.json()).data || []).map(m => m.id);
+    }
+  };
+}
+
+// ---------- "only the tests I choose" (AI Settings) ----------
+// Wraps the store so every step sees only the chosen tests: their questions (keys / ideal times / second opinions),
+// their solve requests and their students' follow-up queue. Attempts of other tests are taken off the queue.
+export async function scopedStore(store, cfg, log = console.log){
+  if (cfg.examScope !== "selected") return store;
+  const examIds = new Set(cfg.examIds || []);
+  const qids = new Set();
+  for (const id of examIds) { const ex = await store.getExam(id); (ex?.questionIds || []).forEach(q => qids.add(q)); }
+  log(`AI Settings: only ${examIds.size} chosen test(s), ${qids.size} question(s).`);
+  const scopedQs = async () => Object.values(await store.getQuestions([...qids]));
+  return {
+    ...store,
+    async listPendingQuestions(limit){
+      return (await scopedQs()).filter(q => q.keySrc === "pending-ai" || q.idealTimeSrc === "pending-ai").slice(0, limit);
+    },
+    async listUserKeyQuestions(limit){
+      return (await scopedQs()).filter(q => q.keySrc === "user" || (!q.keySrc && String(q.docId).startsWith("DG_"))).slice(0, limit);
+    },
+    async listSolveRequests(staleMin){
+      return (await store.listSolveRequests(staleMin)).filter(ex => examIds.has(ex.docId));
+    },
+    async listQueuedAttempts(staleMin){
+      const all = await store.listQueuedAttempts(staleMin);
+      for (const a of all.filter(a => !examIds.has(a.data.examId)))
+        await store.updateAttempt(a.id, { aiStatus: "notSelected", aiError: "This test is not chosen in AI Settings (Which tests should the AI work on?)." });
+      return all.filter(a => examIds.has(a.data.examId));
     }
   };
 }

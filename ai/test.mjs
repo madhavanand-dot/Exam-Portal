@@ -220,4 +220,37 @@ import { solveRequestedExams } from "./estimate.mjs";
      "scorecard: graded only on teacher keys (A3's AI key skipped); checker 100%, writer 50%, extra 100%");
 }
 
+// --- "only the tests I choose": the AI job sees only the chosen tests
+{
+  const { scopedStore, resolveConfig: rc } = await import("./pipeline.mjs");
+  const qs = { A: { docId: "A", keySrc: "pending-ai" }, B: { docId: "B", keySrc: "user" }, C: { docId: "C", keySrc: "pending-ai" }, DG_1: { docId: "DG_1" } };
+  const exams = { T1: { docId: "T1", questionIds: ["A", "B", "DG_1"] }, T2: { docId: "T2", questionIds: ["C"] } };
+  const marked = {};
+  const base = {
+    getExam: async id => exams[id] || null,
+    getQuestions: async ids => Object.fromEntries(ids.filter(i => qs[i]).map(i => [i, qs[i]])),
+    listPendingQuestions: async () => [qs.A, qs.C], listUserKeyQuestions: async () => [qs.B],
+    listSolveRequests: async () => [exams.T1, exams.T2],
+    listQueuedAttempts: async () => [{ id: "a1", data: { examId: "T1" } }, { id: "a2", data: { examId: "T2" } }],
+    updateAttempt: async (id, p) => { marked[id] = p.aiStatus; }
+  };
+  const all = await scopedStore(base, rc({}, {}).cfg, () => {});
+  ok(all === base, "scope 'all' (default): store unchanged");
+  const cfgS = rc({}, { examScope: "selected", examIds: ["T1"] }).cfg;
+  const sc = await scopedStore(base, cfgS, () => {});
+  ok((await sc.listPendingQuestions(40)).map(q => q.docId).join() === "A", "chosen tests only: pending keys limited to their questions");
+  ok((await sc.listUserKeyQuestions(40)).map(q => q.docId).join() === "B,DG_1", "chosen tests only: second opinions limited to their questions");
+  ok((await sc.listSolveRequests(1)).map(e => e.docId).join() === "T1", "chosen tests only: solve requests filtered");
+  const qd = await sc.listQueuedAttempts(1);
+  ok(qd.map(a => a.id).join() === "a1" && marked.a2 === "notSelected" && !marked.a1, "chosen tests only: follow-ups of other tests taken off the queue");
+}
+
+// --- question model: the AI writes per (topic, model) and tags each draft question with it
+{
+  const g = groupNeeds([{ q: { subject: "Physics", topic: "LoM", model: "Pulley", difficulty: "Easy" }, group: "concept" },
+                        { q: { subject: "Physics", topic: "LoM", model: "Incline", difficulty: "Easy" }, group: "concept" },
+                        { q: { subject: "Physics", topic: "LoM", model: "Pulley", difficulty: "Easy" }, group: "concept" }], CONFIG_DEFAULTS);
+  ok(g.length === 2 && g.find(x => x.model === "Pulley").needs.length === 2, "mistakes grouped by question model within a topic");
+}
+
 console.log(`\n${passed} passed`);
