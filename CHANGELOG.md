@@ -7,6 +7,35 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — Started / Submitted times visible to staff
+
+- **Reports**: new **Started** and **Submitted** columns (date + time) with the start→submit duration under it
+  (clock time, includes breaks; "Time (min)" stays the time on the test screen). Also in the Reports **CSV**
+  (Started, Submitted, StartToSubmit).
+- **Leaderboard** and its CSV: Started / Submitted.
+- **Result page**: "🕒 Started … · Submitted … (N min from start to submit)" under the score tiles.
+- **Study Package tracker**: hover a cell for started / submitted; the submit date shows under ✅; the CSV includes both.
+- **Live Monitor**: "started 10:05" under each student's time.
+- The times were already saved on every attempt (`startTime` = first opened, kept on resume; `submitTime` = server
+  time). Nothing to do after deploying. `CLAUDE_TO_GPT.md` C-010 summarises every change so far for ChatGPT.
+
+---
+
+## 2026-10-11 — Turn "3 warnings → auto-submit" on or off; silent tab-switch tracking; phones
+
+- **Live Monitor → ⚠ 3 warnings → auto-submit** (admin): portal-wide switch. A test can override it — **3 warnings →
+  auto-submit** in the Diagnostic Builder and the Exams form (Portal setting / On / Off — track silently).
+- **Off = silent tracking**: no warning pop-up, no auto-submit, no "you left the screen" notice to the student — but
+  every tab switch, window switch, fullscreen exit and window shrink is still recorded, shown live (🚨 column, "silent"
+  badge) and in the result's 🛡 Integrity report for staff (students don't see the count in silent mode).
+- **Phones**: attempts record whether they were written on a phone/tablet (📱 on the Live Monitor, note on the
+  integrity report). Some phones run Chrome in split screen / a floating window / picture-in-picture **without a tab
+  switch** while in fullscreen; the portal now also flags the test window **suddenly shrinking** (ignored while typing),
+  but such use cannot always be detected — a note on the Live Monitor says so.
+- Students see "⚠ 3 warnings → auto-submit as malpractice" only on tests where it is on. Nothing to do after deploying.
+
+---
+
 ## 2026-10-11 — New look; diagnostic tests by chapter → topic → level
 
 - **New visual design across the portal** (Inter font, softer cards and tables, pill-style tab bar, clearer buttons,
