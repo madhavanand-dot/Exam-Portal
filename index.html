@@ -604,6 +604,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <div class="field" style="min-width:260px"><label>Open existing test</label><select id="dgExisting"></select></div>
           <button class="btn secondary" id="dgOpenBtn">Open for editing</button>
           <button class="btn secondary" id="dgNewBtn">Start a new test</button>
+          <button class="btn danger" id="dgDeleteBtn" title="Delete the open test, its attempts and (optionally) its own questions">🗑 Delete this test</button>
         </div>
         <div class="flexrow" style="margin-top:6px">
           <div class="field"><label>Test type</label><select id="dgKind">
@@ -3650,7 +3651,8 @@ function dgLibRender(){
     <td style="white-space:nowrap"><button class="btn secondary" style="padding:3px 10px" data-libprev="${e.docId}">Preview</button>
       <button class="btn secondary" style="padding:3px 10px" data-libedit="${e.docId}">Edit</button>
       <button class="btn secondary" style="padding:3px 10px" data-libassign="${e.docId}" title="Choose batches / students">Assign</button>
-      <button class="btn ${e.isActive?'secondary':'green'}" style="padding:3px 10px" data-libtoggle="${e.docId}" data-act="${e.isActive?0:1}">${e.isActive?'Deactivate':'Activate'}</button></td></tr>`;
+      <button class="btn ${e.isActive?'secondary':'green'}" style="padding:3px 10px" data-libtoggle="${e.docId}" data-act="${e.isActive?0:1}">${e.isActive?'Deactivate':'Activate'}</button>
+      <button class="btn danger" style="padding:3px 10px" data-libdel="${e.docId}" title="Delete the test and its attempts">Delete</button></td></tr>`;
   box.innerHTML = [...groups.keys()].sort((a,b) => a === "Uncategorised" ? 1 : b === "Uncategorised" ? -1 : a.localeCompare(b)).map(ch => {
     const g = groups.get(ch), all = [...g.values()].flat();
     return `<details open style="border:1px solid var(--border);border-radius:6px;margin-bottom:8px;padding:6px 10px">
@@ -3665,6 +3667,7 @@ function dgLibRender(){
     $("dgExisting").value = b.dataset.libedit; dgOpenExam(b.dataset.libedit);
     $("dgTitle").scrollIntoView({ behavior: "smooth", block: "center" });
   });
+  box.querySelectorAll("[data-libdel]").forEach(b => b.onclick = () => deleteTestCompletely(b.dataset.libdel, () => dgLibRender()));
   box.querySelectorAll("[data-libassign]").forEach(b => b.onclick = async () => {
     const ex = examsCache.find(e => e.docId === b.dataset.libassign);
     if (ex && !ex.isActive && await blockIfKeysMissing(ex)) return;
@@ -4383,6 +4386,11 @@ $("dgSubject").onchange = dgLoadTopicList;
 $("dgScoring").onchange = () => { $("dgCustomMarks").style.display = $("dgScoring").value === "custom" ? "" : "none"; dgRender(); };
 $("dgMkA").onchange = $("dgMkW").onchange = dgRender;
 $("dgNewBtn").onclick = dgNew;
+$("dgDeleteBtn").onclick = () => {
+  const id = DG.examDocId || $("dgExisting").value;
+  if (!id) { setMsg($("dgMsg"), "Open a saved test first (or pick one in “Open existing test”)."); return; }
+  deleteTestCompletely(id, () => initDiagnostic());
+};
 $("dgOpenBtn").onclick = () => dgOpenExam($("dgExisting").value);
 $("dgFiles").onchange = e => { dgAddFiles(e.target.files); e.target.value = ""; };
 $("dgDrop").addEventListener("dragover", e => { e.preventDefault(); $("dgDrop").style.borderColor = "var(--blue)"; });
@@ -5534,11 +5542,45 @@ async function loadExams(){
     await updateDoc(doc(db,"exams",b.dataset.toggle), { isActive: false });
     loadExams();
   });
-  $("examRows").querySelectorAll("[data-delex]").forEach(b => b.onclick = async () => {
-    if (!await uiConfirm("Delete this exam?")) return;
-    await deleteDoc(doc(db,"exams",b.dataset.delex));
-    loadExams();
-  });
+  $("examRows").querySelectorAll("[data-delex]").forEach(b => b.onclick = () => deleteTestCompletely(b.dataset.delex));
+}
+// Delete a test completely: the test, every student attempt of it, and (if chosen) the questions no other test uses.
+// Works for any test type (exam, diagnostic, study-package chapter, custom / AI practice).
+async function deleteTestCompletely(examId, after){
+  const ex = examsCache.find(e => e.docId === examId);
+  if (!ex) { uiAlert("That test no longer exists."); return; }
+  if (!ownsItem(ex)) { uiAlert("Only the test's creator or an admin can delete it."); return; }
+  let atts = [];
+  try { atts = (await getDocs(query(collection(db,"attempts"), where("examId","==",examId)))).docs; } catch(e) {}
+  const usedElsewhere = new Set(examsCache.filter(e => e.docId !== examId).flatMap(e => e.questionIds || []));
+  const onlyHere = [...new Set(ex.questionIds || [])].filter(id => !usedElsewhere.has(id));
+  const submitted = atts.filter(d => d.data().submitTime != null).length;
+  if (!await uiConfirm(`Delete "${ex.title}" completely?\n\n• the test itself\n• ${atts.length} student attempt(s)${submitted ? ` (${submitted} submitted — their results disappear from Reports, ranks, notebooks and progress)` : ""}\n\nThis cannot be undone.`)) return;
+  const delQs = onlyHere.length ? await uiConfirm(`Also delete the ${onlyHere.length} question(s) that no other test uses?\n\n“Yes” deletes them from the question bank too.\n“Cancel” keeps them in the bank (for practice and future tests).`) : false;
+  const log = [];
+  try {
+    for (let i = 0; i < atts.length; i += 400) {
+      const batch = writeBatch(db);
+      atts.slice(i, i + 400).forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+    if (atts.length) log.push(`${atts.length} attempt(s) deleted`);
+  } catch(e) { uiAlert("Could not delete the attempts: " + e.message + " — nothing else was deleted."); return; }
+  if (delQs) {
+    let ok = 0, denied = 0;
+    for (const id of onlyHere) {
+      try { await deleteDoc(doc(db,"questions",id)); ok++; } catch(e) { denied++; }
+    }
+    log.push(`${ok} question(s) deleted from the bank` + (denied ? `, ${denied} kept (owned by another teacher)` : ""));
+    allBankCache = null;
+  }
+  try { await deleteDoc(doc(db,"exams",examId)); log.unshift(`"${ex.title}" deleted`); }
+  catch(e) { uiAlert("Attempts were deleted, but the test itself could not be: " + e.message); return; }
+  examsCache = examsCache.filter(e => e.docId !== examId);
+  if (typeof DG !== "undefined" && DG.examDocId === examId) dgNew();
+  uiAlert(log.join(" · ") + "." + (delQs ? "\n\nRebuild the practice index (Topics) so practice and the Model Bank stop listing the deleted questions." : ""));
+  await loadExams();
+  if (after) after();
 }
 
 // A test cannot go live while any of its questions still lacks an answer key (AI pending / AI unsure / blank).
@@ -5971,13 +6013,15 @@ async function pkLoad(){
       ${chapters.map(e => `<tr><td>${esc((e.subjects || []).join(", "))}</td><td><b>${esc(e.chapter || "—")}</b></td><td>${esc(e.title)}</td><td>${(e.questionIds || []).length}</td>
         <td>${e.isActive ? '<span class="badge pos">Published</span>' : '<span class="badge zero">Hidden</span>'}
             <button class="btn secondary" style="padding:1px 8px;font-size:12px" data-pkpub="${e.docId}">${e.isActive ? "Hide" : "Publish"}</button></td>
-        <td><button class="btn secondary" style="padding:2px 10px" data-pkedit="${e.docId}">Edit questions / key</button></td></tr>`).join("")}</tbody></table>`
+        <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 10px" data-pkedit="${e.docId}">Edit questions / key</button>
+            <button class="btn danger" style="padding:2px 10px" data-pkdel="${e.docId}">Delete</button></td></tr>`).join("")}</tbody></table>`
       : `<p style="color:var(--muted)">No chapters yet — click <b>+ New chapter</b> to upload the first one.</p>`}</div>`;
   $("pkChapters").querySelectorAll("[data-pkedit]").forEach(b => b.onclick = () => {
     document.querySelector('[data-atab="diagnostic"]').click();
     $("dgExisting").value = b.dataset.pkedit; dgOpenExam(b.dataset.pkedit);
     $("dgTitle").scrollIntoView({ behavior: "smooth", block: "center" });
   });
+  $("pkChapters").querySelectorAll("[data-pkdel]").forEach(b => b.onclick = () => deleteTestCompletely(b.dataset.pkdel, () => pkLoad()));
   $("pkChapters").querySelectorAll("[data-pkpub]").forEach(b => b.onclick = async () => {
     const e = chapters.find(x => x.docId === b.dataset.pkpub);
     try { await updateDoc(doc(db,"exams",e.docId), { isActive: !e.isActive }); pkLoad(); }
