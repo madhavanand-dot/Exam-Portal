@@ -121,7 +121,7 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 .txLvl{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:8px;white-space:nowrap}
 .txLvl.neet{background:#e2f5e9;color:#1e7a44}.txLvl.main{background:#e8f1fa;color:#1a5b9c}.txLvl.adv{background:#f3e8fa;color:#6b2c91}
 .txCnt{text-align:center;font-variant-numeric:tabular-nums;min-width:52px}
-.txCnt.gap{background:#fdecea;color:#b03a2e}
+.txCnt.gap{background:#fdecea !important;color:#b03a2e}
 .txRow{cursor:pointer}.txRow:hover td{background:#f6f9fc}
 .txCols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 @media (max-width:760px){.txCols{grid-template-columns:1fr}}
@@ -343,6 +343,8 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <h2 class="sec" style="margin-top:0">Upload Questions (JSON)</h2>
         <input type="file" id="qFile" accept=".json,application/json">
         <button class="btn" id="qUploadBtn" style="margin-left:10px">Upload</button>
+        <label style="font-size:13px;display:inline-flex;gap:6px;align-items:center;margin-left:10px" title="Checks the bank first: skips unchanged and duplicate-picture questions, never overwrites a teacher-confirmed key, and asks before writing">
+          <input type="checkbox" id="qSafe" checked> Safe import (recommended)</label>
         <div id="uploadLog" class="hidden"></div>
       </div>
       <h2 class="sec">Question Bank</h2>
@@ -2815,18 +2817,61 @@ $("qUploadBtn").onclick = async () => {
     say(`Images compressed: ${(before/1048576).toFixed(1)} MB → ${(after/1048576).toFixed(1)} MB.`);
   }
 
+  // picture fingerprint of the stored (compressed) image, so the same picture is recognised later
+  for (const q of valid) {
+    if (q.image) q.imgHash = await imgHashOf(q.image); else delete q.imgHash;
+    if (q.srcHash && !/^[0-9a-f]{40}$/.test(String(q.srcHash))) { say(`WARN  ${q.id}: srcHash ignored (must be the first 40 hex chars of the original file's SHA-256)`); delete q.srcHash; }
+  }
+  // ---- Safe import: plan against the bank first ----
+  let toWrite = valid.map(q => ({ q, mode: "new" }));
+  if ($("qSafe").checked) {
+    say("Safe import: checking the bank for these ids and pictures…");
+    const plan = { new: [], update: [], same: [], conflict: [], dup: [] };
+    const sameContent = (a, b) => ["correct_answer", "text", "topic", "difficulty", "section", "model", "modelCode", "solution", "idealTimeSec", "imgHash"]
+      .every(k => String(a[k] ?? "") === String(b[k] ?? "")) && JSON.stringify(a.options || []) === JSON.stringify(b.options || []);
+    for (let i = 0; i < valid.length; i++) {
+      const q = valid[i];
+      const ex = await getDoc(doc(db,"questions",q.id)).then(sn => sn.exists() ? { docId: sn.id, ...sn.data() } : null).catch(() => null);
+      if (ex) {
+        if (sameContent(q, ex)) plan.same.push({ q });
+        else if (keyTrust(ex) >= 3 && String(q.correct_answer) !== String(ex.correct_answer))
+          plan.conflict.push({ q, why: `same id, key ${q.correct_answer} vs teacher-confirmed ${ex.correct_answer}` });
+        else plan.update.push({ q, ex });
+      } else {
+        const copies = (q.imgHash || q.srcHash) ? (await findImageCopies(q.imgHash, q.srcHash)).filter(c => c.docId !== q.id) : [];
+        if (copies.length) {
+          const best = bestKeyedCopy(copies) || copies[0];
+          plan.dup.push({ q, why: `same picture as ${best.id || best.docId}${hasKey(best) ? ` (key ${best.correct_answer}${String(best.correct_answer) !== String(q.correct_answer) ? `, yours ${q.correct_answer}` : ""})` : ""}` });
+        } else plan.new.push({ q });
+      }
+      if (i % 20 === 19) say(`  checked ${i + 1}/${valid.length}…`);
+    }
+    say(`Plan: ${plan.new.length} new · ${plan.update.length} update(s) · ${plan.same.length} unchanged (skipped) · ${plan.dup.length} duplicate picture(s) (skipped) · ${plan.conflict.length} key conflict(s) (skipped).`);
+    [...plan.conflict.map(x => `CONFLICT ${x.q.id}: ${x.why}`), ...plan.dup.map(x => `DUPLICATE ${x.q.id}: ${x.why}`)].slice(0, 60).forEach(say);
+    if (plan.conflict.length || plan.dup.length) {
+      const rows = [["id", "result", "detail"], ...plan.conflict.map(x => [x.q.id, "conflict", x.why]), ...plan.dup.map(x => [x.q.id, "duplicate", x.why])];
+      say("A report of the skipped rows is being downloaded (import_report.csv).");
+      downloadCsv("import_report.csv", rows);
+    }
+    toWrite = [...plan.new.map(x => ({ q: x.q, mode: "new" })), ...plan.update.map(x => ({ q: x.q, mode: "update" }))];
+    if (!toWrite.length) { say("Nothing to write."); return; }
+    if (!confirm(`Write ${plan.new.length} new and update ${plan.update.length} existing question(s)? Skipped: ${plan.same.length} unchanged, ${plan.dup.length} duplicates, ${plan.conflict.length} conflicts.`)) { say("Cancelled — nothing written."); return; }
+  }
   // batch write (Firestore limit 500 ops; image docs are big, so keep image batches small for the 10 MB request cap)
   let written = 0;
   const per = withImgs.length ? 25 : 450;
-  for (let i = 0; i < valid.length; i += per) {
+  for (let i = 0; i < toWrite.length; i += per) {
     const batch = writeBatch(db);
-    for (const q of valid.slice(i, i+per))
-      batch.set(doc(db, "questions", q.id), { ...q, createdBy: currentUser.uid, createdByName: currentUser.name, createdAt: serverTimestamp() });
-    await batch.commit();
-    written += Math.min(per, valid.length - i);
-    say(`Uploaded ${written}/${valid.length}...`);
+    for (const { q, mode } of toWrite.slice(i, i+per))
+      mode === "update"   // keeps the original owner / creation time; replaces the content fields sent
+        ? batch.set(doc(db, "questions", q.id), { ...q, updatedBy: currentUser.uid, updatedByName: currentUser.name, updatedAt: serverTimestamp() }, { merge: true })
+        : batch.set(doc(db, "questions", q.id), { ...q, createdBy: currentUser.uid, createdByName: currentUser.name, createdAt: serverTimestamp() });
+    try { await batch.commit(); }
+    catch(e) { say(`FAILED rows ${i + 1}–${Math.min(i + per, toWrite.length)}: ${e.code === "permission-denied" ? "an update touches a question owned by another teacher (admins can update any)" : e.message}`); continue; }
+    written += Math.min(per, toWrite.length - i);
+    say(`Uploaded ${written}/${toWrite.length}...`);
   }
-  say("Done. " + written + " questions written.");
+  say("Done. " + written + " questions written. Remember: Topics → Rebuild practice index.");
   allBankCache = null;
 };
 
@@ -3041,10 +3086,14 @@ async function biIngest(files){
     try {
       const image = await imageFileToDataUrl(f);
       const [imgHash, srcHash] = await Promise.all([imgHashOf(image), fileHashOf(f)]);
-      // picture already in the bank with a key → remember that key
-      const known = guessed ? null : bestKeyedCopy(await findImageCopies(imgHash, srcHash));
+      // picture already in the bank with a key → remember that key; a file-name key that disagrees with a
+      // teacher-confirmed key is a conflict the teacher must resolve (never silently replaced either way)
+      const best = bestKeyedCopy(await findImageCopies(imgHash, srcHash));
+      const known = guessed ? null : best;
+      const conflict = guessed && best && keyTrust(best) >= 3 && normKey(guessed) !== normKey(best.correct_answer)
+        ? { file: guessed, bank: String(best.correct_answer), id: best.id || best.docId } : null;
       rows.push({
-        image, file: f.name, rel, imgHash, srcHash, keyFrom: known ? (known.id || known.docId) : "",
+        image, file: f.name, rel, imgHash, srcHash, keyFrom: known ? (known.id || known.docId) : "", conflict,
         id: prefix + safeDocId(f.name),
         num: numFromName(f.name) ?? (i+1),
         subject: meta.subject, topic: meta.topic,
@@ -3079,8 +3128,9 @@ function renderBiTable(){
   $("biWrap").innerHTML = `<table class="tbl"><thead><tr>
       <th>#</th><th>Preview</th><th>Question ID</th><th>Subject</th><th>Topic</th><th>Sec</th><th>Answer</th><th>Size</th><th></th>
     </tr></thead><tbody>` +
-    biRows.map((r,i) => `<tr data-bi="${i}" ${r.section==="A" && !r.correct_answer ? 'style="background:#fdecea"' : ""}>
-      <td><b>${r.num}</b><br><span style="font-size:11px;color:var(--muted)">${esc(r.file)}</span></td>
+    biRows.map((r,i) => `<tr data-bi="${i}" ${(r.section==="A" && !r.correct_answer) || (r.conflict && !r.conflictResolved) ? 'style="background:#fdecea"' : ""}>
+      <td><b>${r.num}</b><br><span style="font-size:11px;color:var(--muted)">${esc(r.file)}</span>${r.conflict && !r.conflictResolved
+        ? `<br><span style="font-size:11px;color:#b03a2e;font-weight:600">⚠ file says ${esc(r.conflict.file)}, bank (teacher) says ${esc(r.conflict.bank)} — type the right answer</span>` : ""}</td>
       <td>${r.image ? `<img src="${r.image}" style="max-width:190px;max-height:110px;border:1px solid var(--border);border-radius:4px;cursor:zoom-in" data-bizoom="${i}">`
                     : `<span class="badge neg">${esc(r.error||"failed")}</span>`}</td>
       <td><input value="${esc(r.id)}" data-bif="id" style="width:150px"></td>
@@ -3098,6 +3148,7 @@ function renderBiTable(){
       inp.onchange = () => {
         let v = inp.value.trim();
         if (inp.dataset.bif === "correct_answer" && biRows[i].section === "A") { v = normKey(v); inp.value = v; }
+        if (inp.dataset.bif === "correct_answer" && biRows[i].conflict) { biRows[i].conflictResolved = true; setTimeout(renderBiTable); }
         if (inp.dataset.bif === "id") v = safeDocId(v);
         biRows[i][inp.dataset.bif] = v;
         if (inp.dataset.bif === "id") inp.value = v;
@@ -3135,6 +3186,7 @@ function biValidate(){
     seen.add(r.id);
     if (!EXAM_CONFIG[$("biType").value].subjects.includes(r.subject))
       errs.push(`${w}: subject "${r.subject}" is not valid for ${$("biType").value}`);
+    if (r.conflict && !r.conflictResolved) errs.push(`${w}: key conflict — the file name says ${r.conflict.file}, the bank's teacher-confirmed key for this picture (${r.conflict.id}) is ${r.conflict.bank}. Type the correct answer in the row to resolve it.`);
     if (r.section === "A") { if (!validMcqKey(r.correct_answer)) errs.push(`${w}: answer must be A/B/C/D (or several letters, e.g. AC, if more than one is correct)`); }
     else if (r.correct_answer === "" || isNaN(parseFloat(r.correct_answer))) errs.push(`${w}: numerical answer required`);
   });
