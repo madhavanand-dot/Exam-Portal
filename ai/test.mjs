@@ -261,7 +261,7 @@ import { solveRequestedExams } from "./estimate.mjs";
   ok(lv(levelRule("concept", "Medium")) === "Easy" && lv(levelRule("accuracy", "Medium")) === "Medium", "Moderate miss: Easy for a concept gap, Moderate for an accuracy slip");
   ok(lv(levelRule("concept", "Hard")) === "Medium" && lv(levelRule("accuracy", "Hard")) === "Hard" && lv(levelRule("speed", "Hard")) === "Hard", "Hard miss: Moderate for a concept gap, Hard allowed for accuracy / speed");
   const p = genPrompt({ subject: "Physics", topic: "LoM", level: "Easy", group: "concept", count: 2, needs: [] }, { examType: "medical" }, []);
-  ok(/Target level: Bloom/.test(p[1].content) && !/Intermediate|Advanced level/.test(p[1].content.split("Target level")[1].split("\n")[0]), "concept prompt for an Easy miss targets Bloom only");
+  ok(/Target level: Easy/.test(p[1].content) && !/Moderate|Hard/.test(p[1].content.split("Target level")[1].split("\n")[0]), "concept prompt for an Easy miss targets Easy only");
 }
 
 console.log(`\n${passed} passed`);

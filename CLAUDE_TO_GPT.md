@@ -184,8 +184,8 @@ Every row is validated; rejected rows are listed with the reason, and the rest a
   "Pulley — two blocks" or "Friction on incline". Keep one short name per pattern and reuse it exactly. Students'
   mistakes are grouped by chapter → model, practice suggests more questions of the same model, and the AI writes
   "same model, new numbers".
-- **`difficulty`:** `Easy` | `Medium` | `Hard`, shown as Bloom / Intermediate / Advanced level. `"Bloom"`,
-  `"Intermediate"`, `"Moderate"` and `"Advanced"` are also accepted (anything not Easy/Bloom or Hard/Advanced becomes
+- **`difficulty`:** `Easy` | `Medium` | `Hard`, shown as **Easy / Moderate / Hard**. `"Moderate"` (and the older
+  `"Bloom"`, `"Intermediate"`, `"Advanced"`) are also accepted (anything not Easy/Bloom or Hard/Advanced becomes
   `Medium`, so spell Easy and Hard correctly).
 - **Difficulty ceiling after a mistake** (Mistaken models to practice, Custom Practice, AI follow-up): a concept gap
   gets questions one level below the missed one (an Easy miss stays Easy), an accuracy slip the same level, speed the

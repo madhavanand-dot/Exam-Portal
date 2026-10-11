@@ -49,9 +49,9 @@ export function resolveConfig(env = {}, ai = {}, secret = {}){
 }
 
 const LEVELS = [
-  { key: "Easy",   name: "Bloom",        desc: "direct recall or a single-step application of one NCERT idea" },
-  { key: "Medium", name: "Intermediate", desc: "two to three steps, applying the concept in a slightly new situation" },
-  { key: "Hard",   name: "Advanced",     desc: "multi-step or multi-concept analysis, NEET/JEE top-end difficulty" }
+  { key: "Easy",   name: "Easy",     desc: "direct recall or a single-step application of one NCERT idea" },
+  { key: "Medium", name: "Moderate", desc: "two to three steps, applying the concept in a slightly new situation" },
+  { key: "Hard",   name: "Hard",     desc: "multi-step or multi-concept analysis, NEET/JEE top-end difficulty" }
 ];
 const normLevel = v => {
   const t = String(v || "").trim().toLowerCase();
@@ -174,11 +174,11 @@ Rules:
 - Exactly 4 options, exactly ONE correct. Distractors must be plausible (common student errors).
 - Different numbers/context from the source questions — never copy them.
 - Self-contained text; no figure or diagram needed. Use $...$ for math and write every LaTeX backslash doubled for JSON (e.g. "$\\\\frac{1}{2}mv^2$"). No line breaks inside strings; use <br> if needed.
-- "level" is one of "Bloom", "Intermediate", "Advanced". "idealSec" = seconds a well-prepared student needs.
+- "level" is one of "Easy", "Moderate", "Hard". "idealSec" = seconds a well-prepared student needs.
 - "solution" = a short worked solution ending with the answer letter.
 
 Reply with ONLY this JSON:
-{"questions":[{"stem":"...","options":["...","...","...","..."],"answer":"A","solution":"...","level":"Intermediate","idealSec":60}]}` }
+{"questions":[{"stem":"...","options":["...","...","...","..."],"answer":"A","solution":"...","level":"Moderate","idealSec":60}]}` }
   ];
 }
 export function verifyPrompt(item, exam){

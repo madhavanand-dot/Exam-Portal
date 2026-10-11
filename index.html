@@ -369,7 +369,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <div class="field"><label>Default subject</label><select id="biSubject"></select></div>
           <div class="field"><label>Default topic</label><input id="biTopic" placeholder="(used when folder gives none)"></div>
           <div class="field"><label>Section</label><select id="biSection"><option value="A">A — MCQ</option><option value="B">B — Numerical</option></select></div>
-          <div class="field"><label>Level</label><select id="biDiff"><option value="Easy">Bloom Level</option><option value="Medium" selected>Intermediate Level</option><option value="Hard">Advanced Level</option></select></div>
+          <div class="field"><label>Level</label><select id="biDiff"><option value="Easy">Easy</option><option value="Medium" selected>Moderate</option><option value="Hard">Hard</option></select></div>
           <div class="field"><label>ID prefix</label><input id="biPrefix" placeholder="e.g. AIATS1_"></div>
         </div>
         <div id="biMsg"></div>
@@ -608,7 +608,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <div class="field" id="dgStudentsWrap" style="display:none;max-width:340px"><label>Pick students</label><div id="dgStudentPick" class="checklist" style="max-height:170px"></div></div>
         </div>
         <div class="flexrow">
-          <div class="field"><label>Default ideal time (sec) — Bloom / Intermediate / Advanced</label>
+          <div class="field"><label>Default ideal time (sec) — Easy / Moderate / Hard</label>
             <div style="display:flex;gap:6px"><input id="dgIdE" type="number" min="5" style="width:70px"><input id="dgIdM" type="number" min="5" style="width:70px"><input id="dgIdH" type="number" min="5" style="width:70px">
             <button class="btn secondary" id="dgResetIdealBtn" style="padding:4px 10px;font-size:12px">Apply to all rows</button></div></div>
         </div>
@@ -625,7 +625,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
             </div>
             <div class="flexrow" style="margin-top:8px">
               <div class="field"><label>Section</label><select id="dgSection"><option value="A">MCQ (tick options)</option><option value="B">Numerical (student types the answer)</option></select></div>
-              <div class="field"><label>Level</label><select id="dgDiff"><option value="Easy">Bloom Level</option><option value="Medium" selected>Intermediate Level</option><option value="Hard">Advanced Level</option></select></div>
+              <div class="field"><label>Level</label><select id="dgDiff"><option value="Easy">Easy</option><option value="Medium" selected>Moderate</option><option value="Hard">Hard</option></select></div>
             </div>
             <p style="font-size:11.5px;color:var(--muted)">Answers are read from filenames where possible (<code>Q12_B.png</code>, <code>Q12(3).jpg</code>). Images are compressed to fit Firestore's 1&nbsp;MB limit.</p>
           </div>
@@ -678,7 +678,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
           For each student who took a test, builds a follow-up test from the questions they got <b>wrong</b> or <b>skipped</b>, using the
           <b>reason</b> they gave after the test (or their timing, if they gave none):
-          <b>concept gap</b> → same topic from Bloom Level up to the question's level ·
+          <b>concept gap</b> → same topic, one level below the question (Easy stays Easy) ·
           <b>accuracy slip</b> (misread, calculation, silly) → same topic at the same level ·
           <b>speed</b> (ran out of time, too lengthy) → same topic, same or easier level, with ideal time shown.
           Questions come from the bank via the practice index (<b>Topics → Rebuild practice index</b> if new questions are missing). Each test is assigned only to that student.
@@ -917,7 +917,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         <div class="field"><label>Questions</label><select id="prCount">
           <option>10</option><option selected>25</option><option>50</option><option>75</option></select></div>
         <div class="field"><label>Level</label><select id="prDiff">
-          <option value="">Any</option><option value="Easy">Bloom Level</option><option value="Medium">Intermediate Level</option><option value="Hard">Advanced Level</option></select></div>
+          <option value="">Any</option><option value="Easy">Easy</option><option value="Medium">Moderate</option><option value="Hard">Hard</option></select></div>
         <div class="field" style="align-self:center"><label style="display:flex;gap:6px;align-items:center;cursor:pointer">
           <input type="checkbox" id="prFresh" checked> <span>Skip questions I've already practised</span></label></div>
       </div>
@@ -1197,9 +1197,9 @@ function isAnsCorrect(q, ans){
 // Diagnostic levels. Stored values stay Easy/Medium/Hard (existing questions, JSON files and the practice
 // index all use them); only the names shown to people changed. Rename here if the scheme changes again.
 const LEVELS = [
-  { key: "Easy",   label: "Bloom Level",        short: "Bloom" },
-  { key: "Medium", label: "Intermediate Level", short: "Intermediate" },
-  { key: "Hard",   label: "Advanced Level",     short: "Advanced" }
+  { key: "Easy",   label: "Easy",     short: "Easy" },
+  { key: "Medium", label: "Moderate", short: "Moderate" },
+  { key: "Hard",   label: "Hard",     short: "Hard" }
 ];
 function normLevel(v){
   const t = String(v || "").trim().toLowerCase();
@@ -1211,7 +1211,7 @@ const levelLabel = v => LEVELS.find(l => l.key === normLevel(v)).label;
 const levelShort = v => LEVELS.find(l => l.key === normLevel(v)).short;
 const levelOptions = sel => LEVELS.map(l => `<option value="${l.key}" ${normLevel(sel)===l.key?"selected":""}>${l.label}</option>`).join("");
 // "Too quick" rule: answering a tough question in a small fraction of its ideal time usually means a blind guess
-// or outside help. Advanced: under 25% of ideal (min 8 s); Intermediate: under 15% (min 5 s); Bloom: never flagged.
+// or outside help. Hard: under 25% of ideal (min 8 s); Moderate: under 15% (min 5 s); Easy: never flagged.
 const QUICK_RULE = { Hard: [0.25, 8], Medium: [0.15, 5] };
 function quickThreshold(q, idealSec){
   const r = QUICK_RULE[normLevel(q?.difficulty)];
@@ -1241,7 +1241,7 @@ function speedBucket(verdict, timeSec, idealSec){
   return slow ? "wrongSlow" : "wrongFast";
 }
 // Did the student understand a topic? items: [{verdict, bucket, level}] for that topic's questions.
-// "Level reached" = highest diagnostic level cleared (≥60% correct) climbing up from Bloom without a gap.
+// "Level reached" = highest diagnostic level cleared (≥60% correct) climbing up from Easy without a gap.
 function conceptVerdict(items){
   const tot = items.length, correct = items.filter(i => i.verdict === "correct").length;
   const frac = tot ? correct / tot : 0;
@@ -1253,7 +1253,7 @@ function conceptVerdict(items){
     if (!at.length) continue;
     if (at.filter(i => i.verdict === "correct").length / at.length >= 0.6) reached = L; else break;
   }
-  return { code, frac, reached: reached ? reached.short : "Below Bloom", ...CONCEPT_LABEL[code] };
+  return { code, frac, reached: reached ? reached.short : "Below Easy", ...CONCEPT_LABEL[code] };
 }
 const CONCEPT_LABEL = {
   understood: { label: "✅ Understood",          cls: "pos"  },
@@ -1779,7 +1779,7 @@ function iaConceptMatrix(){
       <td style="font-size:12px">${nReasons}/${nBad}</td></tr>`;
   }).join("");
   return `<h2 class="sec">Concept understanding by student</h2>
-    <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">✅ understood · 🟡 understood but slow · 🟠 partly · ❌ not yet — followed by the highest level cleared (Bloom / Intermediate / Advanced). "Reasons" = how many wrong/skipped questions the student explained. Build their follow-up in <b>Custom Practice</b>.</p>
+    <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">✅ understood · 🟡 understood but slow · 🟠 partly · ❌ not yet — followed by the highest level cleared (Easy / Moderate / Hard). "Reasons" = how many wrong/skipped questions the student explained. Build their follow-up in <b>Custom Practice</b>.</p>
     <div style="overflow:auto"><table class="tbl"><thead><tr><th>Student</th><th>Score</th>${topics.map(t=>`<th style="font-size:12px">${esc(t)}</th>`).join("")}<th>Reasons</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 // Students whose correct answers came suspiciously fast (see fastReasons) — a list to look into, not a verdict.
@@ -4061,7 +4061,7 @@ $("dgAutoDurBtn").onclick = () => {
   $("dgDuration").value = Math.max(1, Math.ceil(total*1.1/60));
 };
 $("dgResetIdealBtn").onclick = () => {
-  if (DG.rows.length && !confirm("Reset every question's ideal time to the Bloom / Intermediate / Advanced defaults?")) return;
+  if (DG.rows.length && !confirm("Reset every question's ideal time to the Easy / Moderate / Hard defaults?")) return;
   DG.rows.forEach(r => { r.idealSec = dgDefaultIdeal(r); });
   dgRender();
 };
@@ -4192,7 +4192,7 @@ async function cpLoadBank(examType, subjects){
 }
 const lvlIdx = d => LEVELS.findIndex(L => L.key === normLevel(d));
 // One student's follow-up: for every wrong/skipped (and optionally correct-but-slow) question, fresh bank questions
-// from the same topic chosen by the REASON: concept gap → start from Bloom and climb to the question's level;
+// from the same topic chosen by the REASON: concept gap → one level below the question (levelRule);
 // accuracy slip → same level; speed → same level or easier, served with ideal time shown.
 function cpPlan(att, opts){
   const { exam, qById, bank } = cpSource;
@@ -6597,7 +6597,7 @@ async function showResult(attempt){
     <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">Each question is compared with its <b>ideal time</b>. <b>Correct but slow</b> = knows it, needs speed; <b>Wrong &amp; fast</b> = rushed or a misconception; <b>Wrong &amp; slow</b> = concept gap.</p>
     <div class="statRow">${diagChips}</div>
     <table class="tbl"><thead><tr><th>Subject — Topic</th><th>Concept</th><th>Level reached</th><th>Qs</th><th>Mastered</th><th>Correct but slow</th><th>Wrong &amp; fast</th><th>Wrong &amp; slow</th><th>Skipped</th><th>Time taken / ideal</th><th>What to do next</th></tr></thead><tbody>${diagRows}</tbody></table>
-    <h2 class="sec">Level-wise (Bloom → Intermediate → Advanced)</h2>
+    <h2 class="sec">Level-wise (Easy → Moderate → Hard)</h2>
     <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">A level is <b>cleared</b> at 60% or more correct.</p>
     <table class="tbl"><thead><tr><th>Level</th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy</th><th>Time taken</th><th>Ideal time</th><th></th></tr></thead><tbody>${levelRows}</tbody></table>
     <h2 class="sec">Question-by-question</h2>
@@ -6794,7 +6794,7 @@ function renderIntegrity(attempt, detail){
     ${incidents.length ? `<p style="margin-top:6px"><b>🚨 Left the test screen ${incidents.length} time(s)</b> — your teacher was notified each time:</p>
       <ul style="font-size:13px;margin:4px 0 0 18px">${incidents.map(v => `<li>${new Date(v.at).toLocaleTimeString("en-IN")} — ${esc(VIOLATION_TEXT[v.type] || v.type)}</li>`).join("")}</ul>` : ""}
     ${quick.length ? `<p style="margin-top:8px"><b>⚡ ${quick.length} tough question(s) answered too quickly.</b>
-      <span style="font-size:12.5px;color:var(--muted)">An Advanced/Intermediate question answered in a small fraction of its ideal time usually means a blind guess or outside help. Your teacher reviews these.</span></p>
+      <span style="font-size:12.5px;color:var(--muted)">A Hard/Moderate question answered in a small fraction of its ideal time usually means a blind guess or outside help. Your teacher reviews these.</span></p>
       <table class="tbl" style="margin-top:6px"><thead><tr><th>Q#</th><th>Topic</th><th>Level</th><th>Your time</th><th>Ideal</th><th>Result</th></tr></thead><tbody>
       ${quick.map(({d,i}) => `<tr><td>${i+1}</td><td>${esc(d.q.topic||"")}</td><td>${esc(levelShort(d.q.difficulty))}</td><td><b>${d.timeSec}s</b></td><td>${fmtSec(d.idealSec)}</td>
         <td><span class="badge ${d.verdict==="correct"?"zero":"neg"}">${d.verdict}</span></td></tr>`).join("")}</tbody></table>` : ""}
