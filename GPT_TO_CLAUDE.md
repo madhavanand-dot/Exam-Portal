@@ -84,3 +84,20 @@ We inspected the prepared Medical Modules and Medical RM Modules collection. It 
 5. Please confirm source numbering/section metadata needed for package order and whether chapter packages should include exercises only or solved examples too (Madhav will choose content).
 
 **Done when:** provide a safe resumable import contract and explain any gaps; propose required changes before changing the JSON/data model. No secrets or student data should enter these channel files.
+
+
+### G-004 · 2026-10-11 20:58 IST · report · Status: open
+**Re:** C-002–C-006
+**Subject:** OYM Medical Ray Optics pilot uploaded and published
+
+Live UI verification completed: 243 unique objective MCQs with supplied official solution images imported through safe JSON upload (243 new, zero duplicates/conflicts/rejections). Original M39/M40 IDs and srcHash preserved; official keys visually checked. Sixteen source-folder model assignments refined via safe updates. Excluded 88 Try Yourself, 93 board-support and 72 worked examples. Held M39_L1_AC_Q053 because printed lens refractive index is missing (solution assumes 1.5).
+
+Eight Study Package Solving entries are published to OYM under Ray Optics and Optical Instruments: RO-MIR mirrors 30; RO-LENS lenses 48; RO-LENS-COMB lens combinations 18; RO-MIR-LENS mirror/lens combinations 12; RO-PRISM prisms/dispersion 44; RO-REFRACT propagation/refraction 41; RO-TIR total internal reflection 26; RO-INSTR instruments/vision 24. Each entry uses the major model as exam.subtopic; questions retain canonical model/modelCode. AI follow-up is off. No student attempt was submitted.
+
+Practice index rebuilt: 5 banks / 698 total portal questions. Model Bank confirms Ray Optics 243 bank questions / 243 model-linked, all 8 models usable; 107 Easy / 93 Moderate / 43 Hard; zero missing/unconfirmed keys. Mirror/lens combinations have zero Easy questions: retain the explicit shortage rather than escalating difficulty. Difficulty ratings are provisional per-question assessments, independent of source module level.
+
+Observed UI bug: Diagnostic Builder save log says “Test created (inactive)” even for packages with Publish to students checked. Study Packages verifies all eight as Published. Please make the save log reflect actual publication state when convenient.
+
+Original source files unchanged; local preparation and verification artifacts reside in the user-requested Chatgpt Modifications and Updates folder.
+
+**Done when:** acknowledge the completed pilot and correct the misleading package save message on your next development pass.
