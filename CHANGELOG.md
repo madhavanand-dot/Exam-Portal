@@ -7,6 +7,21 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — Students: change batch, temporarily deactivate accounts
+
+**After deploying: publish the updated `firestore.rules`** (deactivated students' test/practice writes are refused).
+
+- **Change batch**: ✎ next to a student's batch, or tick several students → **Move to batch…** (existing batches
+  listed; a new code is allowed and is checked against the TYM / OYM / RM prefixes). Earlier results keep the batch
+  they were written in; from then on the student gets the new batch's tests and study package.
+- **Deactivate / Reactivate** (per student, or for the ticked ones, optional reason): a deactivated student cannot
+  sign in, is signed out at once if online (a running test is saved, not submitted), and Firestore refuses their
+  attempt / practice writes. Nothing is deleted. Deactivated students are greyed out with a badge, have a **Status**
+  filter, and are left out of Attendance absentees and the Study Package tracker.
+- **Select** students with the new tick-box column (header box = all listed).
+
+---
+
 ## 2026-10-11 — Students tab: batch dropdown, default passwords, bulk reset
 
 - **Filter by batch** is now a drop-down of the existing batches (with counts, plus "No batch"); it filters at once.

@@ -316,11 +316,13 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
       </div>
       <div class="flexrow" style="margin:10px 0">
         <div class="field"><label>Filter by batch</label><select id="stFilterBatch"><option value="">All batches</option></select></div>
+        <div class="field"><label>Status</label><select id="stFilterStatus"><option value="">All</option><option value="active">Active</option><option value="inactive">Deactivated</option></select></div>
         <button class="btn secondary hidden" id="stFilterBtn" style="align-self:flex-end">Filter</button>
         <button class="btn secondary" id="stBulkPwBtn" style="align-self:flex-end" title="Set every listed student's password to the default pattern, e.g. Ly@15456129">🔑 Reset passwords to default</button>
       </div>
       <h2 class="sec">Students (<span id="stCount">0</span>) <button class="btn secondary" id="stExportBtn" style="padding:3px 12px;font-size:12px">Export roster CSV</button></h2>
-      <table class="tbl"><thead><tr><th>PS-ID</th><th>Name</th><th>Exam Type</th><th>Batch</th><th>Class</th><th>Password</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
+      <div id="stBulkBar" class="hidden" style="gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0;padding:8px 10px;background:#e8f1fa;border-radius:6px;font-size:13px"></div>
+      <table class="tbl"><thead><tr><th id="stSelHead"></th><th>PS-ID</th><th>Name</th><th>Exam Type</th><th>Batch</th><th>Class</th><th>Password</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
     </div>
 
     <div id="atab-faculty" class="atab hidden">
@@ -1523,6 +1525,10 @@ onAuthStateChanged(auth, async (user) => {
     }
     if (!snap.exists()) { setMsg($("loginMsg"), "Account has no profile. Contact admin."); await signOut(auth); return; }
     currentUser = { uid: user.uid, ...snap.data() };
+    if (currentUser.active === false && currentUser.role !== "admin") {   // temporarily deactivated by the admin
+      setMsg($("loginMsg"), "Your account is temporarily deactivated. Please contact your teacher.");
+      currentUser = null; await signOut(auth); return;
+    }
     // Admins may stay signed in on several devices; the one-device rule applies to faculty and students.
     if (currentUser.role !== "admin") await claimSession(user.uid);
     await loadPortal();   // programme → batch prefixes (study packages)
@@ -1598,7 +1604,7 @@ function initAttendance(){
 // students assigned to an exam, based on its audience
 function assignedStudents(exam){
   const a = exam.audience;
-  let list = studentCache.filter(s => s.examType === exam.examType);
+  let list = studentCache.filter(s => s.examType === exam.examType && isActiveStudent(s));   // deactivated students are not counted absent
   if (a && a.mode === "batch") {
     const set = (a.batches||[]).map(x=>x.toLowerCase());
     list = list.filter(s => set.includes((s.batch||"").toLowerCase()));
@@ -2625,22 +2631,39 @@ function stFillBatchFilter(){
   sel.value = [...sel.options].some(o => o.value === cur) ? cur : "";
 }
 function stFiltered(){
-  const f = $("stFilterBatch")?.value || "";
-  return !f ? studentCache : f === "__none" ? studentCache.filter(s => !(s.batch || "").trim()) : studentCache.filter(s => (s.batch || "").trim() === f);
+  const f = $("stFilterBatch")?.value || "", st = $("stFilterStatus")?.value || "";
+  let list = !f ? studentCache : f === "__none" ? studentCache.filter(s => !(s.batch || "").trim()) : studentCache.filter(s => (s.batch || "").trim() === f);
+  if (st) list = list.filter(s => st === "inactive" ? s.active === false : s.active !== false);
+  return list;
 }
+const isActiveStudent = s => s?.active !== false;
+const stSelected = new Set();   // uids ticked in the Students table
 function renderStudents(){
   stFillBatchFilter();
   const list = stFiltered();
-  $("stCount").textContent = list.length;
+  const inactiveN = studentCache.filter(s => s.active === false).length;
+  $("stCount").textContent = list.length + (inactiveN ? ` · ${inactiveN} deactivated` : "");
+  [...stSelected].forEach(uid => { if (!list.some(s => s.uid === uid)) stSelected.delete(uid); });
+  stRenderBulkBar();
   $("studentRows").innerHTML = list.map(s => `
-    <tr><td>${esc(s.psid||"—")}</td><td>${esc(s.name)}</td><td>${esc(s.examType)}</td><td>${esc(s.batch||"—")}</td><td>${esc(s.class||"—")}</td>
+    <tr style="${s.active === false ? "opacity:.55;background:#f6f6f6" : ""}"><td>${isSuper() ? `<input type="checkbox" data-stsel="${s.uid}" ${stSelected.has(s.uid) ? "checked" : ""}>` : ""}</td>
+    <td>${esc(s.psid||"—")}</td><td>${esc(s.name)}${s.active === false ? ` <span class="badge neg" title="${esc(s.deactivatedReason || "")}">Deactivated</span>` : ""}</td><td>${esc(s.examType)}</td>
+    <td>${esc(s.batch||"—")}${isSuper() ? ` <button class="btn secondary" style="padding:0 6px;font-size:11px" data-stbatch="${s.uid}" title="Change batch">✎</button>` : ""}</td><td>${esc(s.class||"—")}</td>
     <td>${isSuper()
         ? (s.password ? `<code class="pwcell" data-pw="${esc(s.password)}">••••••</code> <button class="btn secondary" style="padding:1px 7px;font-size:11px" data-pwshow="${s.uid}">Show</button>`
                       : '<span style="color:var(--muted)">not stored</span>')
         : '—'}</td>
     <td>${fmtDate(s.createdAt)}</td>
-    <td>${isSuper()?`<button class="btn secondary" style="padding:3px 9px" data-pwd="${s.uid}">Change PW</button> <button class="btn danger" style="padding:3px 10px" data-delst="${s.uid}">Delete</button>`:""}</td></tr>`).join("")
-    || `<tr><td colspan="8">No students.</td></tr>`;
+    <td style="white-space:nowrap">${isSuper()?`<button class="btn secondary" style="padding:3px 9px" data-pwd="${s.uid}">Change PW</button>
+      <button class="btn secondary" style="padding:3px 9px" data-stact="${s.uid}">${s.active === false ? "Reactivate" : "Deactivate"}</button>
+      <button class="btn danger" style="padding:3px 10px" data-delst="${s.uid}">Delete</button>`:""}</td></tr>`).join("")
+    || `<tr><td colspan="9">No students.</td></tr>`;
+  $("studentRows").querySelectorAll("[data-stsel]").forEach(c => c.onchange = () => { c.checked ? stSelected.add(c.dataset.stsel) : stSelected.delete(c.dataset.stsel); stRenderBulkBar(); });
+  $("studentRows").querySelectorAll("[data-stbatch]").forEach(b => b.onclick = () => stChangeBatch([studentCache.find(s => s.uid === b.dataset.stbatch)]));
+  $("studentRows").querySelectorAll("[data-stact]").forEach(b => b.onclick = () => {
+    const s = studentCache.find(x => x.uid === b.dataset.stact);
+    stSetActive([s], s.active === false);
+  });
   $("studentRows").querySelectorAll("[data-pwshow]").forEach(b => b.onclick = () => {
     const code = b.previousElementSibling;
     const shown = code.textContent !== "••••••";
@@ -2705,6 +2728,66 @@ async function changeStudentPassword(s){
 }
 if ($("stFilterBtn")) $("stFilterBtn").onclick = renderStudents;
 $("stFilterBatch").onchange = renderStudents;
+$("stFilterStatus").onchange = renderStudents;
+function stRenderBulkBar(){
+  const bar = $("stBulkBar"), head = $("stSelHead");
+  if (!isSuper()) { bar.classList.add("hidden"); head.innerHTML = ""; return; }
+  const list = stFiltered();
+  head.innerHTML = `<input type="checkbox" id="stSelAll" title="Select all listed" ${list.length && list.every(s => stSelected.has(s.uid)) ? "checked" : ""}>`;
+  $("stSelAll").onchange = () => { const on = $("stSelAll").checked; list.forEach(s => on ? stSelected.add(s.uid) : stSelected.delete(s.uid)); renderStudents(); };
+  if (!stSelected.size) { bar.classList.add("hidden"); bar.style.display = ""; return; }
+  bar.classList.remove("hidden"); bar.style.display = "flex";
+  const sel = studentCache.filter(s => stSelected.has(s.uid));
+  bar.innerHTML = `<b>${sel.length} selected</b>
+    <button class="btn secondary" style="padding:3px 10px" id="stBulkBatch">Move to batch…</button>
+    <button class="btn secondary" style="padding:3px 10px" id="stBulkOff">Deactivate</button>
+    <button class="btn secondary" style="padding:3px 10px" id="stBulkOn">Reactivate</button>
+    <button class="btn secondary" style="padding:3px 10px" id="stBulkClear">Clear selection</button>`;
+  $("stBulkBatch").onclick = () => stChangeBatch(sel);
+  $("stBulkOff").onclick = () => stSetActive(sel, false);
+  $("stBulkOn").onclick = () => stSetActive(sel, true);
+  $("stBulkClear").onclick = () => { stSelected.clear(); renderStudents(); };
+}
+// Change batch for one or many students. Their past attempts keep the batch they were written in (rank history stays).
+async function stChangeBatch(list){
+  list = list.filter(Boolean); if (!list.length) return;
+  const known = [...new Set(studentCache.map(s => (s.batch || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const nb = prompt(`New batch for ${list.length === 1 ? list[0].name : list.length + " students"}?\n\nExisting batches: ${known.join(", ") || "none"}\n(Type a new code to create one; leave empty to remove the batch.)`, list.length === 1 ? (list[0].batch || "") : "");
+  if (nb == null) return;
+  const batch = nb.trim().toUpperCase();
+  const prog = programOf(batch);
+  if (batch && !known.some(b => b.toUpperCase() === batch) &&
+      !confirm(`"${batch}" is a new batch${prog ? ` (programme ${prog})` : " that matches no programme (TYM / OYM / RM), so it gets no study package"}. Continue?`)) return;
+  let ok = 0; const failed = [];
+  for (const s of list) {
+    try { await updateDoc(doc(db,"users",s.uid), { batch }); s.batch = batch; ok++; }
+    catch(e) { failed.push(`${s.name}: ${e.message}`); }
+  }
+  stSelected.clear(); renderStudents();
+  alert(`Batch set to "${batch || "(none)"}" for ${ok} student(s).` + (failed.length ? `\n\nFailed:\n${failed.slice(0, 10).join("\n")}` : "") +
+        `\n\nTheir earlier results keep the batch they were written in; from now on they get the tests and packages of the new batch.`);
+}
+// Temporarily deactivate / reactivate. A deactivated student cannot sign in (and is signed out if online);
+// firestore.rules also refuse their attempt writes. Nothing is deleted; reactivating restores everything.
+async function stSetActive(list, active){
+  list = list.filter(Boolean).filter(s => (s.active !== false) !== active);
+  if (!list.length) { alert(`Already ${active ? "active" : "deactivated"}.`); return; }
+  let reason = "";
+  if (!active) {
+    reason = prompt(`Deactivate ${list.length === 1 ? list[0].name : list.length + " students"}? They can't sign in until you reactivate them. Nothing is deleted.\n\nReason (optional, for your records):`, "");
+    if (reason == null) return;
+  }
+  let ok = 0; const failed = [];
+  for (const s of list) {
+    const upd = active ? { active: true, reactivatedAt: serverTimestamp(), reactivatedBy: currentUser.name }
+                       : { active: false, deactivatedAt: serverTimestamp(), deactivatedBy: currentUser.name, deactivatedReason: reason.trim() };
+    try { await updateDoc(doc(db,"users",s.uid), upd); s.active = active; s.deactivatedReason = active ? "" : reason.trim(); ok++; }
+    catch(e) { failed.push(`${s.name}: ${e.message}`); }
+  }
+  stSelected.clear(); renderStudents();
+  alert(`${ok} student(s) ${active ? "reactivated" : "deactivated"}.` + (failed.length ? `\n\nFailed:\n${failed.slice(0, 10).join("\n")}` : ""));
+}
+
 // Bulk reset to the default password for the students currently listed (filter). Firebase only lets a client change a
 // password while signed in as that user, so each student is signed in on a secondary app with the stored password.
 $("stBulkPwBtn").onclick = async () => {
@@ -5535,11 +5618,22 @@ $("rpCsvBtn").onclick = () => {
 /* ========== STUDENT DASHBOARD ========== */
 let activeExam = null; // { docId, title, examType, questionIds }
 
+let activeUserUnsub = null;
 async function enterStudent(){
   $("studentWho").textContent = `${currentUser.name} (${currentUser.examType}${currentUser.batch?", "+currentUser.batch:""})`;
   showView("view-student");
   loadActiveExam(); loadMyAttempts();
   initPractice(); loadPracticeHistory();
+  // deactivated while signed in: save any running test (not submitted) and sign out
+  if (activeUserUnsub) activeUserUnsub();
+  activeUserUnsub = onSnapshot(doc(db,"users",currentUser.uid), async sn => {
+    if (sn.exists() && sn.data().active === false) {
+      activeUserUnsub(); activeUserUnsub = null;
+      try { if (EX && !EX.submitted) await saveProgress(); } catch(e) {}
+      alert("Your account has been temporarily deactivated by your teacher. You will be signed out.");
+      signOut(auth);
+    }
+  }, () => {});
   txStudentInit();
   progressHtml(currentUser.uid, currentUser.name).then(h => { const el=$("myProgress"); if(el) el.innerHTML=h; }).catch(()=>{});
   openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true)
@@ -5824,7 +5918,7 @@ async function pkLoad(){
   await loadExams();
   const chapters = examsCache.filter(e => e.studyPackage?.kind === kind && e.examType === type && (kind === "booster" || e.studyPackage.program === prog))
     .sort((a, b) => ALL_SUBJECTS.indexOf((a.subjects || [])[0]) - ALL_SUBJECTS.indexOf((b.subjects || [])[0]) || (a.chapter || a.title).localeCompare(b.chapter || b.title, undefined, { numeric: true }));
-  const students = studentCache.filter(st => st.examType === type && (kind === "booster" || programOf(st.batch) === prog) && (!bf || normBatch(st.batch) === bf))
+  const students = studentCache.filter(st => st.examType === type && isActiveStudent(st) && (kind === "booster" || programOf(st.batch) === prog) && (!bf || normBatch(st.batch) === bf))
     .sort((a, b) => String(a.batch || "").localeCompare(String(b.batch || "")) || String(a.name).localeCompare(String(b.name)));
   PK = { chapters, students, att: {}, kind, prog };
   // chapter list
