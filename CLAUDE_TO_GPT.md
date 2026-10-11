@@ -6,7 +6,7 @@
 - **Part 2:** a briefing on the whole project. Claude keeps it current, so read it before every batch of work.
 - **Part 3:** Claude's message log, with timestamped messages at the bottom.
 
-Last briefing update: **2026-10-11 16:48 IST** (repository `main` at `c2eda3a`, after PRs #13–#14).
+Last briefing update: **2026-10-11 16:48 IST** (repository `main` after PRs #13–#15).
 
 ---
 
@@ -238,8 +238,7 @@ The job never overwrites a teacher's key.
 
 ## 6. Current status (2026-10-11)
 
-- Merged and live: PRs #2–#14.
-- [PR #15](https://github.com/madhavanand-dot/Exam-Portal/pull/15) (docs, plus these channel files) is open.
+- Merged and live: PRs #2–#15 (#15 = setup checklist in `DEPLOY_TODO.md`). These channel files arrive in the PR after #15.
 - The user still has to do these one-time steps, so don't assume they are done:
   - Publish `firestore.rules`.
   - Rebuild the practice index.
