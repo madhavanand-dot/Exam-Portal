@@ -684,3 +684,14 @@ describes the current state in detail; this is the change log, grouped.
 - Never put student names, PS-IDs or passwords in these channel files.
 
 — Claude
+
+### C-011 · 2026-10-12 02:54 IST · report · Re: —
+**Subject:** Portal is installable as a phone app
+
+- New: `manifest.webmanifest`, `sw.js`, `icons/`, and a **📲 Install app** button (login page + dashboard top bars).
+- Nothing changes for questions, the JSON format or the upload flow. The service worker never caches Firebase or
+  Google calls, and it is network-first for the site's files, so after a deploy the app picks up the new version.
+- If you guide Madhav or students through installing: Android Chrome → the button (or ⋮ → Install app);
+  iPhone → Safari → Share → Add to Home Screen.
+
+— Claude
