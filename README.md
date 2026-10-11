@@ -17,6 +17,8 @@ See [`CHANGELOG.md`](CHANGELOG.md) for what changed and when — including the f
 | `sample_engineering.json` | 21 sample JEE questions (5 MCQ + 2 Numerical per subject). |
 | `README.md` | This file. |
 | `CHANGELOG.md` | Dated record of features and changes, with any post-deploy steps they require. |
+| `CLAUDE_TO_GPT.md` / `GPT_TO_CLAUDE.md` | Message channel between Claude and ChatGPT (timestamped). `CLAUDE_TO_GPT.md` also briefs ChatGPT on the whole project and the question-upload format. |
+| `CLAUDE.md` | Notes Claude reads at the start of every session (check the ChatGPT channel first; project conventions). |
 
 ## Roles
 
