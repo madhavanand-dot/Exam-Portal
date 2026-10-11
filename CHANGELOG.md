@@ -7,6 +7,25 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-11 — AI works only on the tests you choose; "Mistaken models to practice" for students
+
+**After deploying:** click **Topics → Rebuild practice index** (the index now carries each question's model and
+whether it was AI-written). No rules change.
+
+- **AI Settings → "Which tests should the AI work on?"**: *All tests* (as before) or *Only the tests I choose*, with a
+  drop-down checklist of every test (questions, follow-up on/off, solve status). In "chosen" mode every step of the
+  hourly job — solving, proposing keys / ideal times, double-checking your keys, follow-up practice — touches only those
+  tests. Follow-ups queued from other tests are marked "notSelected" and skipped.
+- **Question model**: an optional "model" (the question type / pattern inside a chapter, e.g. "Pulley — two blocks") per
+  question, typed under the topic in the Diagnostic Builder. Saved on attempts, carried into the practice index, and
+  the AI writer now writes follow-up questions per chapter + model ("same model, new numbers").
+- **🎯 Mistaken models to practice** (student dashboard, above the mistake notebook): the student's open mistakes grouped
+  by chapter → model (or by level when no model is set), how many similar questions exist (bank + 🤖 AI-written ones
+  teachers approved), and a **Practise** button that builds a set of up to 15 new questions of that model — unseen
+  first, bank and AI questions mixed. Hidden when practice mode is switched off.
+
+---
+
 ## 2026-10-11 — Keys remembered per picture, practice on/off, batch + overall rank, per-question correct/wrong/left
 
 **After deploying: publish the updated `firestore.rules`** (new `settings/portal` doc that students read for the practice switch).

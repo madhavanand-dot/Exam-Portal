@@ -508,7 +508,7 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
           <div class="field" style="min-width:240px"><label>Title</label><input id="dgTitle" placeholder="e.g. Diagnostic — Laws of Motion"></div>
           <div class="field"><label>Exam type</label><select id="dgType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
           <div class="field"><label>Subject (for new questions)</label><select id="dgSubject"></select></div>
-          <div class="field" style="min-width:220px"><label>Topic (for new questions)</label><input id="dgTopic" list="dgTopicList" placeholder="e.g. Laws of Motion"><datalist id="dgTopicList"></datalist></div>
+          <div class="field" style="min-width:220px"><label>Topic (for new questions)</label><input id="dgTopic" list="dgTopicList" placeholder="e.g. Laws of Motion"><datalist id="dgTopicList"></datalist><datalist id="dgModelList"></datalist></div>
           <div class="field" style="min-width:200px"><label>Chapter (for the test library)</label><input id="dgChapter" list="dgChapterList" placeholder="e.g. Laws of Motion"><datalist id="dgChapterList"></datalist></div>
           <div class="field" style="min-width:200px"><label>Subtopic</label><input id="dgSubtopic" placeholder="e.g. Friction"></div>
         </div>
@@ -670,6 +670,16 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
         </p>
         <div class="flexrow">
           <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-bottom:14px"><input type="checkbox" id="aiEnabled" checked> AI job enabled</label>
+          <div style="margin-bottom:14px">
+            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">Which tests should the AI work on?</label>
+            <select id="aiScope"><option value="all">All tests</option><option value="selected">Only the tests I choose</option></select>
+            <details id="aiExamDd" class="hidden" style="margin-top:6px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;max-width:640px">
+              <summary id="aiExamSum" style="cursor:pointer;font-size:13px">Choose tests…</summary>
+              <input id="aiExamSearch" placeholder="Search tests…" style="width:100%;margin:6px 0">
+              <div id="aiExamList" style="max-height:280px;overflow:auto;font-size:13px"></div>
+            </details>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px">With "only the tests I choose", the AI solves, proposes keys / ideal times, double-checks your keys and writes follow-up practice <b>only</b> for those tests. Follow-ups from other tests are skipped.</div>
+          </div>
         </div>
         <div class="flexrow">
           <div class="field" style="min-width:320px"><label>API base URL</label><input id="aiBaseUrl" placeholder="https://integrate.api.nvidia.com/v1"></div>
@@ -857,6 +867,10 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 
     <h2 class="sec">Past Attempts</h2>
     <table class="tbl"><thead><tr><th>Date</th><th>Exam</th><th>Type</th><th>Score</th><th title="Among everyone who wrote this test">Overall rank</th><th title="Among students of your batch who wrote this test">Batch rank</th><th>Percentile</th><th></th></tr></thead><tbody id="attemptRows"></tbody></table>
+    <div id="myModelsWrap">
+      <h2 class="sec">🎯 Mistaken models to practice</h2>
+      <div id="myModels">&hellip;</div>
+    </div>
     <h2 class="sec">📒 My Mistake Notebook</h2>
     <div id="myNotebook">&hellip;</div>
     <h2 class="sec">My Progress</h2>
@@ -1827,18 +1841,20 @@ async function qMetaFor(attempts){
   const meta = {};
   attempts.forEach(a => Object.assign(meta, a.qMeta || {}));
   const need = new Set();
-  attempts.forEach(a => Object.keys(a.questionTimeSec || a.responses || {}).forEach(id => { if (!meta[id]) need.add(id); }));
-  if (!need.size) return meta;
+  attempts.forEach(a => Object.keys(a.questionTimeSec || a.responses || {}).forEach(id => { if (!meta[id] || meta[id].m === undefined) need.add(id); }));
+  if (!need.size) return meta;   // (older attempts saved no question model: fill it from the practice index below)
   const keys = new Set();
   attempts.forEach(a => ((a.examSubjects && a.examSubjects.length) ? a.examSubjects : (EXAM_CONFIG[a.examType] || EXAM_CONFIG.medical).subjects).forEach(sub => keys.add(`${a.examType}__${sub}`)));
   for (const k of keys) {
     if (!(k in _tiCache)) { try { const s = await getDoc(doc(db,"topicIndex",k)); _tiCache[k] = s.exists() ? s.data() : null; } catch(e) { _tiCache[k] = null; } }
     const sub = k.split("__")[1];
-    (_tiCache[k]?.q || []).forEach(e => { if (need.has(e.i) && !meta[e.i]) meta[e.i] = { s: sub, t: e.t || "", d: e.d || "Medium" }; });
+    (_tiCache[k]?.q || []).forEach(e => { if (!need.has(e.i)) return;
+      if (!meta[e.i]) meta[e.i] = { s: sub, t: e.t || "", d: e.d || "Medium", m: e.m || "" };
+      else if (meta[e.i].m === undefined) meta[e.i] = { ...meta[e.i], m: e.m || "" }; });
   }
   const still = [...need].filter(id => !meta[id]).slice(0, 300);
   const snaps = await Promise.all(still.map(id => getDoc(doc(db,"questions",id)).catch(() => null)));
-  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty) }; } });
+  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), m: String(q.model || "").trim() }; } });
   return meta;
 }
 
@@ -1868,13 +1884,74 @@ async function openNotebook(box, uid, name, editable){
   });
   const list = Object.values(items).map(it => {
     const m = meta[it.id] || {}, last = it.misses[it.misses.length - 1];
-    return { ...it, subject: m.s || "Other", topic: m.t || "No chapter", level: m.d || "Medium", last,
+    return { ...it, subject: m.s || "Other", topic: m.t || "No chapter", level: m.d || "Medium", model: m.m || "", last,
              cleared: !!saved[it.id]?.cleared || it.laterRight, clearedHow: saved[it.id]?.cleared ? (saved[it.id].clearedBy === "retry" ? "retry" : "you") : it.laterRight ? "later-test" : "",
              note: saved[it.id]?.note || "" };
   });
   const NB = { box, uid, name, editable, list, f: { subject: "", topic: "", show: "open", kind: "", repeat: false } };
   box._nb = NB;
   nbRender(NB);
+}
+/* ---------- 🎯 Mistaken models to practice ----------
+   The student's open mistakes grouped by chapter → question model (or by level when the teacher set no model), each
+   with a practice set of SIMILAR questions: same chapter + same model from the bank, including the AI-written questions
+   teachers approved. The exact questions they got wrong stay in the notebook's "Retry" instead. */
+async function renderMistakenModels(box, NB){
+  if (!box || !NB) return;
+  if (!(await practiceEnabled())) { $("myModelsWrap").classList.add("hidden"); return; }
+  const open = NB.list.filter(i => !i.cleared);
+  if (!open.length) { box.innerHTML = `<div class="card"><p style="color:var(--muted)">No open mistakes — nothing to practise here yet.</p></div>`; return; }
+  const groups = {};
+  open.forEach(it => {
+    const k = [it.subject, it.topic, it.model || ""].join("|");
+    const g = groups[k] || (groups[k] = { subject: it.subject, topic: it.topic, model: it.model || "", items: [], maxLvl: 0 });
+    g.items.push(it); g.maxLvl = Math.max(g.maxLvl, lvlIdx(it.level));
+  });
+  // similar questions from the practice index (keyed questions only; AI-written ones carry a:1)
+  const subs = [...new Set(Object.values(groups).map(g => g.subject))];
+  for (const sub of subs) {
+    const k = `${currentUser.examType}__${sub}`;
+    if (!(k in _tiCache)) { try { const sn = await getDoc(doc(db,"topicIndex",k)); _tiCache[k] = sn.exists() ? sn.data() : null; } catch(e) { _tiCache[k] = null; } }
+  }
+  const list = Object.values(groups).map(g => {
+    const entries = _tiCache[`${currentUser.examType}__${g.subject}`]?.q || [];
+    const mine = new Set(g.items.map(i => i.id));
+    const same = entries.filter(e => !mine.has(e.i) && (e.t || "") === g.topic &&
+      (g.model ? (e.m || "") === g.model : lvlIdx(e.d) <= g.maxLvl));   // no model set: same chapter, up to the level missed
+    return { ...g, pool: same, ai: same.filter(e => e.a).length, wrong: g.items.filter(i => i.last.verdict === "wrong").length };
+  }).sort((a, b) => b.items.length - a.items.length || b.pool.length - a.pool.length);
+  const showAll = box._showAll;
+  const shown = showAll ? list : list.slice(0, 10);
+  box.innerHTML = `<div class="card">
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 8px">Your open mistakes grouped by chapter and question model. <b>Practise</b> gives you
+      <b>new</b> questions of the same model — from the question bank and AI-written questions checked by your teacher — with the answer explained after each one.</p>
+    <table class="tbl"><thead><tr><th>Subject — Chapter</th><th>Model</th><th>My mistakes</th><th>Similar questions</th><th></th></tr></thead><tbody>
+    ${shown.map((g, i) => `<tr>
+      <td>${esc(g.subject)} — <b>${esc(g.topic)}</b></td>
+      <td>${g.model ? esc(g.model) : `<span style="color:var(--muted)">${esc(LEVELS[g.maxLvl]?.short || "")} level and below</span>`}</td>
+      <td><b>${g.items.length}</b> <span style="font-size:11.5px;color:var(--muted)">(${g.wrong} wrong, ${g.items.length - g.wrong} left)</span></td>
+      <td>${g.pool.length ? `${g.pool.length - g.ai} bank${g.ai ? ` + <b style="color:#2563a8">${g.ai} 🤖 AI</b>` : ""}` : `<span style="color:var(--muted)">none yet — ask your teacher</span>`}</td>
+      <td>${g.pool.length ? `<button class="btn green" style="padding:3px 10px" data-mmprac="${list.indexOf(g)}">Practise ${Math.min(15, g.pool.length)}</button>` : ""}</td></tr>`).join("")}
+    </tbody></table>
+    ${list.length > 10 ? `<button class="btn secondary" style="margin-top:8px" data-mmall>${showAll ? "Show fewer" : `Show all ${list.length}`}</button>` : ""}</div>`;
+  const all = box.querySelector("[data-mmall]");
+  if (all) all.onclick = () => { box._showAll = !showAll; renderMistakenModels(box, NB); };
+  box.querySelectorAll("[data-mmprac]").forEach(b => b.onclick = async () => {
+    const g = list[+b.dataset.mmprac];
+    // unseen first; AI-written and bank questions taken in turn
+    const fresh = e => !prSeen.has(e.i);
+    const order = arr => [...shuffled(arr.filter(fresh)), ...shuffled(arr.filter(e => !fresh(e)))];
+    const ai = order(g.pool.filter(e => e.a)), bank = order(g.pool.filter(e => !e.a));
+    const pick = [];
+    while (pick.length < 15 && (ai.length || bank.length)) { if (bank.length) pick.push(bank.shift()); if (ai.length && pick.length < 15) pick.push(ai.shift()); }
+    b.disabled = true; b.textContent = "Loading…";
+    try {
+      const snaps = await Promise.all(pick.map(e => getDoc(doc(db,"questions",e.i))));
+      const qs = snaps.filter(sn => sn.exists()).map(sn => ({ docId: sn.id, ...sn.data() })).filter(hasKey);
+      if (!qs.length) { alert("Those questions could not be loaded."); renderMistakenModels(box, NB); return; }
+      startPracticeWith(shuffled(qs), g.subject, [g.topic], "model");
+    } catch(e) { alert("Could not start: " + e.message); renderMistakenModels(box, NB); }
+  });
 }
 function nbFiltered(NB){
   const f = NB.f;
@@ -3191,6 +3268,7 @@ function dgRowFromQuestion(q, idealTimes){
     correct_answer: String(q.correct_answer ?? ""), createdBy: q.createdBy
   };
   r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section;
+  r.model = r.origModel = String(q.model || "").trim();
   r.idealSec = idealTimes?.[q.docId] ?? q.idealTimeSec ?? dgDefaultIdeal(r);
   r.keySrc = q.keySrc || ""; r.idealSrc = q.idealTimeSrc || ""; r.aiKeyNote = q.aiKeyNote || "";
   r.imgHash = q.imgHash || null; r.srcHash = q.srcHash || null;
@@ -3344,7 +3422,7 @@ async function dgAiSolveRefresh(){
 }
 $("dgAiSolveBtn").onclick = async () => {
   if (!DG.examDocId) { setMsg($("dgMsg"), "Save the test first — the AI solves the saved version."); return; }
-  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff || r.section !== r.origSection);
+  const unsaved = DG.rows.some(r => r.isNew || r.imgChanged || r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.section !== r.origSection);
   if (unsaved) { setMsg($("dgMsg"), "You have unsaved changes — press Save test first, then ask the AI."); return; }
   if (DG.aiSolve?.status === "queued" || DG.aiSolve?.status === "processing") { setMsg($("dgMsg"), "The AI has already been asked to solve this test — wait for it, then Refresh.", true); return; }
   if (!confirm(`Ask the AI to solve all ${DG.rows.length} question(s) of this test?\n\nTwo AI models solve each question independently and suggest an answer key and an ideal time. ` +
@@ -3488,7 +3566,7 @@ function dgRender(){
       (isMultiKey(r.correct_answer) ? `<div style="font-size:11px;color:#7a4d00;font-weight:600">☑ multiple correct</div>` : "")
     : `<input data-dgf="correct_answer" value="${esc(r.correct_answer)}" style="width:70px;text-align:center;font-weight:700" placeholder="number">`;
   $("dgWrap").innerHTML = `<table class="tbl"><thead><tr>
-      <th>#</th><th>Question</th><th>Subject</th><th>Topic</th><th>Level</th><th>Sec</th><th>Answer</th><th>Ideal time (sec)</th><th>Order</th><th></th>
+      <th>#</th><th>Question</th><th>Subject</th><th title="Model = the question type / pattern inside the topic (e.g. 'Pulley — two blocks'). Students see their mistakes grouped by it.">Topic / Model</th><th>Level</th><th>Sec</th><th>Answer</th><th>Ideal time (sec)</th><th>Order</th><th></th>
     </tr></thead><tbody>` + rows.map((r,i) => {
       const pendKey = r.keySrc === "pending-ai" && r.correct_answer === "";
       const missing = !pendKey && (r.section==="A" ? !validMcqKey(r.correct_answer) : (r.correct_answer==="" || isNaN(parseFloat(r.correct_answer))));
@@ -3503,7 +3581,8 @@ function dgRender(){
         <td><b>${i+1}</b></td>
         <td style="max-width:460px">${preview}${r.ai ? "" : `<div><button class="btn secondary" style="padding:1px 7px;font-size:11.5px;margin-top:3px" data-dgimg="${i}" title="Swap in a new picture for this question; key, topic and times stay as they are">🖼 ${r.image?"Replace image":"Add image"}</button>${r.imgChanged?` <span class="badge zero">new image — not saved yet</span>`:""}</div>`}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||(r.ai?"AI draft":""))} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
         <td style="font-size:12.5px">${esc(r.subject)}</td>
-        <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px"></td>
+        <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px">
+            <input data-dgf="model" value="${esc(r.model||"")}" list="dgModelList" placeholder="question model (optional)" style="width:150px;margin-top:3px;font-size:12px"></td>
         <td><select data-dgf="difficulty">${levelOptions(r.difficulty)}</select></td>
         <td>${r.ai ? esc(r.section) : `<select data-dgf="section" title="MCQ = student picks option(s); Numerical = student types the answer"><option value="A" ${r.section==="A"?"selected":""}>MCQ</option><option value="B" ${r.section==="B"?"selected":""}>Numerical</option></select>`}</td>
         <td>${ansCell(r)}${changed?`<div style="font-size:11px;color:#a4610b">was ${esc(r.origAnswer)||"—"}</div>`:""}${keyBadge(r)}${reusedBadge(r)}${dgAiSolveKeyChip(r)}${r.isNew ? "" : `<div><button class="btn secondary" style="padding:0 6px;font-size:11px;margin-top:3px" data-dgaiview="${i}" title="What each AI model read, answered and why">🔍 AI working</button></div>`}</td>
@@ -3513,6 +3592,9 @@ function dgRender(){
         <td><button class="btn danger" style="padding:2px 8px" data-dgrm="${i}" title="Remove from this test (the question stays in the bank)">✕</button></td>
       </tr>`;
     }).join("") + `</tbody></table>`;
+  // model suggestions: models already used in this test and in the practice index
+  $("dgModelList").innerHTML = [...new Set([...DG.rows.map(r => r.model), ...Object.values(_tiCache).flatMap(x => (x?.q || []).map(e => e.m))].filter(Boolean))]
+    .sort().map(m => `<option value="${esc(m)}">`).join("");
   $("dgWrap").querySelectorAll("[data-dg]").forEach(tr => {
     const r = DG.rows[+tr.dataset.dg];
     tr.querySelectorAll("[data-dgf]").forEach(inp => inp.onchange = () => {
@@ -3582,7 +3664,7 @@ async function dgSave(){
   const errs = dgValidate();
   if (errs.length) { setMsg($("dgMsg"), errs.slice(0,6).join("  ") + (errs.length>6?` …and ${errs.length-6} more.`:"")); log.classList.add("hidden"); return; }
   const newRows = DG.rows.filter(r => r.isNew);
-  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
+  const edits = DG.rows.filter(r => !r.isNew && (r.correct_answer !== r.origAnswer || r.topic !== r.origTopic || (r.model||"") !== (r.origModel||"") || r.difficulty !== r.origDiff || r.imgChanged || r.section !== r.origSection));
   const imgEdits = edits.filter(r => r.imgChanged);
   const keyEdits = edits.filter(r => r.correct_answer !== r.origAnswer || r.section !== r.origSection);
   const shared = keyEdits.filter(r => examsCache.some(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId))).length;
@@ -3608,6 +3690,7 @@ async function dgSave(){
         id: r.docId, examType, subject: r.subject, section: r.section,
         text: r.text || "", options: r.section === "A" ? (r.options || ["","","",""]) : [],
         correct_answer: String(r.correct_answer), topic: r.topic, difficulty: r.difficulty,
+        ...(r.model ? { model: r.model } : {}),
         ...(r.image ? { image: r.image } : {}), idealTimeSec: +r.idealSec,
         ...(r.imgHash ? { imgHash: r.imgHash } : {}), ...(r.srcHash ? { srcHash: r.srcHash } : {}),
         ...(r.keySrc ? { keySrc: r.keySrc } : {}), ...(r.idealSrc ? { idealTimeSrc: r.idealSrc } : {}),
@@ -3619,7 +3702,7 @@ async function dgSave(){
       await batch.commit();
       say(`Uploaded ${Math.min(i+25, newRows.length)}/${newRows.length} new question(s)…`);
     }
-    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; });
+    newRows.forEach(r => { r.isNew = false; r.createdBy = currentUser.uid; r.origModel = r.model || ""; r.q = { id: r.docId }; r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; });
     // 2) key / topic / difficulty edits on existing questions (one by one so a permission error names the question)
     let failed = 0, keysSaved = 0;
     const keyShare = newRows.filter(r => hasKey(r) && (r.imgHash || r.srcHash));   // keys to copy onto the same picture elsewhere
@@ -3627,6 +3710,7 @@ async function dgSave(){
       const upd = {};
       if (r.correct_answer !== r.origAnswer) { upd.correct_answer = String(r.correct_answer); upd.keySrc = "user"; }
       if (r.topic !== r.origTopic) upd.topic = r.topic;
+      if ((r.model||"") !== (r.origModel||"")) upd.model = r.model || "";
       if (r.difficulty !== r.origDiff) upd.difficulty = r.difficulty;
       if (r.section !== r.origSection) {
         upd.section = r.section; upd.correct_answer = String(r.correct_answer); upd.keySrc = "user";
@@ -3639,7 +3723,7 @@ async function dgSave(){
         await updateDoc(doc(db,"questions",r.docId), upd);
         if (upd.correct_answer !== undefined) { keysSaved++; keyShare.push(r); }
         if (r.imgChanged) { r.imgHash = typeof upd.imgHash === "string" ? upd.imgHash : null; r.srcHash = null; }
-        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false;
+        r.origAnswer = r.correct_answer; r.origTopic = r.topic; r.origModel = r.model || ""; r.origDiff = r.difficulty; r.origSection = r.section; r.imgChanged = false;
         say(`Updated ${r.q?.id||r.docId}: ${Object.entries(upd).filter(([k])=>!["image","imageUpdatedAt","aiVerify"].includes(k)).map(([k,v])=>`${k} → ${v}`).concat(upd.image?["new image"]:[]).join(", ")}`);
       } catch(e) {
         failed++;
@@ -3893,7 +3977,7 @@ function dgLoadAiDraft(d){
   const order = { verified: 0, disputed: 1 };
   (d.items||[]).filter(it => it.verdict !== "rejected").sort((a,b)=>order[a.verdict]-order[b.verdict]).forEach(it => {
     const r = { key: ++dgSeq, docId: null, isNew: true, image: null, text: it.stem, options: it.options.slice(),
-      subject: it.subject, section: "A", topic: it.topic, difficulty: normLevel(it.level), correct_answer: it.key,
+      subject: it.subject, section: "A", topic: it.topic, model: it.model || "", difficulty: normLevel(it.level), correct_answer: it.key,
       solution: it.solution || "", ai: { ...it, models: d.models } };
     r.idealSec = it.idealSec || dgDefaultIdeal(r);
     DG.rows.push(r);
@@ -4214,6 +4298,9 @@ async function initAiSettings(){
     const c = cfg.exists() ? cfg.data() : {};
     Object.entries(AI_FIELDS).forEach(([el, k]) => { $(el).value = c[k] ?? ""; });
     $("aiEnabled").checked = c.enabled !== false;
+    $("aiScope").value = c.examScope === "selected" ? "selected" : "all";
+    aiExamSel = new Set(c.examIds || []);
+    aiScopeRender();
     $("aiKey").value = "";
     const k = sec.exists() ? sec.data() : null;
     $("aiKeyState").textContent = k?.apiKey ? `— stored key …${k.last4 || ""} (set ${fmtDate(k.setAt)} by ${k.setBy || "?"})` : "— none stored here (job uses the GitHub secret)";
@@ -4252,8 +4339,30 @@ function aiLiveStart(){
 }
 function aiLiveStop(){ if (aiLiveUnsub) { aiLiveUnsub(); aiLiveUnsub = null; } if (aiLiveTimer) { clearInterval(aiLiveTimer); aiLiveTimer = null; } }
 $("aiPresetBtn").onclick = () => Object.entries(AI_FIELDS).forEach(([el, k]) => { $(el).value = AI_PRESET[k]; });
+// "Which tests should the AI work on?" — a drop-down checklist of every test, with what the AI does for each
+let aiExamSel = new Set();
+function aiScopeRender(){
+  const sel = $("aiScope").value === "selected";
+  $("aiExamDd").classList.toggle("hidden", !sel);
+  const f = $("aiExamSearch").value.trim().toLowerCase();
+  const exams = examsCache.slice().sort((a, b) => (b.diagnostic ? 1 : 0) - (a.diagnostic ? 1 : 0) || tsMs(b.createdAt) - tsMs(a.createdAt));
+  const known = new Set(exams.map(e => e.docId));
+  $("aiExamSum").textContent = aiExamSel.size ? `${[...aiExamSel].filter(id => known.has(id)).length} test(s) chosen — click to change` : "Choose tests… (none chosen: the AI will do nothing)";
+  $("aiExamList").innerHTML = exams.filter(e => !f || (e.title || "").toLowerCase().includes(f)).map(e => {
+    const what = [`${(e.questionIds || []).length} Qs`, e.aiFollowUp ? "follow-up practice on" : "follow-up off",
+      e.aiSolve?.status ? `solve: ${e.aiSolve.status}` : "", e.isActive ? "active" : ""].filter(Boolean).join(" · ");
+    return `<label style="display:flex;gap:8px;align-items:flex-start;padding:3px 0;cursor:pointer">
+      <input type="checkbox" value="${e.docId}" ${aiExamSel.has(e.docId) ? "checked" : ""} style="margin-top:3px">
+      <span>${e.diagnostic ? "🩺 " : e.customPractice || e.aiPractice ? "🎯 " : ""}${esc(e.title || e.docId)} <span style="color:var(--muted);font-size:11.5px">(${esc(e.examType || "")} · ${what})</span></span></label>`;
+  }).join("") || `<div style="color:var(--muted)">No tests match.</div>`;
+  $("aiExamList").querySelectorAll("input").forEach(cb => cb.onchange = () => { cb.checked ? aiExamSel.add(cb.value) : aiExamSel.delete(cb.value); aiScopeRender(); });
+}
+$("aiScope").onchange = aiScopeRender;
+$("aiExamSearch").oninput = aiScopeRender;
 $("aiSaveBtn").onclick = async () => {
-  const c = { enabled: $("aiEnabled").checked, updatedBy: currentUser.name, updatedAt: serverTimestamp() };
+  const c = { enabled: $("aiEnabled").checked, updatedBy: currentUser.name, updatedAt: serverTimestamp(),
+              examScope: $("aiScope").value, examIds: [...aiExamSel] };
+  if (c.examScope === "selected" && !c.examIds.length && !confirm("No test is chosen, so the AI job will do nothing. Save anyway?")) return;
   for (const [el, k] of Object.entries(AI_FIELDS)) {
     const v = $(el).value.trim();
     if (!v) continue;
@@ -4457,7 +4566,8 @@ $("tmIndexBtn").onclick = async () => {
       if (q.imgHash) { const k = `${q.examType}|${q.imgHash}`; if (pictureSeen.has(k)) { dupPic++; return; } pictureSeen.add(k); }
       const key = `${q.examType}__${q.subject}`;
       (buckets[key] = buckets[key] || []).push({
-        i: q.docId, t: (q.topic||"").trim(), d: q.difficulty || "Medium", s: q.section || "A"
+        i: q.docId, t: (q.topic||"").trim(), d: q.difficulty || "Medium", s: q.section || "A",
+        ...(q.model ? { m: String(q.model).trim() } : {}), ...(q.aiGenerated ? { a: 1 } : {})   // question model; AI-written
       });
     });
     const keys = Object.keys(buckets);
@@ -5008,7 +5118,9 @@ async function enterStudent(){
   loadActiveExam(); loadMyAttempts();
   initPractice(); loadPracticeHistory();
   progressHtml(currentUser.uid, currentUser.name).then(h => { const el=$("myProgress"); if(el) el.innerHTML=h; }).catch(()=>{});
-  openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true).catch(e => { $("myNotebook").textContent = "Could not load: " + e.message; });
+  openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true)
+    .then(() => renderMistakenModels($("myModels"), $("myNotebook")._nb))
+    .catch(e => { $("myNotebook").textContent = "Could not load: " + e.message; $("myModels").textContent = ""; });
 }
 
 // does this exam target the current student?
@@ -5578,7 +5690,7 @@ async function submitExam(auto, flag={}){
     examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks, examDurationSec: cfg.durationSec,
     examUntimed: cfg.untimed,
     // subject / chapter / level of each question, so progress and the mistake notebook need no extra reads
-    qMeta: Object.fromEntries(EX.questions.map(q => [q.docId, { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty) }])),
+    qMeta: Object.fromEntries(EX.questions.map(q => [q.docId, { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), ...(q.model ? { m: String(q.model).trim() } : {}) }])),
     idealTimes, quickAnswers, pledgedAt: EX.pledgedAt,
     // queue for the hourly AI follow-up job (ai/ + .github/workflows/ai-followup.yml)
     ...(activeExam?.aiFollowUp ? { aiStatus: "queued", aiTries: 0 } : {}),
