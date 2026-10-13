@@ -30,6 +30,19 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin();
     }
 
+    // ---------- passwordResets ----------
+    // An admin queues "reset this student's login password" requests; the GitHub job (Firebase Admin SDK) processes them,
+    // re-checks on the server that the requester is an admin, and writes the outcome back (the job bypasses these rules).
+    match /passwordResets/{rid} {
+      allow read: if isSuperAdmin();
+      allow create: if isSuperAdmin()
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == "pending"
+        && request.resource.data.keys().hasOnly(["uid", "requestedBy", "requestedByName", "requestedAt", "status"]);
+      allow delete: if isSuperAdmin() && resource.data.status != "pending";
+      allow update: if false;
+    }
+
     // ---------- questions ----------
     match /questions/{questionId} {
       allow read: if signedIn();                 // students load questions during the exam

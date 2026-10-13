@@ -427,9 +427,12 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <div class="field"><label>Status</label><select id="stFilterStatus"><option value="">All</option><option value="active">Active</option><option value="inactive">Deactivated</option></select></div>
         <button class="btn secondary hidden" id="stFilterBtn" style="align-self:flex-end">Filter</button>
         <button class="btn secondary" id="stBulkPwBtn" style="align-self:flex-end" title="Set every listed student's password to the default pattern, e.g. Ly@15456129">🔑 Reset passwords to default</button>
+        <button class="btn secondary" id="stQueueResetBtn" style="align-self:flex-end" title="For logins that the normal reset could not fix: queue a server-side reset (no old password needed). Then run GitHub → Actions → Admin password reset.">🛠 Queue admin reset</button>
+        <button class="btn secondary" id="stResetReqBtn" style="align-self:flex-end">Reset requests</button>
       </div>
       <h2 class="sec">Students (<span id="stCount">0</span>) <button class="btn secondary" id="stExportBtn" style="padding:3px 12px;font-size:12px">Export roster CSV</button></h2>
-      <div id="stBulkBar" class="hidden" style="gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0;padding:8px 10px;background:#e8f1fa;border-radius:6px;font-size:13px"></div>
+      <div id="stResetBox" class="hidden" style="margin:8px 0"></div>
+    <div id="stBulkBar" class="hidden" style="gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0;padding:8px 10px;background:#e8f1fa;border-radius:6px;font-size:13px"></div>
       <table class="tbl"><thead><tr><th id="stSelHead"></th><th>PS-ID</th><th>Name</th><th>Exam Type</th><th>Batch</th><th>Class</th><th>Password</th><th>Created</th><th></th></tr></thead><tbody id="studentRows"></tbody></table>
     </div>
 
@@ -924,6 +927,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <div style="margin-bottom:14px">
             <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">Which tests should the AI work on?</label>
             <select id="aiScope"><option value="all">All tests</option><option value="selected">Only the tests I choose</option><option value="questions">Only the questions I choose</option></select>
+            <div id="aiQAdd" class="hidden" style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="aiQExam" style="max-width:420px"></select><button class="btn secondary" id="aiQAddBtn" style="padding:3px 10px" type="button">Add this test's questions</button><button class="btn secondary" id="aiQClearBtn" style="padding:3px 10px" type="button">Clear list</button><span id="aiQCount" style="font-size:12px;color:var(--muted)"></span></div>
             <textarea id="aiQids" class="hidden" rows="4" placeholder="Question IDs — one per line or comma-separated (e.g. DG_AIATS_-1_PRACTICE_TEST_1_MV50CHN3_037). Find the id in Questions / test preview." style="width:100%;max-width:640px;margin-top:6px;font-size:12.5px"></textarea>
             <details id="aiExamDd" class="hidden" style="margin-top:6px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;max-width:640px">
               <summary id="aiExamSum" style="cursor:pointer;font-size:13px">Choose tests…</summary>
@@ -1296,7 +1300,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc as _getDoc, setDoc as _setDoc, updateDoc as _updateDoc, deleteDoc as _deleteDoc, addDoc as _addDoc, getDocs as _getDocs,
-  collection, query, where, orderBy, writeBatch as _writeBatch, serverTimestamp, Timestamp, onSnapshot as _onSnapshot, deleteField
+  collection, query, where, orderBy, limit, writeBatch as _writeBatch, serverTimestamp, Timestamp, onSnapshot as _onSnapshot, deleteField
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // PASTE FIREBASE CONFIG HERE
@@ -2986,7 +2990,9 @@ async function changeStudentPassword(s){
   } catch(e){
     const c = e.code || "";
     const hint = (c.includes("wrong-password")||c.includes("invalid-credential")) ? " — the current password on file is wrong; delete & re-add the student, or correct it." : "";
-    uiAlert("Could not change password: " + friendlyAuthError(e) + hint);
+    await deleteApp(secApp).catch(()=>{});
+    if (hint && await uiConfirm("Could not change the password: " + friendlyAuthError(e) + hint + "\n\nQueue a server-side admin reset instead? (No old password needed; the password becomes the default pattern.)")) { await queueAdminResets([s]); return; }
+    if (!hint) uiAlert("Could not change password: " + friendlyAuthError(e));
   } finally { deleteApp(secApp).catch(()=>{}); }
 }
 if ($("stFilterBtn")) $("stFilterBtn").onclick = renderStudents;
@@ -3050,6 +3056,75 @@ async function stSetActive(list, active){
   stSelected.clear(); renderStudents();
   uiAlert(`${ok} student(s) ${active ? "reactivated" : "deactivated"}.` + (failed.length ? `\n\nFailed:\n${failed.slice(0, 10).join("\n")}` : ""));
 }
+
+
+/* ----- admin password reset without the old password (server-side job; see ai/password-reset.mjs) ----- */
+async function queueAdminResets(list){
+  if (!isSuper()) { uiAlert("Only an admin can request a password reset."); return; }
+  list = (list || []).filter(s => s && s.uid && s.psid);
+  if (!list.length) { uiAlert("Nothing to queue."); return; }
+  const pend = await getDocs(query(collection(db,"passwordResets"), where("status","==","pending")));
+  const already = new Set(pend.docs.map(d => d.data().uid));
+  const todo = list.filter(s => !already.has(s.uid));
+  if (!todo.length) { await loadResetRequests(); uiAlert("These are already queued — press ▶ Run reset now under Reset requests."); return; }
+  if (!await uiConfirm(`Queue a server-side password reset for ${todo.length} student(s)?${already.size ? `\n(${list.length - todo.length} already queued are skipped.)` : ""}\n\nTheir login password becomes the default pattern (e.g. Ly@15456129). Their account and exam history are kept.\nYou can start the job right after queuing.`)) return;
+  let ok = 0; const failed = [];
+  for (const s of todo) {
+    try { await addDoc(collection(db,"passwordResets"), { uid: s.uid, requestedBy: currentUser.uid, requestedByName: currentUser.name || "", requestedAt: serverTimestamp(), status: "pending" }); ok++; }
+    catch(e) { failed.push(`${s.name}: ${e.code || e.message}`); }
+  }
+  if (failed.length) uiAlert(`${ok} queued. Not queued (publish the updated firestore.rules first?):\n${failed.slice(0,8).join("\n")}`);
+  if (!ok) return;
+  await loadResetRequests();
+  if (await uiConfirm(`${ok} request(s) queued. Run the reset job now? (It resets the login passwords on the server; results appear in "Reset requests" in about a minute.)`)) resetRunNow();
+}
+async function resetRunNow(){
+  const m = () => $("stResetMsg"); if (m()) m().textContent = "Starting…";
+  const r = await runWorkflowNow(RESET_WORKFLOW, "Reset job started — about a minute to begin.");
+  if (m()) m().innerHTML = r.ok ? esc(r.msg) : `<span style="color:#c0392b">${r.msg}</span>`;
+  if (!r.ok) return;
+  for (let i = 0; i < 16; i++) {                       // watch for up to ~4 minutes (a few small reads each time)
+    await new Promise(res => setTimeout(res, 15000));
+    const left = await loadResetRequests(true);
+    if (!left) { if ($("stResetMsg")) $("stResetMsg").textContent = "Finished — see the results above."; return; }
+    if ($("stResetMsg")) $("stResetMsg").textContent = `Waiting for the job… ${left} still pending`;
+  }
+}
+async function loadResetRequests(quiet){
+  const box = $("stResetBox"); box.classList.remove("hidden"); if (!quiet) box.innerHTML = "Loading…";
+  try {
+    const qs = await getDocs(query(collection(db,"passwordResets"), orderBy("requestedAt","desc"), limit(100)));
+    const rows = qs.docs.map(d => ({ id: d.id, ...d.data() }));
+    const by = {}; rows.forEach(r => by[r.status] = (by[r.status] || 0) + 1);
+    const nameOf = uid => studentCache.find(s => s.uid === uid)?.name || uid;
+    const bad = rows.filter(r => r.status !== "pending" && r.status !== "done");
+    const label = { pending: "waiting for the job", "login-reset-sync-failed": "LOGIN RESET, saved copy NOT updated", failed: "failed — nothing changed", rejected: "rejected" };
+    box.innerHTML = `<div class="card" style="padding:10px"><b>Reset requests</b> (latest ${rows.length}): ` +
+      ["pending","done","login-reset-sync-failed","failed","rejected"].filter(k => by[k]).map(k => `${by[k]} ${k}`).join(" · ") +
+      (rows.length ? "" : " — none") +
+      (bad.length ? `<table class="tbl" style="margin-top:8px"><thead><tr><th>Student</th><th>Result</th><th>Details</th></tr></thead><tbody>` +
+        bad.map(r => `<tr><td>${esc(nameOf(r.uid))}</td><td>${esc(label[r.status] || r.status)}</td><td style="font-size:12px">${esc(r.message || "")}</td></tr>`).join("") + `</tbody></table>` : "") +
+      `<div style="margin-top:8px"><button class="btn" id="stResetRun" style="padding:3px 10px"${by.pending ? "" : " disabled"}>▶ Run reset now</button> <button class="btn secondary" id="stResetRefresh" style="padding:3px 10px">Refresh</button> <button class="btn secondary" id="stResetClear" style="padding:3px 10px">Clear finished</button>
+       <span id="stResetMsg" style="font-size:12px;color:var(--muted)"></span></div></div>`;
+    $("stResetRun").onclick = () => resetRunNow();
+    return by.pending || 0;
+    $("stResetRefresh").onclick = loadResetRequests;
+    $("stResetClear").onclick = async () => {
+      const fin = rows.filter(r => r.status !== "pending"); if (!fin.length) return;
+      if (!await uiConfirm(`Remove ${fin.length} finished request(s) from this list?`)) return;
+      for (let i = 0; i < fin.length; i += 450) { const b = writeBatch(db); fin.slice(i, i+450).forEach(r => b.delete(doc(db,"passwordResets",r.id))); await b.commit(); }
+      loadResetRequests();
+    };
+  } catch(e) { box.innerHTML = `<div class="card" style="padding:10px">Could not load requests: ${esc(e.code === "permission-denied" ? "publish the updated firestore.rules in the Firebase console first." : e.message)}</div>`; }
+}
+$("stResetReqBtn").onclick = loadResetRequests;
+$("stQueueResetBtn").onclick = async () => {
+  if (!isSuper()) { uiAlert("Only an admin can request a password reset."); return; }
+  const list = stFiltered();
+  const todo = list.filter(st => !st.password || !st.psid || st.password !== defaultStudentPassword(st.name, st.psid));
+  if (!todo.length) { uiAlert("Every listed student's saved password already matches the default. To force one student, use Change PW on that row."); return; }
+  await queueAdminResets(todo);
+};
 
 // Bulk reset to the default password for the students currently listed (filter). Firebase only lets a client change a
 // password while signed in as that user, so each student is signed in on a secondary app with the stored password.
@@ -5182,7 +5257,11 @@ let aiExamSel = new Set();
 function aiScopeRender(){
   const sel = $("aiScope").value === "selected";
   $("aiExamDd").classList.toggle("hidden", !sel);
-  $("aiQids").classList.toggle("hidden", $("aiScope").value !== "questions");
+  const qm = $("aiScope").value === "questions";
+  $("aiQids").classList.toggle("hidden", !qm); $("aiQAdd").classList.toggle("hidden", !qm); $("aiQAdd").style.display = qm ? "flex" : "none";
+  if (qm) { const sel = $("aiQExam"), ex = examsCache.slice().sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+    if (sel.options.length !== ex.length) sel.innerHTML = ex.map(e => `<option value="${e.docId}">${esc(e.title || e.docId)} (${(e.questionIds || []).length} Qs)</option>`).join("");
+    $("aiQCount").textContent = $("aiQids").value.split(/[\s,;]+/).filter(Boolean).length + " question id(s) listed"; }
   const f = $("aiExamSearch").value.trim().toLowerCase();
   const exams = examsCache.slice().sort((a, b) => (b.diagnostic ? 1 : 0) - (a.diagnostic ? 1 : 0) || tsMs(b.createdAt) - tsMs(a.createdAt));
   const known = new Set(exams.map(e => e.docId));
@@ -5197,6 +5276,10 @@ function aiScopeRender(){
   $("aiExamList").querySelectorAll("input").forEach(cb => cb.onchange = () => { cb.checked ? aiExamSel.add(cb.value) : aiExamSel.delete(cb.value); aiScopeRender(); });
 }
 $("aiScope").onchange = aiScopeRender;
+$("aiQids").oninput = aiScopeRender;
+$("aiQAddBtn").onclick = () => { const e = examsCache.find(x => x.docId === $("aiQExam").value); if (!e) return;
+  const cur = new Set($("aiQids").value.split(/[\s,;]+/).filter(Boolean)); (e.questionIds || []).forEach(q => cur.add(q)); $("aiQids").value = [...cur].join("\n"); aiScopeRender(); };
+$("aiQClearBtn").onclick = () => { $("aiQids").value = ""; aiScopeRender(); };
 $("aiExamSearch").oninput = aiScopeRender;
 $("aiSaveBtn").onclick = async () => {
   const c = { enabled: $("aiEnabled").checked, updatedBy: currentUser.name, updatedAt: serverTimestamp(),
@@ -5223,22 +5306,25 @@ $("aiSaveBtn").onclick = async () => {
 // Start the AI GitHub Actions workflow from the browser (workflow_dispatch). Token: settings/aiRunner (staff-readable),
 // a fine-grained PAT limited to this repo with Actions read/write only.
 const AI_WORKFLOW = "ai-followup.yml";
-async function runAiJobNow(){
+async function runWorkflowNow(WF, startedMsg){
   let cfg;
   try { const s = await getDoc(doc(db,"settings","aiRunner")); cfg = s.exists() ? s.data() : null; }
   catch(e) { return { ok: false, msg: "Could not read the run settings (" + esc(e.message) + ") — has the updated firestore.rules been published?" }; }
   const repo = (cfg?.repo || "madhavanand-dot/Exam-Portal").trim();
-  const manual = `<a href="https://github.com/${esc(repo)}/actions/workflows/${AI_WORKFLOW}" target="_blank" rel="noopener">open GitHub Actions</a> and press <b>Run workflow</b>`;
+  const manual = `<a href="https://github.com/${esc(repo)}/actions/workflows/${WF}" target="_blank" rel="noopener">open GitHub Actions</a> and press <b>Run workflow</b>`;
   if (!cfg?.token) return { ok: false, msg: `One-click run isn't set up yet (an admin adds a GitHub token in <b>AI Settings</b>). For now, ${manual}.` };
   try {
-    const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/${AI_WORKFLOW}/dispatches`, {
+    const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/${WF}/dispatches`, {
       method: "POST", headers: { "Authorization": `Bearer ${cfg.token}`, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
       body: JSON.stringify({ ref: cfg.ref || "main" }) });
-    if (res.status === 204) return { ok: true, msg: "AI job started — it takes about a minute to begin; progress shows in AI Settings. A long test can take several minutes." };
+    if (res.status === 204) return { ok: true, msg: startedMsg };
+    if (res.status === 422) return { ok: false, msg: `GitHub refused: the workflow is disabled or has no manual trigger. ${manual} (use Enable workflow if it says disabled).` };
     const why = res.status === 401 ? "the GitHub token is invalid or expired" : res.status === 403 || res.status === 404 ? "the token lacks Actions read/write on " + repo : "GitHub said HTTP " + res.status;
     return { ok: false, msg: `Could not start: ${esc(why)}. Ask an admin to fix it in AI Settings, or ${manual}.` };
   } catch(e) { return { ok: false, msg: `Could not reach GitHub (${esc(e.message)}). ${manual}.` }; }
 }
+const runAiJobNow = () => runWorkflowNow(AI_WORKFLOW, "AI job started — it takes about a minute to begin; progress shows in AI Settings. A long test can take several minutes.");
+const RESET_WORKFLOW = "password-reset.yml";
 async function ghLoad(){
   try {
     const s = await getDoc(doc(db,"settings","aiRunner")); const c = s.exists() ? s.data() : {};

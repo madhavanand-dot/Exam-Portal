@@ -7,6 +7,26 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-13 — Cost control, usage meter, test PDF, and admin password reset without the old password
+
+- **Reads/cost:** the Reports tab no longer loads every attempt when opened (press **Apply**), and the Live Monitor only
+  starts listening when you press **▶ Start**. The hourly AI workflow no longer runs by itself (manual **Run workflow** only).
+- **AI Settings → "Only the questions I choose":** paste question ids; the AI job then works on those questions only.
+- **💰 Usage tab (admin):** counts Firestore reads / writes / deletes made from that browser, per day and collection,
+  with the free-quota percentage and an estimated extra cost. It cannot see other devices or the GitHub job.
+- **Result page:** **⬇ Download test (PDF)** and **⬇ Test with answers (PDF)** (two-column paper like the revision sheets).
+- **Admin password reset without the old password (issue #25).** Students tab → **🛠 Queue admin reset** (or answer
+  "yes" when **Change PW** fails with a wrong current password) queues requests in the new `passwordResets` collection.
+  **GitHub → Actions → "Admin password reset" → Run workflow** then resets each login with the Firebase Admin SDK to the
+  default pattern (e.g. `Ly@15456129`), re-checks on the server that the requester is an admin, keeps the account, uid and
+  exam history, and mirrors the password into the saved copy. **Students tab → Reset requests** shows `done`,
+  `login-reset-sync-failed` (login changed, saved copy stale), `failed` (nothing changed, with the reason, e.g. an
+  orphan login account under another id) or `rejected`. The job never prints names, PS-IDs or passwords (public repo).
+  - **After deploying:** (1) publish `firestore.rules` (new `passwordResets` rules); (2) the repository secret
+    `FIREBASE_SERVICE_ACCOUNT` must exist (the AI job already uses it); (3) test with a throw-away student first.
+
+---
+
 ## 2026-10-12 — Install as a phone app (PWA)
 
 - The portal can now be **installed like an app** on phones (and on desktop Chrome / Edge): its own icon on the
