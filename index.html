@@ -1798,7 +1798,7 @@ function enterAdmin(){
   document.querySelector(`[data-atab="${firstTab}"]`).classList.add("active");
   document.querySelectorAll(".atab").forEach(x=>x.classList.add("hidden"));
   $("atab-"+firstTab).classList.remove("hidden");
-  loadStudents(); loadExams(); populateQbSubjects();
+  loadStudents(true); loadExams(); populateQbSubjects();   // students cached 30 min per tab to save reads (mutations reload fresh)
   if (isSuper()) loadStaff();
 }
 
@@ -2876,9 +2876,15 @@ $("addStudentBtn").onclick = async () => {
 };
 
 let studentCache = [];
-async function loadStudents(){
-  const qs = await getDocs(query(collection(db,"users"), where("role","==","student")));
-  studentCache = qs.docs.map(d => ({ uid: d.id, ...d.data() }));
+async function loadStudents(useCache){
+  let cached = null;
+  if (useCache) { try { const c = JSON.parse(sessionStorage.getItem("stCache")||"null"); if (c && Date.now()-c.t < 30*60000) cached = c.list; } catch(e) {} }
+  if (cached) studentCache = cached;
+  else {
+    const qs = await getDocs(query(collection(db,"users"), where("role","==","student")));
+    studentCache = qs.docs.map(d => ({ uid: d.id, ...d.data() }));
+    try { sessionStorage.setItem("stCache", JSON.stringify({ t: Date.now(), list: studentCache })); } catch(e) {}
+  }
   studentCache.sort((a,b)=>(a.batch||"").localeCompare(b.batch||"") || (a.name||"").localeCompare(b.name||""));
   renderStudents();
   // populate "specific students" picker in exam builder
