@@ -397,6 +397,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       <button data-atab="progress">Progress</button>
       <button data-atab="atrisk">⚠ At-risk</button>
       <button data-atab="aisettings" id="tabAiSettings">AI Settings</button>
+      <button data-atab="usage" id="tabUsage">💰 Usage</button>
     </div>
 
     <div id="atab-students" class="atab">
@@ -869,6 +870,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <div class="field" style="margin:0"><select id="lmExam"></select></div>
           <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="lmSound"> 🔔 Sound on alerts</label>
           <label style="font-size:13px;display:flex;gap:6px;align-items:center" title="Portal-wide default; a test can override it in the Diagnostic Builder / Exams"><input type="checkbox" id="lmStrict"> ⚠ 3 warnings → auto-submit</label>
+          <button class="btn" id="lmStart" style="padding:4px 10px">▶ Start</button>
           <button class="btn secondary" id="lmRefresh" style="padding:4px 10px">Refresh</button>
         </div>
         <div id="lmStrictMsg" style="font-size:12.5px;color:var(--muted);margin-top:6px"></div>
@@ -891,6 +893,24 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       </div>
     </div>
 
+
+    <div id="atab-usage" class="atab hidden">
+      <div class="card">
+        <div class="flexrow" style="align-items:center">
+          <h2 class="sec" style="margin:0;flex:1">💰 Firestore usage meter</h2>
+          <button class="btn secondary" id="usageRefresh" style="padding:4px 10px">Refresh</button>
+          <button class="btn secondary" id="usageReset" style="padding:4px 10px">Reset counters</button>
+        </div>
+        <p style="font-size:12.5px;color:var(--muted);margin:6px 0 10px">Counts every read / write / delete made <b>from this browser</b> (admin panel and students on this device), per day (IST), per collection. It does <b>not</b> include other devices, the GitHub AI job or the Firebase console itself &mdash; for the exact bill open
+          <a href="https://console.firebase.google.com/project/aakash-exam-portal/firestore/databases/default/usage" target="_blank" rel="noopener">Firebase &rarr; Firestore &rarr; Usage</a>. Free per day: 50,000 reads · 20,000 writes · 20,000 deletes.</p>
+        <div id="usageToday"></div>
+        <h3 style="font-size:14px;margin:14px 0 6px">Today by collection</h3>
+        <div id="usageColl"></div>
+        <h3 style="font-size:14px;margin:14px 0 6px">Last days</h3>
+        <div id="usageDays"></div>
+      </div>
+    </div>
+
     <div id="atab-aisettings" class="atab hidden">
       <div class="card">
         <h2 class="sec" style="margin-top:0">AI follow-up — key &amp; models</h2>
@@ -903,7 +923,8 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-bottom:14px"><input type="checkbox" id="aiEnabled" checked> AI job enabled</label>
           <div style="margin-bottom:14px">
             <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">Which tests should the AI work on?</label>
-            <select id="aiScope"><option value="all">All tests</option><option value="selected">Only the tests I choose</option></select>
+            <select id="aiScope"><option value="all">All tests</option><option value="selected">Only the tests I choose</option><option value="questions">Only the questions I choose</option></select>
+            <textarea id="aiQids" class="hidden" rows="4" placeholder="Question IDs — one per line or comma-separated (e.g. DG_AIATS_-1_PRACTICE_TEST_1_MV50CHN3_037). Find the id in Questions / test preview." style="width:100%;max-width:640px;margin-top:6px;font-size:12.5px"></textarea>
             <details id="aiExamDd" class="hidden" style="margin-top:6px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;max-width:640px">
               <summary id="aiExamSum" style="cursor:pointer;font-size:13px">Choose tests…</summary>
               <input id="aiExamSearch" placeholder="Search tests…" style="width:100%;margin:6px 0">
@@ -1274,8 +1295,8 @@ import {
   onAuthStateChanged, signOut, updatePassword, deleteUser
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, getDocs,
-  collection, query, where, orderBy, writeBatch, serverTimestamp, Timestamp, onSnapshot, deleteField
+  getFirestore, doc, getDoc as _getDoc, setDoc as _setDoc, updateDoc as _updateDoc, deleteDoc as _deleteDoc, addDoc as _addDoc, getDocs as _getDocs,
+  collection, query, where, orderBy, writeBatch as _writeBatch, serverTimestamp, Timestamp, onSnapshot as _onSnapshot, deleteField
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // PASTE FIREBASE CONFIG HERE
@@ -1293,6 +1314,41 @@ const firebaseConfig = {
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app, "default"); // project uses a named Firestore database "default" (not the built-in "(default)")
+
+/* ========== USAGE METER (counts Firestore reads / writes made from THIS browser, per day + per collection) ========== */
+const USAGE_KEY = "examPortalUsage_v1";
+const usageDay = () => new Date(Date.now() + 5.5*3600e3).toISOString().slice(0,10);   // IST date
+let usageData = {}; try { usageData = JSON.parse(localStorage.getItem(USAGE_KEY) || "{}"); } catch(e) { usageData = {}; }
+let usageTimer = null;
+function usageSave(){ clearTimeout(usageTimer); usageTimer = setTimeout(() => { try {
+  const keys = Object.keys(usageData).sort(); while (keys.length > 35) delete usageData[keys.shift()];
+  localStorage.setItem(USAGE_KEY, JSON.stringify(usageData)); } catch(e) {} }, 1500); }
+function usageAdd(kind, ref, n){
+  if (!n) return;
+  let c = "?"; try { c = String(ref?.path || ref?._query?.path?.canonicalString?.() || ref?._path?.canonicalString?.() || "?").split("/")[0] || "?"; } catch(e) {}
+  const d = usageData[usageDay()] = usageData[usageDay()] || { r:{}, w:{}, d:{} };
+  const b = d[kind]; b[c] = (b[c] || 0) + n; usageSave();
+}
+const getDoc = async ref => { const s = await _getDoc(ref); usageAdd("r", ref, 1); return s; };
+const getDocs = async q => { const s = await _getDocs(q); usageAdd("r", q, Math.max(1, s.size)); return s; };
+const setDoc = (ref, ...a) => { usageAdd("w", ref, 1); return _setDoc(ref, ...a); };
+const updateDoc = (ref, ...a) => { usageAdd("w", ref, 1); return _updateDoc(ref, ...a); };
+const addDoc = (ref, ...a) => { usageAdd("w", ref, 1); return _addDoc(ref, ...a); };
+const deleteDoc = ref => { usageAdd("d", ref, 1); return _deleteDoc(ref); };
+const onSnapshot = (ref, ...a) => {
+  const i = a.findIndex(x => typeof x === "function"); 
+  if (i >= 0) { const cb = a[i]; a[i] = snap => { try { usageAdd("r", ref, snap.docChanges ? Math.max(1, snap.docChanges().length) : 1); } catch(e) {} return cb(snap); }; }
+  else if (a[0] && typeof a[0].next === "function") { const o = a[0], nx = o.next.bind(o); a[0] = { ...o, next: snap => { try { usageAdd("r", ref, snap.docChanges ? Math.max(1, snap.docChanges().length) : 1); } catch(e) {} return nx(snap); } }; }
+  return _onSnapshot(ref, ...a);
+};
+const writeBatch = dbx => {
+  const b = _writeBatch(dbx), pend = [];
+  const wrap = (m, kind) => { const f = b[m].bind(b); b[m] = (ref, ...a) => { pend.push([kind, ref]); return f(ref, ...a); }; };
+  wrap("set","w"); wrap("update","w"); wrap("delete","d");
+  const cm = b.commit.bind(b); b.commit = async () => { const r = await cm(); pend.forEach(([k, ref]) => usageAdd(k, ref, 1)); pend.length = 0; return r; };
+  return b;
+};
+
 
 /* ========== EXAM CONFIGURATIONS ========== */
 const EXAM_CONFIG = {
@@ -1726,6 +1782,7 @@ function enterAdmin(){
   $("tabFaculty").classList.toggle("hidden", !isSuper());
   $("tabModelBank").classList.toggle("hidden", !isSuper());   // Model Bank: admins only (students can be given view access)
   $("tabAiSettings").classList.toggle("hidden", !isSuper());
+  $("tabUsage").classList.toggle("hidden", !isSuper());
   lmStop();
   $("addStudentCard").classList.toggle("hidden", !isSuper());
   $("bulkImportCard").classList.toggle("hidden", !isSuper());
@@ -1748,7 +1805,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     b.classList.add("active");
     document.querySelectorAll(".atab").forEach(x=>x.classList.add("hidden"));
     $("atab-"+b.dataset.atab).classList.remove("hidden");
-    if (b.dataset.atab==="reports") loadReports();
+    if (b.dataset.atab==="reports") setMsg($("rpMsg"),"Nothing is fetched until you press Apply (this saves database reads).",true);
     if (b.dataset.atab==="faculty") loadStaff();
     if (b.dataset.atab==="leaderboard") initLeaderboard();
     if (b.dataset.atab==="itemanalysis") initItemAnalysis();
@@ -1757,7 +1814,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="diagnostic") initDiagnostic();
     if (b.dataset.atab==="assign") { try { dgLibRender(); } catch(e) { console.warn(e); } }
     if (b.dataset.atab==="custompractice") initCustomPractice();
-    if (b.dataset.atab==="live") initLive(); else lmStop();
+    lmStop(); if (b.dataset.atab==="live") $("lmDot").innerHTML = "not listening — press ▶ Start (listening reads the attempts of active tests)";
     if (b.dataset.atab==="aisettings") { initAiSettings(); aiLiveStart(); } else aiLiveStop();
     if (b.dataset.atab==="topics") initTopics();
     if (b.dataset.atab==="packages") initPackages();
@@ -1765,8 +1822,40 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
     if (b.dataset.atab==="atrisk") initAtRisk();
+    if (b.dataset.atab==="usage") usageRender();
   };
 }
+
+
+/* ----- usage meter tab ----- */
+const USAGE_FREE = { r: 50000, w: 20000, d: 20000 }, USAGE_USD_PER_100K = { r: 0.03, w: 0.09, d: 0.01 }, USAGE_INR = 88;
+function usageSum(o){ return Object.values(o || {}).reduce((a, b) => a + b, 0); }
+function usageCost(d){ // estimated ₹ for one day beyond the free quota (list prices; the real bill may differ slightly)
+  return ["r","w","d"].reduce((t, k) => t + Math.max(0, usageSum(d?.[k]) - USAGE_FREE[k]) / 1e5 * USAGE_USD_PER_100K[k] * USAGE_INR, 0);
+}
+function usageRender(){
+  try { usageData = { ...usageData, ...JSON.parse(localStorage.getItem(USAGE_KEY) || "{}") }; } catch(e) {}
+  const today = usageData[usageDay()] || { r:{}, w:{}, d:{} };
+  const tile = (label, k) => { const n = usageSum(today[k]), pct = Math.min(100, n / USAGE_FREE[k] * 100);
+    const col = pct >= 100 ? "#c0392b" : pct >= 70 ? "#e67e22" : "#2e8b57";
+    return `<div style="flex:1;min-width:170px;border:1px solid var(--border);border-radius:8px;padding:10px">
+      <div style="font-size:12px;color:var(--muted)">${label} today</div><div style="font-size:22px;font-weight:700">${n.toLocaleString()}</div>
+      <div style="height:6px;background:var(--border);border-radius:3px;margin:6px 0"><div style="height:6px;width:${pct}%;background:${col};border-radius:3px"></div></div>
+      <div style="font-size:11.5px;color:var(--muted)">${pct.toFixed(1)}% of ${USAGE_FREE[k].toLocaleString()} free</div></div>`; };
+  $("usageToday").innerHTML = `<div class="flexrow" style="gap:10px;flex-wrap:wrap">${tile("Reads","r")}${tile("Writes","w")}${tile("Deletes","d")}
+    <div style="flex:1;min-width:170px;border:1px solid var(--border);border-radius:8px;padding:10px"><div style="font-size:12px;color:var(--muted)">Est. extra cost today</div>
+    <div style="font-size:22px;font-weight:700">₹${usageCost(today).toFixed(2)}</div><div style="font-size:11.5px;color:var(--muted)">only what is above the free quota</div></div></div>`;
+  const colls = [...new Set(["r","w","d"].flatMap(k => Object.keys(today[k] || {})))]
+    .sort((a, b) => ((today.r[b]||0)+(today.w[b]||0)+(today.d[b]||0)) - ((today.r[a]||0)+(today.w[a]||0)+(today.d[a]||0)));
+  $("usageColl").innerHTML = colls.length ? `<table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="text-align:left;color:var(--muted)"><th>Collection</th><th>Reads</th><th>Writes</th><th>Deletes</th></tr>` +
+    colls.map(c => `<tr style="border-top:1px solid var(--border)"><td>${esc(c)}</td><td>${(today.r[c]||0).toLocaleString()}</td><td>${(today.w[c]||0).toLocaleString()}</td><td>${(today.d[c]||0).toLocaleString()}</td></tr>`).join("") + `</table>`
+    : `<div style="color:var(--muted);font-size:13px">Nothing counted yet today on this browser.</div>`;
+  const days = Object.keys(usageData).sort().reverse().slice(0, 14);
+  $("usageDays").innerHTML = days.length ? `<table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="text-align:left;color:var(--muted)"><th>Day (IST)</th><th>Reads</th><th>Writes</th><th>Deletes</th><th>Est. extra ₹</th></tr>` +
+    days.map(d => { const x = usageData[d]; return `<tr style="border-top:1px solid var(--border)"><td>${d}</td><td>${usageSum(x.r).toLocaleString()}</td><td>${usageSum(x.w).toLocaleString()}</td><td>${usageSum(x.d).toLocaleString()}</td><td>${usageCost(x).toFixed(2)}</td></tr>`; }).join("") + `</table>` : "";
+}
+$("usageRefresh").onclick = usageRender;
+$("usageReset").onclick = async () => { if (!await uiConfirm("Reset the usage counters on this browser?")) return; usageData = {}; try { localStorage.removeItem(USAGE_KEY); } catch(e) {} usageRender(); };
 
 /* ----- attendance / absentees ----- */
 let atAbsent = [], atExamTitle = "";
@@ -4940,6 +5029,7 @@ async function initLive(){
   lmTimer = setInterval(lmRender, 5000);
   $("lmDot").innerHTML = `<span style="color:#2e8b57">● listening</span> to ${watch.length} test(s)${exams.length > watch.length ? ` (first ${watch.length})` : ""}`;
 }
+$("lmStart").onclick = () => initLive();
 function lmDiff(cur){
   for (const a of Object.values(cur)) {
     const p = lmState[a.docId], who = `<b>${esc(a.studentName || "?")}</b>`, test = `<span style="color:var(--muted)">${esc(a._exam.title)}</span>`;
@@ -5045,7 +5135,8 @@ async function initAiSettings(){
     const c = cfg.exists() ? cfg.data() : {};
     Object.entries(AI_FIELDS).forEach(([el, k]) => { $(el).value = c[k] ?? ""; });
     $("aiEnabled").checked = c.enabled !== false;
-    $("aiScope").value = c.examScope === "selected" ? "selected" : "all";
+    $("aiScope").value = c.examScope === "selected" ? "selected" : c.examScope === "questions" ? "questions" : "all";
+    $("aiQids").value = (c.questionIds || []).join("\n");
     aiExamSel = new Set(c.examIds || []);
     aiScopeRender();
     $("aiKey").value = "";
@@ -5091,6 +5182,7 @@ let aiExamSel = new Set();
 function aiScopeRender(){
   const sel = $("aiScope").value === "selected";
   $("aiExamDd").classList.toggle("hidden", !sel);
+  $("aiQids").classList.toggle("hidden", $("aiScope").value !== "questions");
   const f = $("aiExamSearch").value.trim().toLowerCase();
   const exams = examsCache.slice().sort((a, b) => (b.diagnostic ? 1 : 0) - (a.diagnostic ? 1 : 0) || tsMs(b.createdAt) - tsMs(a.createdAt));
   const known = new Set(exams.map(e => e.docId));
@@ -5108,7 +5200,9 @@ $("aiScope").onchange = aiScopeRender;
 $("aiExamSearch").oninput = aiScopeRender;
 $("aiSaveBtn").onclick = async () => {
   const c = { enabled: $("aiEnabled").checked, updatedBy: currentUser.name, updatedAt: serverTimestamp(),
-              examScope: $("aiScope").value, examIds: [...aiExamSel] };
+              examScope: $("aiScope").value, examIds: [...aiExamSel],
+              questionIds: [...new Set($("aiQids").value.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean))] };
+  if (c.examScope === "questions" && !c.questionIds.length && !await uiConfirm("No question is listed, so the AI job will do nothing. Save anyway?")) return;
   if (c.examScope === "selected" && !c.examIds.length && !await uiConfirm("No test is chosen, so the AI job will do nothing. Save anyway?")) return;
   for (const [el, k] of Object.entries(AI_FIELDS)) {
     const v = $(el).value.trim();
@@ -7289,6 +7383,99 @@ async function loadPracticeHistory(){
 /* ========== RESULT PAGE ========== */
 let lastResultDetail = null, lastResultAttempt = null;
 
+/* ----- download the submitted test as a question-paper PDF (two columns, navy header) ----- */
+function buildPaperHtml(attempt, detail, cfg, withKey){
+  const title = attempt.examTitle || "Test";
+  const m = cfg.marks?.A || { correct: 4, wrong: -1 };
+  const sub = (cfg.subjects || []).join(" · ");
+  const fmt = n => (n > 0 ? "+" : "") + n;
+  const blocks = detail.map((d, i) => {
+    const q = d.q, isMcq = (q.section || "A") === "A";
+    const tag = [q.topic, levelShort(q.difficulty)].filter(Boolean).join(" · ");
+    let opts = "";
+    if (isMcq) {
+      const textless = isImageOnlyOptions(q);
+      opts = (q.options || []).map((o, k) => {
+        const letter = "ABCD"[k];
+        const txt = String(o || "").replace(/^\s*[A-D][).]\s*/, "");
+        const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
+        const isKey = withKey && keyHas(q, letter), isMine = withKey && d.answer != null && String(d.answer).toUpperCase().includes(letter);
+        const cls = isKey ? "key" : (isMine ? "mine" : "");
+        return `<div class="o ${cls}">(${k + 1}) ${textless ? "" : txt}${oimg}${isKey ? " &#10003;" : isMine ? " &#10007; (your answer)" : ""}</div>`;
+      }).join("");
+    } else if (withKey) opts = `<div class="o key">Answer: ${esc(q.correct_answer)}${d.answer != null ? ` &nbsp;(yours: ${esc(String(d.answer))})` : ""}</div>`;
+    else opts = `<div class="o">Answer: ______________</div>`;
+    return `<div class="q"><div class="qh"><span class="qn">Q${i + 1}.</span> ${tag ? `<span class="qt">[${esc(tag)}]</span>` : ""}</div>
+      <div class="qb">${q.text || ""}${imgHtml(q.image)}</div>${opts}</div>`;
+  }).join("");
+  const hdr = `<div class="hdr"><div class="t1">${esc(title)}</div><div class="t2">${esc(sub || "Question paper")}</div>
+<div class="mm">Max marks ${fmt(m.correct)} / ${fmt(m.wrong)}<span>${esc(attempt.studentName || "")}</span></div></div>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+<script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']]},startup:{typeset:false}};<\/script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"><\/script>
+<style>
+@page{size:A4;margin:0}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{position:relative;width:210mm;height:296.5mm;overflow:hidden;page-break-after:always;break-after:page}
+.page:last-child{page-break-after:auto;break-after:auto}
+.hdr{position:absolute;top:0;left:0;right:0;height:22mm;background:#1f3a5f;color:#fff;padding:3.5mm 9mm;border-bottom:1.6mm solid #c0392b}
+.hdr .t1{font-size:11pt;font-weight:700;letter-spacing:.02em}
+.hdr .t2{font-size:15pt;font-weight:700;color:#ffd97a;margin-top:1mm}
+.hdr .mm{position:absolute;right:9mm;top:3.5mm;font-size:9pt;text-align:right}
+.hdr .mm span{display:block;margin-top:1.2mm;color:#dbe4f0}
+.col{position:absolute;top:27mm;width:92.5mm;height:256mm;overflow:hidden}
+.col.c0{left:9mm}.col.c1{left:108.5mm}
+.pn{position:absolute;right:9mm;bottom:5mm;font-size:9pt;color:#666}
+#pool{position:absolute;left:-9999px;top:0;width:92.5mm}
+.q{padding:2mm 0 3mm;border-bottom:.3mm solid #ddd;margin-bottom:2.5mm;font-size:9.5pt;line-height:1.35}
+.qh{background:#eef1f7;border-left:1.2mm solid #c0392b;padding:.8mm 2mm;margin-bottom:1.5mm;font-weight:700;color:#1f3a5f;font-size:9.5pt}
+.qt{font-weight:600}
+.qb img,.o img{max-width:100%;height:auto;display:block;margin:1.5mm 0}
+.o{margin:.8mm 0 .8mm 3mm;font-size:9pt}
+.o.key{font-weight:700;color:#1b7a3b}.o.mine{color:#b03a2e}
+</style></head><body>
+<div id="pool">${blocks}</div><div id="pages"></div>
+<script>
+function layoutPaper(){
+  var HDR=${JSON.stringify(hdr)}, pool=document.getElementById("pool"), qs=[].slice.call(pool.children), host=document.getElementById("pages");
+  var colH=256*3.7795, pages=[], page, ci;
+  function newPage(){ page=document.createElement("div"); page.className="page"; page.innerHTML=HDR+'<div class="col c0"></div><div class="col c1"></div><div class="pn"></div>'; host.appendChild(page); ci=0; pages.push(page); }
+  newPage();
+  qs.forEach(function(q){
+    var col=page.children[1+ci]; col.appendChild(q);
+    if (col.scrollHeight>colH+1 && col.children.length>1){
+      col.removeChild(q);
+      if (ci===0) ci=1; else newPage();
+      page.children[1+ci].appendChild(q);
+    }
+  });
+  pages.forEach(function(pg,i){ pg.querySelector(".pn").textContent="Page "+(i+1); });
+  pool.remove(); document.documentElement.setAttribute("data-ready","1");
+}
+window.addEventListener("load", async function(){
+  try{ var t0=Date.now(); while(!(window.MathJax&&MathJax.typesetPromise)&&Date.now()-t0<6000) await new Promise(function(r){setTimeout(r,150)}); if(window.MathJax&&MathJax.typesetPromise) await MathJax.typesetPromise(); }catch(e){}
+  await Promise.all([].slice.call(document.images).map(function(im){return im.complete?0:new Promise(function(r){im.onload=im.onerror=r})}));
+  layoutPaper();
+});
+<\/script></body></html>`;
+}
+async function downloadPaperPdf(withKey){
+  const attempt = lastResultAttempt, detail = lastResultDetail;
+  if (!attempt || !detail?.length) { uiAlert("Open a submitted result first."); return; }
+  const html = buildPaperHtml(attempt, detail, attemptCfg(attempt), withKey);
+  const fr = document.createElement("iframe");
+  fr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  document.body.appendChild(fr);
+  fr.srcdoc = html;
+  const w0 = Date.now();
+  while (Date.now() - w0 < 30000 && fr.contentDocument?.documentElement?.getAttribute("data-ready") !== "1") await new Promise(r => setTimeout(r, 200));
+  const w = fr.contentWindow;
+  w.focus(); w.print();
+  setTimeout(() => fr.remove(), 60000);
+}
+
 async function showResult(attempt){
   $("resultWho").textContent = attempt.studentName || currentUser.name;
   showView("view-result");
@@ -7469,6 +7656,8 @@ async function showResult(attempt){
       <span style="color:var(--muted)">(${fmtSpan(attempt.startTime, attempt.submitTime)} from start to submit)</span></p>
     <button class="btn" id="csvReportBtn">Download Report (CSV)</button>
     <button class="btn secondary" id="pdfReportBtn">Print / Save as PDF</button>
+    <button class="btn" id="paperPdfBtn">⬇ Download test (PDF)</button>
+    <button class="btn secondary" id="paperKeyPdfBtn">⬇ Test with answers (PDF)</button>
     <div id="timeCard"></div>
     <div id="speedCard"></div>
     <div id="integrityCard"></div>
@@ -7520,6 +7709,8 @@ async function showResult(attempt){
     downloadCsv("exam_report.csv", rows);
   };
   $("pdfReportBtn").onclick = () => window.print();
+  $("paperPdfBtn").onclick = () => downloadPaperPdf(false);
+  $("paperKeyPdfBtn").onclick = () => downloadPaperPdf(true);
   // test length: snapshot on the attempt (newer attempts), else the exam's setting
   // untimed (diagnostic) tests have no "time left unused" — the duration was only an estimate
   let durSec = attempt.examUntimed ? 0 : attempt.examDurationSec || (_examForOrder?.durationMin || 0) * 60;

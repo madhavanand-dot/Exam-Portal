@@ -41,7 +41,8 @@ export function resolveConfig(env = {}, ai = {}, secret = {}){
     reasonWaitMin: num(ai.reasonWaitMin, env.AI_REASON_WAIT_MIN, D.reasonWaitMin, 0, 1440),
     runMinutes: num(undefined, env.AI_RUN_MINUTES, D.runMinutes, 5, 350),
     // "all" tests, or only the tests the admin ticked in AI Settings
-    examScope: ai.examScope === "selected" ? "selected" : "all",
+    examScope: ai.examScope === "selected" ? "selected" : ai.examScope === "questions" ? "questions" : "all",
+    questionIds: Array.isArray(ai.questionIds) ? ai.questionIds.filter(x => typeof x === "string" && x) : [],
     examIds: Array.isArray(ai.examIds) ? ai.examIds.filter(x => typeof x === "string" && x) : []
   };
   const apiKey = secret?.apiKey || env.AI_API_KEY || "";
@@ -342,6 +343,19 @@ export function makeLlm({ baseUrl, apiKey, rpm, fetchImpl = fetch, sleep = ms =>
 // Wraps the store so every step sees only the chosen tests: their questions (keys / ideal times / second opinions),
 // their solve requests and their students' follow-up queue. Attempts of other tests are taken off the queue.
 export async function scopedStore(store, cfg, log = console.log){
+  if (cfg.examScope === "questions") {
+    // only the questions the teacher listed: no test-level solving, no attempt processing
+    const qids = [...new Set(cfg.questionIds || [])];
+    log(`AI Settings: only ${qids.length} chosen question(s).`);
+    const scopedQs = async () => Object.values(await store.getQuestions(qids));
+    return {
+      ...store,
+      async listPendingQuestions(limit){ return (await scopedQs()).filter(q => q.keySrc === "pending-ai" || q.idealTimeSrc === "pending-ai").slice(0, limit); },
+      async listUserKeyQuestions(limit){ return (await scopedQs()).slice(0, limit); },
+      async listSolveRequests(){ return []; },
+      async listQueuedAttempts(){ return []; }
+    };
+  }
   if (cfg.examScope !== "selected") return store;
   const examIds = new Set(cfg.examIds || []);
   const qids = new Set();
