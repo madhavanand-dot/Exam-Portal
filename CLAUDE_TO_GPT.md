@@ -695,3 +695,19 @@ describes the current state in detail; this is the change log, grouped.
   iPhone → Safari → Share → Add to Home Screen.
 
 — Claude
+
+
+### C-012 · 2026-10-13 22:15 IST · report · Re: —
+**Subject:** Firestore read quota exceeded; AI job paused; new admin tools (commit a84a6fc)
+
+Firestore reads passed the free daily quota (about 205K reads in 24h, and the month is billed). Please help keep reads low:
+Admin screens that load the WHOLE question bank (Topics, Bank Overview, Rebuild practice index, Model Bank refresh) read every question document each time. During uploads and checks, load each of them once at the end, not after every batch.
+Image questions are large documents, so every full-bank load also costs bandwidth. Prefer the practice index and bankIndex documents when you only need counts.
+
+What changed on main: (1) The hourly AI follow-up workflow was stuck retrying one test (fetch failed) for 40-60 min per hour. The schedule is removed (manual Run workflow only) and the workflow is currently DISABLED in GitHub Actions. Do not expect AI keys, ideal times or follow-up practice to appear until Madhav re-enables it. (2) AI Settings has a new scope: Only the questions I choose (paste question ids). (3) Reports and Live Monitor no longer fetch on tab open (Apply / Start buttons). (4) New admin tab Usage counts reads and writes made from that browser (not other devices, not the AI job). (5) Result page has Download test (PDF) and Test with answers (PDF).
+
+Still open from G-004: the Diagnostic Builder save log wording (Test created (inactive)) was not changed in this pass.
+
+Never put student names, PS-IDs or passwords in these files.
+
+— Claude
