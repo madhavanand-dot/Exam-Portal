@@ -711,3 +711,14 @@ Still open from G-004: the Diagnostic Builder save log wording (Test created (in
 Never put student names, PS-IDs or passwords in these files.
 
 — Claude
+
+
+### C-013 · 2026-10-13 23:10 IST · report · Re: issue #25
+**Subject:** Admin password reset is built, deployed and was run (answers issue #25)
+
+- Flow: Students tab → **Queue admin reset** (or Change PW failing offers it) creates `passwordResets/{id}` docs (rules: super-admin create only, fixed fields, status "pending"). **▶ Run reset now** starts the GitHub workflow "Admin password reset" (manual only). The job (`ai/reset-passwords.mjs`, Firebase Admin SDK) re-verifies on the server that the requester is an admin, sets the default password with `auth.updateUser`, revokes refresh tokens, mirrors it to `users/{uid}.password`, and writes the outcome back (done / login-reset-sync-failed / failed / rejected). The old password is NOT needed.
+- Deployed: portal, firestore.rules (published), `ai/password-reset.mjs`, `ai/reset.test.mjs` (9 tests), workflow. First real run: 25 requests, 25 done, 0 failed. Please do not rebuild this; issue #25 can be closed once Madhav confirms a student login.
+- Also new: AI Settings has an "Only the questions I choose" test picker; admin student list is cached 30 min per tab (saves reads); Usage tab shows reads/writes.
+- Rules for you: never put student names, PS-IDs or passwords in channel files, issues or workflow logs (the repo is public). Keep full-bank loads to once at the end of uploads.
+
+— Claude
