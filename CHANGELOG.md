@@ -7,6 +7,41 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-15 — Firestore reads cut to the minimum on the student side
+
+- **Exam list kept on the student's device.** A sign-in now reads one small doc (`settings/examsRev`) and re-reads the
+  exam list (every test, Study Package and Momentum Booster chapter of that exam type) only when staff changed an exam
+  since the student's last visit — and at least once a day. Every create / edit / publish / delete of an exam from the
+  portal bumps `settings/examsRev` automatically.
+- **Ranks and percentiles no longer re-read everyone's attempts at each sign-in.** A slim copy (test, student, batch,
+  score, time) is kept on the device; each sign-in reads only the attempts submitted since the last one. A full re-read
+  happens the first time on a device and every 3 days (so deleted or re-scored attempts drop out within 3 days).
+- **Result page:** the test's attempts are shared for 2 minutes instead of re-read on every "View result".
+- **Practice:** the student's practice attempts are read once for "already seen" + history (were read twice).
+- **Study Package / Momentum Booster solving:** no live teacher-message listener (they are homework, not on the Live
+  Monitor), so no reads while a student works through a chapter.
+- **After deploying:**
+  1. Publish the updated `firestore.rules` (adds `settings/examsRev`: everyone signed in reads it, staff write `{at}`).
+     Until then everything works as before, just without the exam-list saving.
+  2. Sign in once as staff (any admin/faculty login creates `settings/examsRev`).
+  3. Exams changed outside the portal (Firebase console, scripts) reach students within a day; to push it at once,
+     save any exam in the portal.
+
+## 2026-10-15 — Fewer reads when a student signs in
+
+- **Progress chart (student dashboard and staff Progress tab):** the percentile line re-read **every attempt of the exam
+  type once per test the student had submitted** — each Study Package / Momentum Booster chapter a student finished added
+  another full scan, so reads grew fast even with few students. It now reads that cohort once per exam type.
+- **Sign-in:** the student's own attempts were read 4 times (packages, my attempts, progress, notebook) and the whole
+  cohort twice; now once each per visit to the dashboard.
+- **Diagnostic chapter/topic picker:** each click re-read all active exams and the student's attempts (to redraw the
+  package cards). Clicks now redraw from the data already loaded.
+- **Mistake notebook / progress:** question details for old attempts (no saved `qMeta`) are read once per session, not
+  twice per sign-in.
+- After deploying: nothing to do.
+
+---
+
 ## 2026-10-13 — Cost control, usage meter, test PDF, and admin password reset without the old password
 
 - **Reads/cost:** the Reports tab no longer loads every attempt when opened (press **Apply**), and the Live Monitor only

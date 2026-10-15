@@ -115,8 +115,10 @@ service cloud.firestore {
       // aiRunner: GitHub token (Actions-only, this repo) so staff can start the AI job from the portal
       // portal: switches every signed-in user reads (e.g. practiceEnabled); only super-admins change them
       allow read: if isSuperAdmin() || ((id == "aiStatus" || id == "aiRunner" || id == "aiScorecard") && isStaff())
-                  || (id == "portal" && signedIn());
+                  || ((id == "portal" || id == "examsRev") && signedIn());
       allow write: if isSuperAdmin();
+      // examsRev: { at } bumped by the page after any exam change; students re-read the exam list only when it moves
+      allow write: if id == "examsRev" && isStaff() && request.resource.data.keys().hasOnly(["at"]);
     }
 
     // ---------- Model Bank: question-model taxonomies + a full bank index ----------

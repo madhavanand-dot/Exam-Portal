@@ -10,7 +10,7 @@ Tick each box as you go.
 
 ## 1. Publish the Firestore rules (2 min) — do this first
 
-Needed for: ▶ Solve now, the mistake notebook, 🔍 AI working, Compare models and the Model scorecard.
+Needed for: the exam-list read saving (`settings/examsRev`, 2026-10-15), ▶ Solve now, the mistake notebook, 🔍 AI working, Compare models and the Model scorecard.
 
 - [ ] Open [`firestore.rules`](firestore.rules) on GitHub → copy everything.
 - [ ] Firebase Console → project **aakash-exam-portal** → **Firestore Database** → database **default** → **Rules** tab →

@@ -1327,18 +1327,30 @@ let usageTimer = null;
 function usageSave(){ clearTimeout(usageTimer); usageTimer = setTimeout(() => { try {
   const keys = Object.keys(usageData).sort(); while (keys.length > 35) delete usageData[keys.shift()];
   localStorage.setItem(USAGE_KEY, JSON.stringify(usageData)); } catch(e) {} }, 1500); }
+function colOf(ref){
+  try { return String(ref?.path || ref?._query?.path?.canonicalString?.() || ref?._path?.canonicalString?.() || "?").split("/")[0] || "?"; } catch(e) { return "?"; }
+}
 function usageAdd(kind, ref, n){
   if (!n) return;
-  let c = "?"; try { c = String(ref?.path || ref?._query?.path?.canonicalString?.() || ref?._path?.canonicalString?.() || "?").split("/")[0] || "?"; } catch(e) {}
+  const c = colOf(ref);
   const d = usageData[usageDay()] = usageData[usageDay()] || { r:{}, w:{}, d:{} };
   const b = d[kind]; b[c] = (b[c] || 0) + n; usageSave();
 }
 const getDoc = async ref => { const s = await _getDoc(ref); usageAdd("r", ref, 1); return s; };
 const getDocs = async q => { const s = await _getDocs(q); usageAdd("r", q, Math.max(1, s.size)); return s; };
-const setDoc = (ref, ...a) => { usageAdd("w", ref, 1); return _setDoc(ref, ...a); };
-const updateDoc = (ref, ...a) => { usageAdd("w", ref, 1); return _updateDoc(ref, ...a); };
-const addDoc = (ref, ...a) => { usageAdd("w", ref, 1); return _addDoc(ref, ...a); };
-const deleteDoc = ref => { usageAdd("d", ref, 1); return _deleteDoc(ref); };
+// Students keep the exam list on their device and re-read it only when settings/examsRev changes. Every write to
+// "exams" from this page bumps it (after the write lands), so no save path can forget to.
+let _revTimer = null;
+function examsChanged(){
+  try { Object.keys(localStorage).filter(k => k.startsWith("examsCache_v1_")).forEach(k => localStorage.removeItem(k)); } catch(e) {}
+  clearTimeout(_revTimer);
+  _revTimer = setTimeout(() => setDoc(doc(db,"settings","examsRev"), { at: serverTimestamp() }).catch(() => {}), 400);
+}
+const afterWrite = (ref, p) => { if (colOf(ref) === "exams") p.then(examsChanged, () => {}); return p; };
+const setDoc = (ref, ...a) => { usageAdd("w", ref, 1); return afterWrite(ref, _setDoc(ref, ...a)); };
+const updateDoc = (ref, ...a) => { usageAdd("w", ref, 1); return afterWrite(ref, _updateDoc(ref, ...a)); };
+const addDoc = (ref, ...a) => { usageAdd("w", ref, 1); return afterWrite(ref, _addDoc(ref, ...a)); };
+const deleteDoc = ref => { usageAdd("d", ref, 1); return afterWrite(ref, _deleteDoc(ref)); };
 const onSnapshot = (ref, ...a) => {
   const i = a.findIndex(x => typeof x === "function"); 
   if (i >= 0) { const cb = a[i]; a[i] = snap => { try { usageAdd("r", ref, snap.docChanges ? Math.max(1, snap.docChanges().length) : 1); } catch(e) {} return cb(snap); }; }
@@ -1349,7 +1361,8 @@ const writeBatch = dbx => {
   const b = _writeBatch(dbx), pend = [];
   const wrap = (m, kind) => { const f = b[m].bind(b); b[m] = (ref, ...a) => { pend.push([kind, ref]); return f(ref, ...a); }; };
   wrap("set","w"); wrap("update","w"); wrap("delete","d");
-  const cm = b.commit.bind(b); b.commit = async () => { const r = await cm(); pend.forEach(([k, ref]) => usageAdd(k, ref, 1)); pend.length = 0; return r; };
+  const cm = b.commit.bind(b); b.commit = async () => { const r = await cm(); if (pend.some(([, ref]) => colOf(ref) === "exams")) examsChanged();
+    pend.forEach(([k, ref]) => usageAdd(k, ref, 1)); pend.length = 0; return r; };
   return b;
 };
 
@@ -2252,6 +2265,42 @@ function attemptDeadPct(a){
   const dead = Object.entries(oc).filter(([, v]) => v !== "correct").reduce((x, [id]) => x + (tm[id] || (a.responses || {})[id]?.timeSec || 0), 0);
   return Math.min(100, 100 * dead / total);
 }
+// Read-saving: several dashboard panels run the same attempts query at sign-in (packages, my attempts, progress,
+// notebook). Share one read per query; enterStudent / the staff progress button clear it so they always start fresh.
+const _qCache = new Map();
+function cachedDocs(key, makeQuery, ttlMs = 5 * 60e3){
+  const hit = _qCache.get(key);
+  if (hit && Date.now() - hit.t < ttlMs) return hit.p;
+  const p = getDocs(makeQuery());
+  p.catch(() => _qCache.delete(key));
+  _qCache.set(key, { t: Date.now(), p });
+  return p;
+}
+const myAttemptsDocs = uid => cachedDocs("att:" + uid, () => query(collection(db,"attempts"), where("studentUid","==",uid)));
+// Everyone's submitted attempts of an exam type (for ranks and percentiles), a few fields each, kept on this device.
+// The first time (and every 3 days) it is read in full; otherwise only attempts submitted since the last sync are read
+// (submitTime > last: a single-field index, no composite index needed).
+const _cohMem = {};
+const cohortRows = examType => _cohMem[examType] || (_cohMem[examType] = syncCohort(examType).catch(e => { delete _cohMem[examType]; throw e; }));
+async function syncCohort(t){
+  const key = "cohort_v1_" + t;
+  let c = null; try { c = JSON.parse(localStorage.getItem(key) || "null"); } catch(e) {}
+  const slim = a => ({ e: a.examId, u: a.studentUid, b: a.studentBatch || "", s: a.score, t: atMs(a.submitTime) });
+  if (!c || !c.rows || Date.now() - (c.full || 0) > 3 * 24 * 3600e3) {
+    const qs = await getDocs(query(collection(db,"attempts"), where("examType","==",t)));
+    c = { full: Date.now(), last: 0, rows: {} };
+    qs.docs.forEach(d => { const a = d.data(); if (a.submitTime) c.rows[d.id] = slim(a); });
+  } else {
+    const since = Timestamp.fromMillis(Math.max(0, (c.last || 0) - 10 * 60e3));   // small overlap for late commits
+    const qs = await getDocs(query(collection(db,"attempts"), where("submitTime",">",since)));
+    qs.docs.forEach(d => { const a = d.data(); if (a.examType === t && a.submitTime) c.rows[d.id] = slim(a); });
+  }
+  c.last = Object.values(c.rows).reduce((m, r) => Math.max(m, r.t || 0), c.last || 0);
+  try { localStorage.setItem(key, JSON.stringify(c)); } catch(e) { try { localStorage.removeItem(key); } catch(_) {} }
+  return Object.values(c.rows).map(r => ({ examId: r.e, studentUid: r.u, studentBatch: r.b, score: r.s, submitTime: r.t, examType: t }));
+}
+const resetReadCaches = () => { _qCache.clear(); Object.keys(_cohMem).forEach(k => delete _cohMem[k]); };
+const _qmFetched = {};   // question id → meta read from the question itself (old attempts without qMeta)
 // subject / chapter / level per question: saved on newer attempts (qMeta), else the practice index, else the question itself
 const _tiCache = {};
 async function qMetaFor(attempts){
@@ -2269,9 +2318,11 @@ async function qMetaFor(attempts){
       if (!meta[e.i]) meta[e.i] = { s: sub, t: e.t || "", d: e.d || "Medium", m: e.m || "", mc: e.mc || "" };
       else if (meta[e.i].m === undefined) meta[e.i] = { ...meta[e.i], m: e.m || "", mc: e.mc || "" }; });
   }
-  const still = [...need].filter(id => !meta[id]).slice(0, 300);
+  [...need].forEach(id => { if (!meta[id] && _qmFetched[id]) meta[id] = _qmFetched[id]; });
+  const still = [...need].filter(id => !meta[id] && !(id in _qmFetched)).slice(0, 300);
   const snaps = await Promise.all(still.map(id => getDoc(doc(db,"questions",id)).catch(() => null)));
-  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), m: String(q.model || "").trim(), mc: String(q.modelCode || "").trim() }; } });
+  still.forEach(id => { _qmFetched[id] = null; });   // read once per session, even when missing
+  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = _qmFetched[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), m: String(q.model || "").trim(), mc: String(q.modelCode || "").trim() }; } });
   return meta;
 }
 
@@ -2282,7 +2333,7 @@ async function openNotebook(box, uid, name, editable){
   if (!box) return;
   box.innerHTML = `<div style="color:var(--muted)">Loading the mistake notebook…</div>`;
   const [qs, nbSnap] = await Promise.all([
-    getDocs(query(collection(db,"attempts"), where("studentUid","==",uid))),
+    myAttemptsDocs(uid),
     getDoc(doc(db,"notebooks",uid)).catch(() => null)
   ]);
   const atts = qs.docs.map(d => ({ docId: d.id, ...d.data() })).filter(a => a.submitTime != null).sort((a, b) => atMs(a.submitTime) - atMs(b.submitTime));
@@ -2717,6 +2768,7 @@ function initProgress(){
 }
 $("pgLoadBtn").onclick = async () => {
   const uid = $("pgStudent").value; if (!uid) return;
+  resetReadCaches();   // fresh data on every click
   const s = studentCache.find(x=>x.uid===uid);
   $("pgWrap").innerHTML = await progressHtml(uid, s?.name||"Student");
   openNotebook($("pgNotebook"), uid, s?.name||"Student", false).catch(e => { $("pgNotebook").textContent = "Could not load the notebook: " + e.message; });
@@ -2724,15 +2776,14 @@ $("pgLoadBtn").onclick = async () => {
 
 // shared: build a progress panel (trend charts) for a student uid
 async function progressHtml(uid, name){
-  const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",uid)));
+  const qs = await myAttemptsDocs(uid);
   let att = qs.docs.map(d=>d.data()).filter(a=>a.submitTime!=null);
   att.sort((a,b)=>(a.submitTime?.seconds||0)-(b.submitTime?.seconds||0));
   if (!att.length) return `<p style="color:var(--muted)">No completed tests yet for ${esc(name)}.</p>`;
-  // percentile per attempt vs same exam-type cohort
+  // percentile per attempt vs same exam-type cohort (one cohort read per exam type, not one per attempt)
   const pcts = [];
   for (const a of att){
-    const cohortQ = await getDocs(query(collection(db,"attempts"), where("examType","==",a.examType)));
-    const scores = cohortQ.docs.map(d=>d.data()).filter(x=>x.submitTime).map(x=>x.score);
+    const scores = (await cohortRows(a.examType)).map(x=>x.score);
     const below = scores.filter(x=>x<=a.score).length;
     pcts.push(scores.length? (100*below/scores.length):100);
   }
@@ -5900,8 +5951,11 @@ function audienceLabel(e){
 }
 
 let examsCache = [];
+let _revSeeded = false;
 async function loadExams(){
   const qs = await getDocs(collection(db,"exams"));
+  if (!_revSeeded) { _revSeeded = true;   // students cache their exam list only once settings/examsRev exists
+    getDoc(doc(db,"settings","examsRev")).then(sn => { if (!sn.exists()) examsChanged(); }).catch(() => {}); }
   const exams = qs.docs.map(d=>({ docId:d.id, ...d.data() }));
   exams.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
   examsCache = exams;
@@ -6104,6 +6158,7 @@ let activeUserUnsub = null;
 async function enterStudent(){
   $("studentWho").textContent = `${currentUser.name} (${currentUser.examType}${currentUser.batch?", "+currentUser.batch:""})`;
   showView("view-student");
+  resetReadCaches();   // fresh reads for this visit, shared by the panels below
   loadActiveExam(); loadMyAttempts();
   initPractice(); loadPracticeHistory();
   // deactivated while signed in: save any running test (not submitted) and sign out
@@ -6135,13 +6190,29 @@ function examTargetsMe(e){
 }
 let availableExams = [];
 const SDG = { ch: "", sub: "" };   // student's place in the diagnostic chapter → topic picker
-async function loadActiveExam(){
+let _myExams = [];
+// active exams of my exam type: 1 read (settings/examsRev) when nothing changed since the last visit on this device
+const tsRevive = (k, v) => v && typeof v === "object" && typeof v.seconds === "number" && typeof v.nanoseconds === "number" && Object.keys(v).length === 2 ? new Timestamp(v.seconds, v.nanoseconds) : v;
+async function activeExamsOfMyType(){
+  const key = "examsCache_v1_" + currentUser.examType;
+  let rev = "";
+  try { const sn = await getDoc(doc(db,"settings","examsRev")); rev = sn.exists() ? String(atMs(sn.data().at)) : ""; } catch(e) { /* rules not published: always read */ }
+  if (rev) try {
+    const c = JSON.parse(localStorage.getItem(key) || "null", tsRevive);
+    if (c && c.rev === rev && Date.now() - c.t < 24 * 3600e3) return c.docs;   // re-read at least daily anyway
+  } catch(e) {}
+  const qs = await getDocs(query(collection(db,"exams"), where("examType","==",currentUser.examType), where("isActive","==",true)));
+  const docs = qs.docs.map(d => ({ docId: d.id, ...d.data() }));
+  if (rev) try { localStorage.setItem(key, JSON.stringify({ rev, t: Date.now(), docs })); } catch(e) { try { localStorage.removeItem(key); } catch(_) {} }
+  return docs;
+}   // last exams query; chapter/topic clicks re-render from it instead of reading again
+async function loadActiveExam(refetch = true){
   activeExam = null;
-  const qs = await getDocs(query(collection(db,"exams"),
-    where("examType","==",currentUser.examType), where("isActive","==",true)));
-  const allMine = qs.docs.map(d=>({ docId:d.id, ...d.data() })).filter(examTargetsMe);
-  renderStudentPackages(allMine.filter(e => e.studyPackage));   // study packages get their own section
-  const mine = allMine.filter(e => !e.studyPackage);
+  if (refetch) {
+    _myExams = (await activeExamsOfMyType()).filter(examTargetsMe);
+    renderStudentPackages(_myExams.filter(e => e.studyPackage));   // study packages get their own section
+  }
+  const mine = _myExams.filter(e => !e.studyPackage);
   // split by schedule window
   availableExams = []; const upcoming = [];
   mine.forEach(ex => {
@@ -6200,9 +6271,9 @@ async function loadActiveExam(){
        <span style="color:var(--muted);font-size:13px">Opens ${fmtDate(new Date(u.at))}</span></div>`).join("");
   }
   $("activeExamInfo").innerHTML = html || "No exam available for you right now. Check back later.";
-  $("activeExamInfo").querySelectorAll("[data-sdg]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdg; SDG.sub = ""; loadActiveExam(); });
-  $("activeExamInfo").querySelectorAll("[data-sdgch]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdgch; SDG.sub = ""; loadActiveExam(); });
-  $("activeExamInfo").querySelectorAll("[data-sdgsub]").forEach(b => b.onclick = () => { SDG.sub = b.dataset.sdgsub; loadActiveExam(); });
+  $("activeExamInfo").querySelectorAll("[data-sdg]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdg; SDG.sub = ""; loadActiveExam(false); });
+  $("activeExamInfo").querySelectorAll("[data-sdgch]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdgch; SDG.sub = ""; loadActiveExam(false); });
+  $("activeExamInfo").querySelectorAll("[data-sdgsub]").forEach(b => b.onclick = () => { SDG.sub = b.dataset.sdgsub; loadActiveExam(false); });
   $("activeExamInfo").querySelectorAll("[data-pledge]").forEach(c => c.onchange = () => {
     $("activeExamInfo").querySelector(`[data-startex="${c.dataset.pledge}"]`).disabled = !c.checked;
   });
@@ -6528,7 +6599,7 @@ async function renderStudentPackages(pkgs){
   box.classList.remove("hidden");
   let mine = {};
   try {
-    const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
+    const qs = await myAttemptsDocs(currentUser.uid);
     qs.docs.forEach(d => { const a = d.data(); mine[a.examId] = { docId: d.id, ...a }; });
   } catch(e){}
   const html = ["package", "booster"].map(kind => {
@@ -6568,14 +6639,13 @@ async function renderStudentPackages(pkgs){
   });
 }
 async function loadMyAttempts(){
-  const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
+  const qs = await myAttemptsDocs(currentUser.uid);
   const mine = qs.docs.map(d=>({docId:d.id,...d.data()})).filter(a=>a.submitTime);
   mine.sort((a,b)=>(b.submitTime?.seconds||0)-(a.submitTime?.seconds||0));
   // rank in each test: overall (all who wrote it) and in my batch
   let byExam = {};
   try {
-    const allQs = await getDocs(query(collection(db,"attempts"), where("examType","==",currentUser.examType)));
-    allQs.docs.map(d=>d.data()).filter(a=>a.submitTime).forEach(a => (byExam[a.examId] = byExam[a.examId] || []).push(a));
+    (await cohortRows(currentUser.examType)).forEach(a => (byExam[a.examId] = byExam[a.examId] || []).push(a));
   } catch(e){ byExam = {}; }
   const myBatchOf = a => a.studentUid === currentUser.uid ? (a.studentBatch || currentUser.batch || "") : (a.studentBatch || "");
   $("attemptRows").innerHTML = mine.map(a => {
@@ -6740,7 +6810,7 @@ async function startExam(){
   tick();
   saveProgress().catch(()=>{});        // appear on the teacher's Live Monitor right away
   // teacher → student channel: live warnings and "stop this test"
-  EX.unsubAttempt = onSnapshot(attemptRef, snap => {
+  if (cfg.proctored) EX.unsubAttempt = onSnapshot(attemptRef, snap => {
     if (!EX || EX.submitted) return;
     const d = snap.data() || {};
     const wAt = d.staffWarning?.at?.toMillis?.() || 0;
@@ -7147,10 +7217,11 @@ async function initPractice(){
   $("prSubject").innerHTML = subs.map(s=>`<option>${s}</option>`).join("");
   loadPracticeSeen().then(() => loadPracticeChapters());
 }
+const myPracticeDocs = () => cachedDocs("pa:" + currentUser.uid, () => query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
 async function loadPracticeSeen(){
   prSeen = new Set();
   try {
-    const qs = await getDocs(query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
+    const qs = await myPracticeDocs();
     qs.docs.forEach(d => (d.data().questionIds||[]).forEach(id => prSeen.add(id)));
   } catch(e){ /* rules not published yet, or none exist — treat as nothing seen */ }
 }
@@ -7366,6 +7437,7 @@ $("prExitBtn").onclick = async () => {
   if (PR?.tick) clearInterval(PR.tick);
   PR = null;
   showView("view-student");
+  _qCache.delete("pa:" + currentUser.uid);   // a practice set may have just been saved
   loadPracticeSeen().then(()=>{ renderPracticeChapters(); loadPracticeHistory(); });
   openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true).catch(()=>{});
 };
@@ -7457,7 +7529,7 @@ async function prFinish(){
 async function loadPracticeHistory(){
   const tb = $("prHistRows");
   try {
-    const qs = await getDocs(query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
+    const qs = await myPracticeDocs();
     const list = qs.docs.map(d=>d.data()).sort((a,b)=>(b.submittedAt?.seconds||0)-(a.submittedAt?.seconds||0)).slice(0,20);
     tb.innerHTML = list.map(p => {
       const answered = (p.correct||0) + (p.wrong||0);
@@ -7618,8 +7690,8 @@ async function showResult(attempt){
   // everyone who sat this test (for "class" columns and staff speed flags)
   let cls = null, clsN = 0, testAtts = null;
   if (attempt.examId) try {
-    const as = (await getDocs(query(collection(db,"attempts"), where("examId","==",attempt.examId)))).docs.map(d=>d.data()).filter(a=>a.submitTime!=null);
-    if (!as.some(a => a.studentUid === attempt.studentUid)) as.push(attempt);
+    const qs = await cachedDocs("exam:" + attempt.examId, () => query(collection(db,"attempts"), where("examId","==",attempt.examId)), 2 * 60e3);
+    const as = qs.docs.map(d=>d.data()).filter(a => a.submitTime != null && a.studentUid !== attempt.studentUid).concat(attempt);
     cls = classStatsFor(as, detail.map(d=>d.q)); clsN = as.length; testAtts = as;
   } catch(e) { /* rules may restrict; class columns show dashes */ }
   const isStaffView = currentUser && (currentUser.role === "admin" || currentUser.role === "faculty");
