@@ -7,6 +7,15 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-15 — Fix: "Download question paper" printed a blank page
+
+- The question-paper PDF (and the answer-key version) from the result page printed an empty page whenever the test
+  had pictures. The paper is laid out in a hidden frame, and its pictures were marked "load lazily", so they never
+  loaded there; the layout waited for them forever and the print dialog opened on an empty page after 30 s.
+  Pictures in the paper now load straight away, and a picture that never loads can no longer hold the paper up
+  (layout goes ahead after 20 s).
+- **After deploying:** nothing to do.
+
 ## 2026-10-15 — Firestore reads cut to the minimum on the student side
 
 - **Exam list kept on the student's device.** A sign-in now reads one small doc (`settings/examsRev`) and re-reads the
