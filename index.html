@@ -7553,6 +7553,8 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
   const m = cfg.marks?.A || { correct: 4, wrong: -1 };
   const sub = (cfg.subjects || []).join(" · ");
   const fmt = n => (n > 0 ? "+" : "") + n;
+  // eager images: the paper is laid out in a hidden frame, where lazy images never load (and the layout waited forever)
+  const pImg = src => imgHtml(src).replace(' loading="lazy"', "");
   const blocks = detail.map((d, i) => {
     const q = d.q, isMcq = (q.section || "A") === "A";
     const tag = [q.topic, levelShort(q.difficulty)].filter(Boolean).join(" · ");
@@ -7562,7 +7564,7 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
       opts = (q.options || []).map((o, k) => {
         const letter = "ABCD"[k];
         const txt = String(o || "").replace(/^\s*[A-D][).]\s*/, "");
-        const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
+        const oimg = q.optionImages ? pImg(q.optionImages[k]) : "";
         const isKey = withKey && keyHas(q, letter), isMine = withKey && d.answer != null && String(d.answer).toUpperCase().includes(letter);
         const cls = isKey ? "key" : (isMine ? "mine" : "");
         return `<div class="o ${cls}">(${k + 1}) ${textless ? "" : txt}${oimg}${isKey ? " &#10003;" : isMine ? " &#10007; (your answer)" : ""}</div>`;
@@ -7570,7 +7572,7 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
     } else if (withKey) opts = `<div class="o key">Answer: ${esc(q.correct_answer)}${d.answer != null ? ` &nbsp;(yours: ${esc(String(d.answer))})` : ""}</div>`;
     else opts = `<div class="o">Answer: ______________</div>`;
     return `<div class="q"><div class="qh"><span class="qn">Q${i + 1}.</span> ${tag ? `<span class="qt">[${esc(tag)}]</span>` : ""}</div>
-      <div class="qb">${q.text || ""}${imgHtml(q.image)}</div>${opts}</div>`;
+      <div class="qb">${q.text || ""}${pImg(q.image)}</div>${opts}</div>`;
   }).join("");
   const hdr = `<div class="hdr"><div class="t1">${esc(title)}</div><div class="t2">${esc(sub || "Question paper")}</div>
 <div class="mm">Max marks ${fmt(m.correct)} / ${fmt(m.wrong)}<span>${esc(attempt.studentName || "")}</span></div></div>`;
@@ -7620,8 +7622,9 @@ function layoutPaper(){
 }
 window.addEventListener("load", async function(){
   try{ var t0=Date.now(); while(!(window.MathJax&&MathJax.typesetPromise)&&Date.now()-t0<6000) await new Promise(function(r){setTimeout(r,150)}); if(window.MathJax&&MathJax.typesetPromise) await MathJax.typesetPromise(); }catch(e){}
-  await Promise.all([].slice.call(document.images).map(function(im){return im.complete?0:new Promise(function(r){im.onload=im.onerror=r})}));
-  layoutPaper();
+  var imgs=Promise.all([].slice.call(document.images).map(function(im){return im.complete?0:new Promise(function(r){im.onload=im.onerror=r})}));
+  await Promise.race([imgs, new Promise(function(r){setTimeout(r,20000)})]);
+  try{ layoutPaper(); }catch(e){ var pl=document.getElementById("pool"); if(pl) pl.style.cssText="position:static;width:auto;padding:10mm"; document.documentElement.setAttribute("data-ready","1"); }
 });
 <\/script></body></html>`;
 }
