@@ -7,6 +7,21 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-15 — Fewer reads when a student signs in
+
+- **Progress chart (student dashboard and staff Progress tab):** the percentile line re-read **every attempt of the exam
+  type once per test the student had submitted** — each Study Package / Momentum Booster chapter a student finished added
+  another full scan, so reads grew fast even with few students. It now reads that cohort once per exam type.
+- **Sign-in:** the student's own attempts were read 4 times (packages, my attempts, progress, notebook) and the whole
+  cohort twice; now once each per visit to the dashboard.
+- **Diagnostic chapter/topic picker:** each click re-read all active exams and the student's attempts (to redraw the
+  package cards). Clicks now redraw from the data already loaded.
+- **Mistake notebook / progress:** question details for old attempts (no saved `qMeta`) are read once per session, not
+  twice per sign-in.
+- After deploying: nothing to do.
+
+---
+
 ## 2026-10-13 — Cost control, usage meter, test PDF, and admin password reset without the old password
 
 - **Reads/cost:** the Reports tab no longer loads every attempt when opened (press **Apply**), and the Live Monitor only
