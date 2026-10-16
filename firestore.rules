@@ -115,10 +115,8 @@ service cloud.firestore {
       // aiRunner: GitHub token (Actions-only, this repo) so staff can start the AI job from the portal
       // portal: switches every signed-in user reads (e.g. practiceEnabled); only super-admins change them
       allow read: if isSuperAdmin() || ((id == "aiStatus" || id == "aiRunner" || id == "aiScorecard") && isStaff())
-                  || ((id == "portal" || id == "examsRev") && signedIn());
+                  || (id == "portal" && signedIn());
       allow write: if isSuperAdmin();
-      // examsRev: { at } bumped by the page after any exam change; students re-read the exam list only when it moves
-      allow write: if id == "examsRev" && isStaff() && request.resource.data.keys().hasOnly(["at"]);
     }
 
     // ---------- Model Bank: question-model taxonomies + a full bank index ----------
@@ -135,6 +133,17 @@ service cloud.firestore {
     match /bankIndex/{id} {
       allow read: if canSeeTaxonomy();
       allow write: if isStaff();          // rebuilt together with the practice index
+    }
+
+    // ---------- topicReports (imported progress/error data; one doc per student, doc id = their uid) ----------
+    // A student reads only their own; admins import them from the Topic Reports tab.
+    match /topicReports/{uid} {
+      allow read: if isSelf(uid) || isStaff();
+      allow write: if isSuperAdmin();
+    }
+    match /topicTaxonomy/{id} {
+      allow read: if signedIn();
+      allow write: if isSuperAdmin();
     }
 
     // ---------- notebooks (student's mistake notebook: cleared flags + own notes) ----------

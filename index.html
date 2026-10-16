@@ -388,6 +388,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       <button data-atab="diagnostic">Diagnostic Builder</button>
       <button data-atab="packages">Study Packages</button>
       <button data-atab="modelbank" id="tabModelBank">Model Bank</button>
+      <button data-atab="topicreports" id="tabTopicReports">Topic Reports</button>
       <button data-atab="assign">Assign Tests</button>
       <button data-atab="custompractice">Custom Practice</button>
       <button data-atab="reports">Reports</button>
@@ -663,6 +664,22 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <div id="txAccess" class="hidden" style="margin-top:10px"></div>
       </div>
       <div id="txAdminBox" style="margin-top:12px"></div>
+    </div>
+
+    <div id="atab-topicreports" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">📈 Topic Reports — import progress &amp; error data for students</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Upload <code>student_topic_summary.json</code> and <code>taxonomy.json</code> from the progress-report handoff folder.
+          Each student is matched by PS-ID (leading zeros ignored) and gets <b>only their own</b> topic report, shown on their dashboard as
+          <b>My Progress Report</b>. Re-importing replaces the previous report. Students in the file without a portal login are listed and skipped.</p>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>student_topic_summary.json</label><input type="file" id="trSummary" accept=".json,application/json"></div>
+          <div class="field"><label>taxonomy.json</label><input type="file" id="trTaxonomy" accept=".json,application/json"></div>
+          <button class="btn" id="trImportBtn">Import</button>
+        </div>
+        <div id="trMsg"></div>
+      </div>
     </div>
 
     <div id="atab-packages" class="atab hidden">
@@ -1131,6 +1148,10 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
     </div>
     <h2 class="sec">📒 My Mistake Notebook</h2>
     <div id="myNotebook">&hellip;</div>
+    <div id="myTopicReportWrap" class="hidden">
+      <h2 class="sec">📈 My Progress Report (topic-wise)</h2>
+      <div id="myTopicReport">&hellip;</div>
+    </div>
     <h2 class="sec">My Progress</h2>
     <div id="myProgress">&hellip;</div>
   </div>
@@ -1327,30 +1348,18 @@ let usageTimer = null;
 function usageSave(){ clearTimeout(usageTimer); usageTimer = setTimeout(() => { try {
   const keys = Object.keys(usageData).sort(); while (keys.length > 35) delete usageData[keys.shift()];
   localStorage.setItem(USAGE_KEY, JSON.stringify(usageData)); } catch(e) {} }, 1500); }
-function colOf(ref){
-  try { return String(ref?.path || ref?._query?.path?.canonicalString?.() || ref?._path?.canonicalString?.() || "?").split("/")[0] || "?"; } catch(e) { return "?"; }
-}
 function usageAdd(kind, ref, n){
   if (!n) return;
-  const c = colOf(ref);
+  let c = "?"; try { c = String(ref?.path || ref?._query?.path?.canonicalString?.() || ref?._path?.canonicalString?.() || "?").split("/")[0] || "?"; } catch(e) {}
   const d = usageData[usageDay()] = usageData[usageDay()] || { r:{}, w:{}, d:{} };
   const b = d[kind]; b[c] = (b[c] || 0) + n; usageSave();
 }
 const getDoc = async ref => { const s = await _getDoc(ref); usageAdd("r", ref, 1); return s; };
 const getDocs = async q => { const s = await _getDocs(q); usageAdd("r", q, Math.max(1, s.size)); return s; };
-// Students keep the exam list on their device and re-read it only when settings/examsRev changes. Every write to
-// "exams" from this page bumps it (after the write lands), so no save path can forget to.
-let _revTimer = null;
-function examsChanged(){
-  try { Object.keys(localStorage).filter(k => k.startsWith("examsCache_v1_")).forEach(k => localStorage.removeItem(k)); } catch(e) {}
-  clearTimeout(_revTimer);
-  _revTimer = setTimeout(() => setDoc(doc(db,"settings","examsRev"), { at: serverTimestamp() }).catch(() => {}), 400);
-}
-const afterWrite = (ref, p) => { if (colOf(ref) === "exams") p.then(examsChanged, () => {}); return p; };
-const setDoc = (ref, ...a) => { usageAdd("w", ref, 1); return afterWrite(ref, _setDoc(ref, ...a)); };
-const updateDoc = (ref, ...a) => { usageAdd("w", ref, 1); return afterWrite(ref, _updateDoc(ref, ...a)); };
-const addDoc = (ref, ...a) => { usageAdd("w", ref, 1); return afterWrite(ref, _addDoc(ref, ...a)); };
-const deleteDoc = ref => { usageAdd("d", ref, 1); return afterWrite(ref, _deleteDoc(ref)); };
+const setDoc = (ref, ...a) => { usageAdd("w", ref, 1); return _setDoc(ref, ...a); };
+const updateDoc = (ref, ...a) => { usageAdd("w", ref, 1); return _updateDoc(ref, ...a); };
+const addDoc = (ref, ...a) => { usageAdd("w", ref, 1); return _addDoc(ref, ...a); };
+const deleteDoc = ref => { usageAdd("d", ref, 1); return _deleteDoc(ref); };
 const onSnapshot = (ref, ...a) => {
   const i = a.findIndex(x => typeof x === "function"); 
   if (i >= 0) { const cb = a[i]; a[i] = snap => { try { usageAdd("r", ref, snap.docChanges ? Math.max(1, snap.docChanges().length) : 1); } catch(e) {} return cb(snap); }; }
@@ -1361,8 +1370,7 @@ const writeBatch = dbx => {
   const b = _writeBatch(dbx), pend = [];
   const wrap = (m, kind) => { const f = b[m].bind(b); b[m] = (ref, ...a) => { pend.push([kind, ref]); return f(ref, ...a); }; };
   wrap("set","w"); wrap("update","w"); wrap("delete","d");
-  const cm = b.commit.bind(b); b.commit = async () => { const r = await cm(); if (pend.some(([, ref]) => colOf(ref) === "exams")) examsChanged();
-    pend.forEach(([k, ref]) => usageAdd(k, ref, 1)); pend.length = 0; return r; };
+  const cm = b.commit.bind(b); b.commit = async () => { const r = await cm(); pend.forEach(([k, ref]) => usageAdd(k, ref, 1)); pend.length = 0; return r; };
   return b;
 };
 
@@ -1797,7 +1805,8 @@ function enterAdmin(){
   $("dashTitle").textContent = isSuper() ? "Admin Dashboard" : "Faculty Dashboard";
   // role-based UI: faculty can't manage students or faculty, and can't clear whole banks
   $("tabFaculty").classList.toggle("hidden", !isSuper());
-  $("tabModelBank").classList.toggle("hidden", !isSuper());   // Model Bank: admins only (students can be given view access)
+  $("tabModelBank").classList.toggle("hidden", !isSuper());
+  $("tabTopicReports").classList.toggle("hidden", !isSuper());   // Model Bank: admins only (students can be given view access)
   $("tabAiSettings").classList.toggle("hidden", !isSuper());
   $("tabUsage").classList.toggle("hidden", !isSuper());
   lmStop();
@@ -2265,42 +2274,6 @@ function attemptDeadPct(a){
   const dead = Object.entries(oc).filter(([, v]) => v !== "correct").reduce((x, [id]) => x + (tm[id] || (a.responses || {})[id]?.timeSec || 0), 0);
   return Math.min(100, 100 * dead / total);
 }
-// Read-saving: several dashboard panels run the same attempts query at sign-in (packages, my attempts, progress,
-// notebook). Share one read per query; enterStudent / the staff progress button clear it so they always start fresh.
-const _qCache = new Map();
-function cachedDocs(key, makeQuery, ttlMs = 5 * 60e3){
-  const hit = _qCache.get(key);
-  if (hit && Date.now() - hit.t < ttlMs) return hit.p;
-  const p = getDocs(makeQuery());
-  p.catch(() => _qCache.delete(key));
-  _qCache.set(key, { t: Date.now(), p });
-  return p;
-}
-const myAttemptsDocs = uid => cachedDocs("att:" + uid, () => query(collection(db,"attempts"), where("studentUid","==",uid)));
-// Everyone's submitted attempts of an exam type (for ranks and percentiles), a few fields each, kept on this device.
-// The first time (and every 3 days) it is read in full; otherwise only attempts submitted since the last sync are read
-// (submitTime > last: a single-field index, no composite index needed).
-const _cohMem = {};
-const cohortRows = examType => _cohMem[examType] || (_cohMem[examType] = syncCohort(examType).catch(e => { delete _cohMem[examType]; throw e; }));
-async function syncCohort(t){
-  const key = "cohort_v1_" + t;
-  let c = null; try { c = JSON.parse(localStorage.getItem(key) || "null"); } catch(e) {}
-  const slim = a => ({ e: a.examId, u: a.studentUid, b: a.studentBatch || "", s: a.score, t: atMs(a.submitTime) });
-  if (!c || !c.rows || Date.now() - (c.full || 0) > 3 * 24 * 3600e3) {
-    const qs = await getDocs(query(collection(db,"attempts"), where("examType","==",t)));
-    c = { full: Date.now(), last: 0, rows: {} };
-    qs.docs.forEach(d => { const a = d.data(); if (a.submitTime) c.rows[d.id] = slim(a); });
-  } else {
-    const since = Timestamp.fromMillis(Math.max(0, (c.last || 0) - 10 * 60e3));   // small overlap for late commits
-    const qs = await getDocs(query(collection(db,"attempts"), where("submitTime",">",since)));
-    qs.docs.forEach(d => { const a = d.data(); if (a.examType === t && a.submitTime) c.rows[d.id] = slim(a); });
-  }
-  c.last = Object.values(c.rows).reduce((m, r) => Math.max(m, r.t || 0), c.last || 0);
-  try { localStorage.setItem(key, JSON.stringify(c)); } catch(e) { try { localStorage.removeItem(key); } catch(_) {} }
-  return Object.values(c.rows).map(r => ({ examId: r.e, studentUid: r.u, studentBatch: r.b, score: r.s, submitTime: r.t, examType: t }));
-}
-const resetReadCaches = () => { _qCache.clear(); Object.keys(_cohMem).forEach(k => delete _cohMem[k]); };
-const _qmFetched = {};   // question id → meta read from the question itself (old attempts without qMeta)
 // subject / chapter / level per question: saved on newer attempts (qMeta), else the practice index, else the question itself
 const _tiCache = {};
 async function qMetaFor(attempts){
@@ -2318,11 +2291,9 @@ async function qMetaFor(attempts){
       if (!meta[e.i]) meta[e.i] = { s: sub, t: e.t || "", d: e.d || "Medium", m: e.m || "", mc: e.mc || "" };
       else if (meta[e.i].m === undefined) meta[e.i] = { ...meta[e.i], m: e.m || "", mc: e.mc || "" }; });
   }
-  [...need].forEach(id => { if (!meta[id] && _qmFetched[id]) meta[id] = _qmFetched[id]; });
-  const still = [...need].filter(id => !meta[id] && !(id in _qmFetched)).slice(0, 300);
+  const still = [...need].filter(id => !meta[id]).slice(0, 300);
   const snaps = await Promise.all(still.map(id => getDoc(doc(db,"questions",id)).catch(() => null)));
-  still.forEach(id => { _qmFetched[id] = null; });   // read once per session, even when missing
-  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = _qmFetched[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), m: String(q.model || "").trim(), mc: String(q.modelCode || "").trim() }; } });
+  snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), m: String(q.model || "").trim(), mc: String(q.modelCode || "").trim() }; } });
   return meta;
 }
 
@@ -2333,7 +2304,7 @@ async function openNotebook(box, uid, name, editable){
   if (!box) return;
   box.innerHTML = `<div style="color:var(--muted)">Loading the mistake notebook…</div>`;
   const [qs, nbSnap] = await Promise.all([
-    myAttemptsDocs(uid),
+    getDocs(query(collection(db,"attempts"), where("studentUid","==",uid))),
     getDoc(doc(db,"notebooks",uid)).catch(() => null)
   ]);
   const atts = qs.docs.map(d => ({ docId: d.id, ...d.data() })).filter(a => a.submitTime != null).sort((a, b) => atMs(a.submitTime) - atMs(b.submitTime));
@@ -2768,7 +2739,6 @@ function initProgress(){
 }
 $("pgLoadBtn").onclick = async () => {
   const uid = $("pgStudent").value; if (!uid) return;
-  resetReadCaches();   // fresh data on every click
   const s = studentCache.find(x=>x.uid===uid);
   $("pgWrap").innerHTML = await progressHtml(uid, s?.name||"Student");
   openNotebook($("pgNotebook"), uid, s?.name||"Student", false).catch(e => { $("pgNotebook").textContent = "Could not load the notebook: " + e.message; });
@@ -2776,14 +2746,15 @@ $("pgLoadBtn").onclick = async () => {
 
 // shared: build a progress panel (trend charts) for a student uid
 async function progressHtml(uid, name){
-  const qs = await myAttemptsDocs(uid);
+  const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",uid)));
   let att = qs.docs.map(d=>d.data()).filter(a=>a.submitTime!=null);
   att.sort((a,b)=>(a.submitTime?.seconds||0)-(b.submitTime?.seconds||0));
   if (!att.length) return `<p style="color:var(--muted)">No completed tests yet for ${esc(name)}.</p>`;
-  // percentile per attempt vs same exam-type cohort (one cohort read per exam type, not one per attempt)
+  // percentile per attempt vs same exam-type cohort
   const pcts = [];
   for (const a of att){
-    const scores = (await cohortRows(a.examType)).map(x=>x.score);
+    const cohortQ = await getDocs(query(collection(db,"attempts"), where("examType","==",a.examType)));
+    const scores = cohortQ.docs.map(d=>d.data()).filter(x=>x.submitTime).map(x=>x.score);
     const below = scores.filter(x=>x<=a.score).length;
     pcts.push(scores.length? (100*below/scores.length):100);
   }
@@ -5951,11 +5922,8 @@ function audienceLabel(e){
 }
 
 let examsCache = [];
-let _revSeeded = false;
 async function loadExams(){
   const qs = await getDocs(collection(db,"exams"));
-  if (!_revSeeded) { _revSeeded = true;   // students cache their exam list only once settings/examsRev exists
-    getDoc(doc(db,"settings","examsRev")).then(sn => { if (!sn.exists()) examsChanged(); }).catch(() => {}); }
   const exams = qs.docs.map(d=>({ docId:d.id, ...d.data() }));
   exams.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
   examsCache = exams;
@@ -6158,7 +6126,6 @@ let activeUserUnsub = null;
 async function enterStudent(){
   $("studentWho").textContent = `${currentUser.name} (${currentUser.examType}${currentUser.batch?", "+currentUser.batch:""})`;
   showView("view-student");
-  resetReadCaches();   // fresh reads for this visit, shared by the panels below
   loadActiveExam(); loadMyAttempts();
   initPractice(); loadPracticeHistory();
   // deactivated while signed in: save any running test (not submitted) and sign out
@@ -6172,10 +6139,87 @@ async function enterStudent(){
     }
   }, () => {});
   txStudentInit();
+  loadTopicReport().catch(e => console.warn("topic report", e));
   progressHtml(currentUser.uid, currentUser.name).then(h => { const el=$("myProgress"); if(el) el.innerHTML=h; }).catch(()=>{});
   openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true)
     .then(() => renderMistakenModels($("myModels"), $("myNotebook")._nb))
     .catch(e => { $("myNotebook").textContent = "Could not load: " + e.message; $("myModels").textContent = ""; });
+}
+
+/* ---------- 📈 Topic reports (imported progress/error data) ---------- */
+const trPsid = v => String(v || "").replace(/\D/g, "").replace(/^0+/, "");
+async function trImport(){
+  const msg = $("trMsg"), fs = $("trSummary").files[0], ft = $("trTaxonomy").files[0];
+  if (!fs || !ft) { setMsg(msg, "Choose both files first."); return; }
+  try {
+    const sum = JSON.parse(await fs.text()), tax = JSON.parse(await ft.text());
+    if (!sum.students || !Array.isArray(sum.students)) throw new Error("student_topic_summary.json has no students list");
+    await loadStudents(false);
+    const byPsid = {};
+    studentCache.forEach(st => { if (st.psid) byPsid[trPsid(st.psid)] = st; });
+    const ok = [], miss = [];
+    sum.students.forEach(r => { const st = byPsid[trPsid(r.psid)]; (st ? ok : miss).push({ r, st }); });
+    if (!await uiConfirm(`Import topic reports for ${ok.length} students?\n${miss.length} student(s) in the file have no portal login and will be skipped.`)) return;
+    setMsg(msg, "Importing…", true);
+    await setDoc(doc(db,"topicTaxonomy","main"), { json: JSON.stringify(tax), updatedAt: serverTimestamp() });
+    for (let i = 0; i < ok.length; i += 300) {
+      const b = writeBatch(db);
+      ok.slice(i, i + 300).forEach(({ r, st }) => b.set(doc(db,"topicReports",st.uid), {
+        psid: st.psid, name: st.name || r.name || "", batch: st.batch || r.batch || "",
+        tests: r.tests || [],
+        topics: (r.topics || []).map(t => ({ c: t.code, a: t.attempted|0, r: t.correct|0, w: t.wrong|0, b: t.blank|0 })),
+        updatedAt: serverTimestamp()
+      }));
+      await b.commit();
+    }
+    msg.innerHTML = `<div class="msg ok">Imported ${ok.length} student report(s).</div>` +
+      (miss.length ? `<details style="margin-top:8px"><summary>${miss.length} skipped (no portal login)</summary><div style="font-size:12.5px">${miss.map(m => esc(m.r.name || "") + " (" + esc(m.r.psid) + ")").join(", ")}</div></details>` : "");
+  } catch(e) { setMsg(msg, "Import failed: " + e.message); }
+}
+document.addEventListener("click", e => { if (e.target && e.target.id === "trImportBtn") trImport(); });
+
+async function loadTopicReport(){
+  const wrap = $("myTopicReportWrap"), box = $("myTopicReport");
+  const [rs, ts] = await Promise.all([getDoc(doc(db,"topicReports",currentUser.uid)), getDoc(doc(db,"topicTaxonomy","main"))]);
+  if (!rs.exists() || !ts.exists()) { wrap.classList.add("hidden"); return; }
+  const rep = rs.data(), tax = JSON.parse(ts.data().json);
+  const T = {};   // code -> {a,r,w,b}
+  (rep.topics || []).forEach(t => { T[t.c] = t; });
+  const pct = (r, a) => a ? Math.round(100 * r / a) : null;
+  const col = p => p == null ? "var(--muted)" : p >= 75 ? "#1f9d55" : p >= 50 ? "#d99a00" : "#d64545";
+  const bar = (p) => `<span style="display:inline-block;width:90px;height:8px;background:var(--border);border-radius:4px;vertical-align:middle"><span style="display:block;height:8px;width:${p || 0}%;background:${col(p)};border-radius:4px"></span></span>`;
+  let weak = [], tot = { a: 0, r: 0 }, cards = "";
+  for (const key of ["P","C","B","Z"]) {
+    const sub = tax[key]; if (!sub) continue;
+    let sa = 0, sr = 0, chapHtml = "";
+    for (const ch of sub.chapters || []) {
+      let ca = 0, cr = 0, rows = "";
+      for (const tp of ch.topics || []) {
+        const t = T[tp.code]; if (!t || !t.a) continue;
+        ca += t.a; cr += t.r;
+        const p = pct(t.r, t.a);
+        if (t.a >= 3 && p < 50) weak.push({ sub: sub.subject, ch: ch.name, tp: tp.name, p, a: t.a });
+        rows += `<tr><td>${esc(tp.name)}</td><td>${t.a}</td><td>${t.r}</td><td>${t.w}</td><td>${t.b}</td><td style="color:${col(p)};font-weight:600">${p}% ${bar(p)}</td></tr>`;
+      }
+      if (!ca) continue;
+      sa += ca; sr += cr;
+      const p = pct(cr, ca);
+      chapHtml += `<details style="margin:6px 0"><summary style="cursor:pointer"><b>${esc(ch.name)}</b> — <span style="color:${col(p)};font-weight:600">${p}%</span> (${cr}/${ca}) ${bar(p)}</summary>
+        <div style="overflow:auto"><table class="tbl"><thead><tr><th>Topic</th><th>Attempted</th><th>Correct</th><th>Wrong</th><th>Blank</th><th>Accuracy</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+    }
+    if (!sa) continue;
+    tot.a += sa; tot.r += sr;
+    const p = pct(sr, sa);
+    cards += `<div class="card" style="margin-top:10px"><h3 style="margin:0 0 6px">${esc(sub.subject)} — <span style="color:${col(p)}">${p}%</span> <small style="color:var(--muted);font-weight:400">(${sr}/${sa} correct)</small></h3>${chapHtml}</div>`;
+  }
+  weak.sort((x, y) => x.p - y.p || y.a - x.a);
+  const weakHtml = weak.length
+    ? `<div class="card" style="margin-top:10px"><h3 style="margin:0 0 6px">⚠ Topics to work on first</h3><p style="font-size:12.5px;color:var(--muted);margin:0 0 6px">Topics with at least 3 questions attempted and under 50% accuracy. Use <b>Practice by Chapter</b> above on these chapters.</p>
+       <ol style="margin:0;padding-left:20px">${weak.slice(0, 15).map(w => `<li>${esc(w.sub)} · ${esc(w.ch)} → <b>${esc(w.tp)}</b> — ${w.p}% (${w.a} questions)</li>`).join("")}</ol></div>` : "";
+  const op = pct(tot.r, tot.a);
+  box.innerHTML = `<div class="card"><b>${(rep.tests || []).length}</b> tests analysed · overall topic accuracy <b style="color:${col(op)}">${op ?? "—"}%</b> (${tot.r}/${tot.a})
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">Based on automatic topic tagging of your test questions, so a few questions may sit in a neighbouring topic.</div></div>` + weakHtml + cards;
+  wrap.classList.remove("hidden");
 }
 
 // does this exam target the current student?
@@ -6190,29 +6234,13 @@ function examTargetsMe(e){
 }
 let availableExams = [];
 const SDG = { ch: "", sub: "" };   // student's place in the diagnostic chapter → topic picker
-let _myExams = [];
-// active exams of my exam type: 1 read (settings/examsRev) when nothing changed since the last visit on this device
-const tsRevive = (k, v) => v && typeof v === "object" && typeof v.seconds === "number" && typeof v.nanoseconds === "number" && Object.keys(v).length === 2 ? new Timestamp(v.seconds, v.nanoseconds) : v;
-async function activeExamsOfMyType(){
-  const key = "examsCache_v1_" + currentUser.examType;
-  let rev = "";
-  try { const sn = await getDoc(doc(db,"settings","examsRev")); rev = sn.exists() ? String(atMs(sn.data().at)) : ""; } catch(e) { /* rules not published: always read */ }
-  if (rev) try {
-    const c = JSON.parse(localStorage.getItem(key) || "null", tsRevive);
-    if (c && c.rev === rev && Date.now() - c.t < 24 * 3600e3) return c.docs;   // re-read at least daily anyway
-  } catch(e) {}
-  const qs = await getDocs(query(collection(db,"exams"), where("examType","==",currentUser.examType), where("isActive","==",true)));
-  const docs = qs.docs.map(d => ({ docId: d.id, ...d.data() }));
-  if (rev) try { localStorage.setItem(key, JSON.stringify({ rev, t: Date.now(), docs })); } catch(e) { try { localStorage.removeItem(key); } catch(_) {} }
-  return docs;
-}   // last exams query; chapter/topic clicks re-render from it instead of reading again
-async function loadActiveExam(refetch = true){
+async function loadActiveExam(){
   activeExam = null;
-  if (refetch) {
-    _myExams = (await activeExamsOfMyType()).filter(examTargetsMe);
-    renderStudentPackages(_myExams.filter(e => e.studyPackage));   // study packages get their own section
-  }
-  const mine = _myExams.filter(e => !e.studyPackage);
+  const qs = await getDocs(query(collection(db,"exams"),
+    where("examType","==",currentUser.examType), where("isActive","==",true)));
+  const allMine = qs.docs.map(d=>({ docId:d.id, ...d.data() })).filter(examTargetsMe);
+  renderStudentPackages(allMine.filter(e => e.studyPackage));   // study packages get their own section
+  const mine = allMine.filter(e => !e.studyPackage);
   // split by schedule window
   availableExams = []; const upcoming = [];
   mine.forEach(ex => {
@@ -6271,9 +6299,9 @@ async function loadActiveExam(refetch = true){
        <span style="color:var(--muted);font-size:13px">Opens ${fmtDate(new Date(u.at))}</span></div>`).join("");
   }
   $("activeExamInfo").innerHTML = html || "No exam available for you right now. Check back later.";
-  $("activeExamInfo").querySelectorAll("[data-sdg]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdg; SDG.sub = ""; loadActiveExam(false); });
-  $("activeExamInfo").querySelectorAll("[data-sdgch]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdgch; SDG.sub = ""; loadActiveExam(false); });
-  $("activeExamInfo").querySelectorAll("[data-sdgsub]").forEach(b => b.onclick = () => { SDG.sub = b.dataset.sdgsub; loadActiveExam(false); });
+  $("activeExamInfo").querySelectorAll("[data-sdg]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdg; SDG.sub = ""; loadActiveExam(); });
+  $("activeExamInfo").querySelectorAll("[data-sdgch]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdgch; SDG.sub = ""; loadActiveExam(); });
+  $("activeExamInfo").querySelectorAll("[data-sdgsub]").forEach(b => b.onclick = () => { SDG.sub = b.dataset.sdgsub; loadActiveExam(); });
   $("activeExamInfo").querySelectorAll("[data-pledge]").forEach(c => c.onchange = () => {
     $("activeExamInfo").querySelector(`[data-startex="${c.dataset.pledge}"]`).disabled = !c.checked;
   });
@@ -6599,7 +6627,7 @@ async function renderStudentPackages(pkgs){
   box.classList.remove("hidden");
   let mine = {};
   try {
-    const qs = await myAttemptsDocs(currentUser.uid);
+    const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
     qs.docs.forEach(d => { const a = d.data(); mine[a.examId] = { docId: d.id, ...a }; });
   } catch(e){}
   const html = ["package", "booster"].map(kind => {
@@ -6639,13 +6667,14 @@ async function renderStudentPackages(pkgs){
   });
 }
 async function loadMyAttempts(){
-  const qs = await myAttemptsDocs(currentUser.uid);
+  const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
   const mine = qs.docs.map(d=>({docId:d.id,...d.data()})).filter(a=>a.submitTime);
   mine.sort((a,b)=>(b.submitTime?.seconds||0)-(a.submitTime?.seconds||0));
   // rank in each test: overall (all who wrote it) and in my batch
   let byExam = {};
   try {
-    (await cohortRows(currentUser.examType)).forEach(a => (byExam[a.examId] = byExam[a.examId] || []).push(a));
+    const allQs = await getDocs(query(collection(db,"attempts"), where("examType","==",currentUser.examType)));
+    allQs.docs.map(d=>d.data()).filter(a=>a.submitTime).forEach(a => (byExam[a.examId] = byExam[a.examId] || []).push(a));
   } catch(e){ byExam = {}; }
   const myBatchOf = a => a.studentUid === currentUser.uid ? (a.studentBatch || currentUser.batch || "") : (a.studentBatch || "");
   $("attemptRows").innerHTML = mine.map(a => {
@@ -6810,7 +6839,7 @@ async function startExam(){
   tick();
   saveProgress().catch(()=>{});        // appear on the teacher's Live Monitor right away
   // teacher → student channel: live warnings and "stop this test"
-  if (cfg.proctored) EX.unsubAttempt = onSnapshot(attemptRef, snap => {
+  EX.unsubAttempt = onSnapshot(attemptRef, snap => {
     if (!EX || EX.submitted) return;
     const d = snap.data() || {};
     const wAt = d.staffWarning?.at?.toMillis?.() || 0;
@@ -7217,11 +7246,10 @@ async function initPractice(){
   $("prSubject").innerHTML = subs.map(s=>`<option>${s}</option>`).join("");
   loadPracticeSeen().then(() => loadPracticeChapters());
 }
-const myPracticeDocs = () => cachedDocs("pa:" + currentUser.uid, () => query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
 async function loadPracticeSeen(){
   prSeen = new Set();
   try {
-    const qs = await myPracticeDocs();
+    const qs = await getDocs(query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
     qs.docs.forEach(d => (d.data().questionIds||[]).forEach(id => prSeen.add(id)));
   } catch(e){ /* rules not published yet, or none exist — treat as nothing seen */ }
 }
@@ -7437,7 +7465,6 @@ $("prExitBtn").onclick = async () => {
   if (PR?.tick) clearInterval(PR.tick);
   PR = null;
   showView("view-student");
-  _qCache.delete("pa:" + currentUser.uid);   // a practice set may have just been saved
   loadPracticeSeen().then(()=>{ renderPracticeChapters(); loadPracticeHistory(); });
   openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true).catch(()=>{});
 };
@@ -7529,7 +7556,7 @@ async function prFinish(){
 async function loadPracticeHistory(){
   const tb = $("prHistRows");
   try {
-    const qs = await myPracticeDocs();
+    const qs = await getDocs(query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
     const list = qs.docs.map(d=>d.data()).sort((a,b)=>(b.submittedAt?.seconds||0)-(a.submittedAt?.seconds||0)).slice(0,20);
     tb.innerHTML = list.map(p => {
       const answered = (p.correct||0) + (p.wrong||0);
@@ -7553,8 +7580,6 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
   const m = cfg.marks?.A || { correct: 4, wrong: -1 };
   const sub = (cfg.subjects || []).join(" · ");
   const fmt = n => (n > 0 ? "+" : "") + n;
-  // eager images: the paper is laid out in a hidden frame, where lazy images never load (and the layout waited forever)
-  const pImg = src => imgHtml(src).replace(' loading="lazy"', "");
   const blocks = detail.map((d, i) => {
     const q = d.q, isMcq = (q.section || "A") === "A";
     const tag = [q.topic, levelShort(q.difficulty)].filter(Boolean).join(" · ");
@@ -7564,7 +7589,7 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
       opts = (q.options || []).map((o, k) => {
         const letter = "ABCD"[k];
         const txt = String(o || "").replace(/^\s*[A-D][).]\s*/, "");
-        const oimg = q.optionImages ? pImg(q.optionImages[k]) : "";
+        const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
         const isKey = withKey && keyHas(q, letter), isMine = withKey && d.answer != null && String(d.answer).toUpperCase().includes(letter);
         const cls = isKey ? "key" : (isMine ? "mine" : "");
         return `<div class="o ${cls}">(${k + 1}) ${textless ? "" : txt}${oimg}${isKey ? " &#10003;" : isMine ? " &#10007; (your answer)" : ""}</div>`;
@@ -7572,7 +7597,7 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
     } else if (withKey) opts = `<div class="o key">Answer: ${esc(q.correct_answer)}${d.answer != null ? ` &nbsp;(yours: ${esc(String(d.answer))})` : ""}</div>`;
     else opts = `<div class="o">Answer: ______________</div>`;
     return `<div class="q"><div class="qh"><span class="qn">Q${i + 1}.</span> ${tag ? `<span class="qt">[${esc(tag)}]</span>` : ""}</div>
-      <div class="qb">${q.text || ""}${pImg(q.image)}</div>${opts}</div>`;
+      <div class="qb">${q.text || ""}${imgHtml(q.image)}</div>${opts}</div>`;
   }).join("");
   const hdr = `<div class="hdr"><div class="t1">${esc(title)}</div><div class="t2">${esc(sub || "Question paper")}</div>
 <div class="mm">Max marks ${fmt(m.correct)} / ${fmt(m.wrong)}<span>${esc(attempt.studentName || "")}</span></div></div>`;
@@ -7622,9 +7647,8 @@ function layoutPaper(){
 }
 window.addEventListener("load", async function(){
   try{ var t0=Date.now(); while(!(window.MathJax&&MathJax.typesetPromise)&&Date.now()-t0<6000) await new Promise(function(r){setTimeout(r,150)}); if(window.MathJax&&MathJax.typesetPromise) await MathJax.typesetPromise(); }catch(e){}
-  var imgs=Promise.all([].slice.call(document.images).map(function(im){return im.complete?0:new Promise(function(r){im.onload=im.onerror=r})}));
-  await Promise.race([imgs, new Promise(function(r){setTimeout(r,20000)})]);
-  try{ layoutPaper(); }catch(e){ var pl=document.getElementById("pool"); if(pl) pl.style.cssText="position:static;width:auto;padding:10mm"; document.documentElement.setAttribute("data-ready","1"); }
+  await Promise.all([].slice.call(document.images).map(function(im){return im.complete?0:new Promise(function(r){im.onload=im.onerror=r})}));
+  layoutPaper();
 });
 <\/script></body></html>`;
 }
@@ -7693,8 +7717,8 @@ async function showResult(attempt){
   // everyone who sat this test (for "class" columns and staff speed flags)
   let cls = null, clsN = 0, testAtts = null;
   if (attempt.examId) try {
-    const qs = await cachedDocs("exam:" + attempt.examId, () => query(collection(db,"attempts"), where("examId","==",attempt.examId)), 2 * 60e3);
-    const as = qs.docs.map(d=>d.data()).filter(a => a.submitTime != null && a.studentUid !== attempt.studentUid).concat(attempt);
+    const as = (await getDocs(query(collection(db,"attempts"), where("examId","==",attempt.examId)))).docs.map(d=>d.data()).filter(a=>a.submitTime!=null);
+    if (!as.some(a => a.studentUid === attempt.studentUid)) as.push(attempt);
     cls = classStatsFor(as, detail.map(d=>d.q)); clsN = as.length; testAtts = as;
   } catch(e) { /* rules may restrict; class columns show dashes */ }
   const isStaffView = currentUser && (currentUser.role === "admin" || currentUser.role === "faculty");
