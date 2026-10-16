@@ -12,7 +12,8 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 - **Admin → Topic Reports tab:** upload `student_topic_summary.json` + `taxonomy.json` (from `PROGRESS REPORT/EXAM_PORTAL_HANDOFF`).
   Students are matched by PS-ID (leading zeros ignored); one `topicReports/{uid}` doc per student plus `topicTaxonomy/main`.
 - **Student dashboard → 📈 My Progress Report:** own overall topic accuracy, per-subject/chapter/topic tables and a "Topics to work on first" list.
-  Hidden until a report exists for that student.
+  Two tabs: **🏫 Offline branch tests** (imported, with missed questions and "Practice next") and **💻 Online portal tests** (live from the student's portal attempts, chapter-wise, updates after every submitted test).
+  Shows "Last updated" for the offline data. Offline data is refreshed by re-importing after each new branch test.
   - **After deploying:** (1) publish `firestore.rules` (new `topicReports`, `topicTaxonomy`); (2) log in as admin → Topic Reports → import both files;
     (3) re-import after each new test run through the progress pipeline.
 

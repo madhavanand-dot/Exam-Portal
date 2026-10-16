@@ -676,9 +676,18 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <div class="flexrow" style="align-items:flex-end">
           <div class="field"><label>student_topic_summary.json</label><input type="file" id="trSummary" accept=".json,application/json"></div>
           <div class="field"><label>taxonomy.json</label><input type="file" id="trTaxonomy" accept=".json,application/json"></div>
+          <div class="field"><label>student_topic_misses.json (shows each missed question)</label><input type="file" id="trMisses" accept=".json,application/json"></div>
           <button class="btn" id="trImportBtn">Import</button>
         </div>
         <div id="trMsg"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3 style="margin:0 0 8px">View a student's report</h3>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Student</label><select id="trStudent"></select></div>
+          <button class="btn secondary" id="trViewBtn">Show report</button>
+        </div>
+        <div id="trView" class="hidden" style="margin-top:12px"><div id="trViewBox"></div></div>
       </div>
     </div>
 
@@ -1844,6 +1853,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="aisettings") { initAiSettings(); aiLiveStart(); } else aiLiveStop();
     if (b.dataset.atab==="topics") initTopics();
     if (b.dataset.atab==="packages") initPackages();
+    if (b.dataset.atab==="topicreports") trFillStudents();
     if (b.dataset.atab==="modelbank") txMount($("txAdminBox"), true);
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
@@ -6160,6 +6170,7 @@ async function trImport(){
     const ok = [], miss = [];
     sum.students.forEach(r => { const st = byPsid[trPsid(r.psid)]; (st ? ok : miss).push({ r, st }); });
     if (!await uiConfirm(`Import topic reports for ${ok.length} students?\n${miss.length} student(s) in the file have no portal login and will be skipped.`)) return;
+    const fm = $("trMisses").files[0], mj = fm ? JSON.parse(await fm.text()) : null, misses = mj ? (mj.students || {}) : null, practice = mj ? (mj.practice || {}) : {};
     setMsg(msg, "Importing…", true);
     await setDoc(doc(db,"topicTaxonomy","main"), { json: JSON.stringify(tax), updatedAt: serverTimestamp() });
     for (let i = 0; i < ok.length; i += 300) {
@@ -6172,40 +6183,63 @@ async function trImport(){
       }));
       await b.commit();
     }
-    msg.innerHTML = `<div class="msg ok">Imported ${ok.length} student report(s).</div>` +
+    if (misses) for (let i = 0; i < ok.length; i += 20) {   // one doc per student, up to ~150 KB each → small batches
+      const b = writeBatch(db);
+      ok.slice(i, i + 20).forEach(({ r, st }) => b.set(doc(db,"topicMisses",st.uid), {
+        m: (misses[r.psid] || []).map(a => ({ n: a[0], q: a[2], c: a[3], x: a[4], p: a[5], s: a[6] })),
+        pr: (practice[r.psid] || []).map(cd => ({ c: cd.c, i: cd.i.map(a => ({ n: a[0], q: a[1], p: a[2], s: a[3] })) })), updatedAt: serverTimestamp() }));
+      await b.commit();
+    }
+    msg.innerHTML = `<div class="msg ok">Imported ${ok.length} student report(s)${misses ? " with missed questions" : ""}.</div>` +
       (miss.length ? `<details style="margin-top:8px"><summary>${miss.length} skipped (no portal login)</summary><div style="font-size:12.5px">${miss.map(m => esc(m.r.name || "") + " (" + esc(m.r.psid) + ")").join(", ")}</div></details>` : "");
   } catch(e) { setMsg(msg, "Import failed: " + e.message); }
 }
-document.addEventListener("click", e => { if (e.target && e.target.id === "trImportBtn") trImport(); });
+document.addEventListener("click", async e => {
+  if (!e.target) return;
+  if (e.target.id === "trImportBtn") trImport();
+  if (e.target.id === "trViewBtn") {
+    const uid = $("trStudent").value; if (!uid) return;
+    try { $("trViewBox").textContent = "Loading…"; await loadTopicReport(uid, $("trView"), $("trViewBox")); }
+    catch(err) { $("trView").classList.remove("hidden"); $("trViewBox").innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }
+  }
+});
+function trFillStudents(){
+  $("trStudent").innerHTML = studentCache.map(st => `<option value="${st.uid}">${esc(st.name)} (${esc(st.psid || "")}${st.batch ? ", " + esc(st.batch) : ""})</option>`).join("");
+}
 
-async function loadTopicReport(){
-  const wrap = $("myTopicReportWrap"), box = $("myTopicReport");
-  const [rs, ts] = await Promise.all([getDoc(doc(db,"topicReports",currentUser.uid)), getDoc(doc(db,"topicTaxonomy","main"))]);
-  if (!rs.exists() || !ts.exists()) { wrap.classList.add("hidden"); return; }
+async function trOfflineHtml(uid){
+  const [rs, ts, ms] = await Promise.all([getDoc(doc(db,"topicReports",uid)), getDoc(doc(db,"topicTaxonomy","main")), getDoc(doc(db,"topicMisses",uid)).catch(() => null)]);
+  const MISS = {};   // topic (or chapter) code -> missed questions
+  ((ms && ms.exists() && ms.data().m) || []).forEach(q => (MISS[q.c] = MISS[q.c] || []).push(q));
+  if (!rs.exists() || !ts.exists()) return null;
   const rep = rs.data(), tax = JSON.parse(ts.data().json);
   const T = {};   // code -> {a,r,w,b}
   (rep.topics || []).forEach(t => { T[t.c] = t; });
   const pct = (r, a) => a ? Math.round(100 * r / a) : null;
   const col = p => p == null ? "var(--muted)" : p >= 75 ? "#1f9d55" : p >= 50 ? "#d99a00" : "#d64545";
   const bar = (p) => `<span style="display:inline-block;width:90px;height:8px;background:var(--border);border-radius:4px;vertical-align:middle"><span style="display:block;height:8px;width:${p || 0}%;background:${col(p)};border-radius:4px"></span></span>`;
+  const NAMES = {};
   let weak = [], tot = { a: 0, r: 0 }, cards = "";
   for (const key of ["P","C","B","Z"]) {
     const sub = tax[key]; if (!sub) continue;
     let sa = 0, sr = 0, chapHtml = "";
     for (const ch of sub.chapters || []) {
       let ca = 0, cr = 0, rows = "";
-      for (const tp of ch.topics || []) {
+      for (const tp of [...(ch.topics || []), { code: ch.code, name: "General / mixed questions" }]) {
         const t = T[tp.code]; if (!t || !t.a) continue;
+        NAMES[tp.code] = { tp: tp.name, ch: ch.name, p: pct(t.r, t.a) };
         ca += t.a; cr += t.r;
         const p = pct(t.r, t.a);
         if (t.a >= 3 && p < 50) weak.push({ sub: sub.subject, ch: ch.name, tp: tp.name, p, a: t.a });
-        rows += `<tr><td>${esc(tp.name)}</td><td>${t.a}</td><td>${t.r}</td><td>${t.w}</td><td>${t.b}</td><td style="color:${col(p)};font-weight:600">${p}% ${bar(p)}</td></tr>`;
+        const mq = (MISS[tp.code] || []).slice().sort((a, b) => (a.p ?? 100) - (b.p ?? 100));
+        const mtab = mq.length ? `<div style="overflow:auto"><table class="tbl"><thead><tr><th>Test</th><th>Q</th><th>Question</th><th>Result</th><th title="Share of the whole batch that got it right">Whole-test correct</th></tr></thead><tbody>${mq.map(q => `<tr><td>${esc(q.n)}</td><td>${q.q}</td><td>${esc(q.s)}${q.s && q.s.length >= 170 ? "…" : ""}</td><td><span class="badge ${q.x === "W" ? "neg" : ""}">${q.x === "W" ? "Wrong" : "Blank"}</span></td><td>${q.p == null ? "—" : q.p + "%"}</td></tr>`).join("")}</tbody></table></div>` : `<div style="font-size:12.5px;color:var(--muted);padding:6px 0">No missed questions in this topic.</div>`;
+        rows += `<details style="margin:2px 0 2px 14px;border-bottom:1px solid var(--border)"><summary style="cursor:pointer;padding:5px 0">${esc(tp.name)} — <span style="color:${col(p)};font-weight:600">${p}%</span> <small style="color:var(--muted)">${t.r}/${t.a} correct · ${t.w} wrong · ${t.b} blank</small> ${bar(p)}</summary>${mtab}</details>`;
       }
       if (!ca) continue;
       sa += ca; sr += cr;
       const p = pct(cr, ca);
       chapHtml += `<details style="margin:6px 0"><summary style="cursor:pointer"><b>${esc(ch.name)}</b> — <span style="color:${col(p)};font-weight:600">${p}%</span> (${cr}/${ca}) ${bar(p)}</summary>
-        <div style="overflow:auto"><table class="tbl"><thead><tr><th>Topic</th><th>Attempted</th><th>Correct</th><th>Wrong</th><th>Blank</th><th>Accuracy</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+        <div>${rows}</div></details>`;
     }
     if (!sa) continue;
     tot.a += sa; tot.r += sr;
@@ -6216,10 +6250,54 @@ async function loadTopicReport(){
   const weakHtml = weak.length
     ? `<div class="card" style="margin-top:10px"><h3 style="margin:0 0 6px">⚠ Topics to work on first</h3><p style="font-size:12.5px;color:var(--muted);margin:0 0 6px">Topics with at least 3 questions attempted and under 50% accuracy. Use <b>Practice by Chapter</b> above on these chapters.</p>
        <ol style="margin:0;padding-left:20px">${weak.slice(0, 15).map(w => `<li>${esc(w.sub)} · ${esc(w.ch)} → <b>${esc(w.tp)}</b> — ${w.p}% (${w.a} questions)</li>`).join("")}</ol></div>` : "";
+  const PR = ((ms && ms.exists() && ms.data().pr) || []).filter(cd => NAMES[cd.c]);
+  const prHtml = PR.length ? `<div class="card" style="margin-top:10px"><h3 style="margin:0 0 6px">🎯 Practice next</h3>
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 8px">For your weakest topics: questions on the same topic from other tests, leaving out ones you already missed. Tests you haven't taken come first, then questions most students got right (easier first).</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">${PR.map(cd => { const n = NAMES[cd.c]; return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px">
+      <div style="font-weight:700">${esc(n.tp)} <span style="float:right;color:${col(n.p)}">${n.p}%</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:6px">${esc(n.ch)}</div>
+      <ul style="margin:0;padding-left:18px;font-size:13px">${cd.i.map(q => `<li style="margin-bottom:5px"><b>${esc(q.n)} Q${q.q}</b> <small style="color:var(--muted)">(${q.p == null ? "—" : q.p + "% got it"})</small> ${esc(q.s)}${q.s && q.s.length >= 200 ? "…" : ""}</li>`).join("")}</ul></div>`; }).join("")}</div></div>` : "";
   const op = pct(tot.r, tot.a);
-  box.innerHTML = `<div class="card"><b>${(rep.tests || []).length}</b> tests analysed · overall topic accuracy <b style="color:${col(op)}">${op ?? "—"}%</b> (${tot.r}/${tot.a})
-    <div style="font-size:12px;color:var(--muted);margin-top:4px">Based on automatic topic tagging of your test questions, so a few questions may sit in a neighbouring topic.</div></div>` + weakHtml + cards;
+  const upd = rep.updatedAt && rep.updatedAt.toDate ? rep.updatedAt.toDate().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "";
+  return `<div class="card"><b>${(rep.tests || []).length}</b> offline branch tests analysed · overall topic accuracy <b style="color:${col(op)}">${op ?? "—"}%</b> (${tot.r}/${tot.a})
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">${upd ? "Last updated " + upd + ". " : ""}Updated by your teacher after each new branch test. Based on automatic topic tagging of the test questions, so a few questions may sit in a neighbouring topic.</div></div>` + weakHtml + prHtml + cards;
+}
+
+// live: topic/chapter accuracy from the student's online portal tests (updates itself after every submitted test)
+async function trOnlineHtml(uid){
+  const qs = await getDocs(query(collection(db,"attempts"), where("studentUid","==",uid)));
+  const att = qs.docs.map(d => d.data()).filter(a => a.submitTime != null).sort((a, b) => (a.submitTime?.seconds || 0) - (b.submitTime?.seconds || 0));
+  if (!att.length) return `<div class="card" style="color:var(--muted)">No online portal tests completed yet. Results appear here automatically after each test.</div>`;
+  const meta = await qMetaFor(att), chap = {}, col = p => p >= 75 ? "#1f9d55" : p >= 50 ? "#d99a00" : "#d64545";
+  let tot = { n: 0, c: 0 };
+  att.forEach(a => Object.entries(attemptOutcomes(a)).forEach(([id, v]) => {
+    const m = meta[id], k = m ? `${m.s || "?"} — ${m.t || "No chapter"}` : "Unknown chapter";
+    const c = (chap[k] = chap[k] || { k, n: 0, c: 0, w: 0, b: 0, tests: new Set() });
+    c.n++; c.tests.add(a.examId); tot.n++;
+    if (v === "correct") { c.c++; tot.c++; } else if (v === "wrong") c.w++; else c.b++;
+  }));
+  const rows = Object.values(chap).sort((a, b) => a.c / a.n - b.c / b.n).map(c => { const p = Math.round(100 * c.c / c.n);
+    return `<tr><td>${esc(c.k)}</td><td>${c.tests.size}</td><td>${c.n}</td><td>${c.c}</td><td>${c.w}</td><td>${c.b}</td><td style="color:${col(p)};font-weight:600">${p}%</td></tr>`; }).join("");
+  const op = Math.round(100 * tot.c / (tot.n || 1));
+  return `<div class="card"><b>${att.length}</b> online portal tests · overall accuracy <b style="color:${col(op)}">${op}%</b> (${tot.c}/${tot.n})
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">Live — updates automatically after every test you submit on this portal. Missed questions with answers are in your <b>Mistake Notebook</b>.</div></div>
+    <div class="card" style="margin-top:10px;overflow:auto"><table class="tbl"><thead><tr><th>Subject — Chapter</th><th>Tests</th><th>Questions</th><th>Correct</th><th>Wrong</th><th>Blank</th><th>Accuracy</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+async function loadTopicReport(uid = currentUser.uid, wrap = $("myTopicReportWrap"), box = $("myTopicReport")){
+  const tabBtn = (id, label, on) => `<button type="button" class="btn ${on ? "" : "secondary"}" data-trtab="${id}" style="margin-right:6px">${label}</button>`;
+  box.innerHTML = `<div id="trTabBar" style="margin-bottom:10px"></div><div id="trPane">Loading…</div>`;
   wrap.classList.remove("hidden");
+  const bar = box.querySelector("#trTabBar"), pane = box.querySelector("#trPane"), cache = {};
+  const show = async which => {
+    bar.innerHTML = tabBtn("off", "🏫 Offline branch tests", which === "off") + tabBtn("on", "💻 Online portal tests", which === "on");
+    pane.innerHTML = "Loading…";
+    try {
+      if (!(which in cache)) cache[which] = which === "off" ? ((await trOfflineHtml(uid)) || `<div class="card" style="color:var(--muted)">No offline branch-test report has been imported yet.</div>`) : await trOnlineHtml(uid);
+      pane.innerHTML = cache[which];
+    } catch(e) { pane.innerHTML = `<div class="msg err">Could not load: ${esc(e.message)}</div>`; }
+    bar.querySelectorAll("[data-trtab]").forEach(b => b.onclick = () => show(b.dataset.trtab));
+  };
+  await show("off");
 }
 
 // does this exam target the current student?

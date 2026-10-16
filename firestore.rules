@@ -141,6 +141,10 @@ service cloud.firestore {
       allow read: if isSelf(uid) || isStaff();
       allow write: if isSuperAdmin();
     }
+    match /topicMisses/{uid} {
+      allow read: if isSelf(uid) || isStaff();
+      allow write: if isSuperAdmin();
+    }
     match /topicTaxonomy/{id} {
       allow read: if signedIn();
       allow write: if isSuperAdmin();
