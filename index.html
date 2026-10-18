@@ -321,6 +321,20 @@ input[type=file]{font-size:13px;color:var(--muted)}
 input[type=file]::file-selector-button{margin-right:10px;padding:7px 14px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:#fff;color:var(--blue);font-weight:600;cursor:pointer}
 input[type=file]::file-selector-button:hover{background:var(--blue-light);border-color:var(--blue)}
 @media (max-width:640px){ .wrap{padding:16px 12px 40px} .card{padding:16px} .tabs{padding:6px} .tabs button{padding:7px 10px;font-size:13px} }
+
+/* Source/format filters share the existing bank and test builder. */
+.bank-filter-panel{background:#f4f8fc;border:1px solid var(--border);border-radius:10px;padding:16px;margin:12px 0}
+.bank-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px 14px}
+.bank-filter-grid .field{margin-bottom:0;min-width:0}.bank-filter-grid input,.bank-filter-grid select{background:#fff}
+.filter-note{font-size:12.5px;color:var(--muted);line-height:1.6;margin:8px 0}
+.filter-heading{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.bank-catalog{border:1px solid var(--border);padding:12px 16px;border-radius:8px;margin:12px 0}
+.bank-catalog summary{font-weight:600;color:var(--blue);cursor:pointer}.bank-catalog-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:12px}
+.bank-catalog li{margin:7px 0 7px 18px;font-size:13px}.bank-catalog small{display:block;color:var(--muted)}
+.bank-filter-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:7px}.bank-filter-label{width:110px;flex-shrink:0;font-size:12.5px;font-weight:700;padding-top:5px}
+.bank-results{overflow:auto}.bank-page{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:10px 0;font-size:13px;flex-wrap:wrap}
+@media(max-width:600px){.bank-filter-grid{grid-template-columns:1fr}.bank-filter-row{display:block}.bank-filter-label{width:auto;margin-bottom:5px}.bank-filter-panel{padding:12px}}
+
 </style>
 </head>
 <body>
@@ -478,8 +492,8 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <button class="btn secondary" id="qbStripImgBtn">Remove all images</button>
         <button class="btn danger" id="qbClearBtn">Clear This Subject Bank</button>
       </div>
-      <div id="qbMsg"></div>
-      <table class="tbl"><thead><tr><th>ID</th><th>Sec</th><th>Question</th><th>Ans</th><th>Topic</th><th>Uploaded</th><th>Used in test(s)</th><th></th></tr></thead><tbody id="qbRows"></tbody></table>
+<div id="qbCatalog"></div><div id="qbFilterPanel" class="bank-filter-panel"><div class="filter-heading"><div><b>Find questions by source and format</b><div class="filter-note">Load a subject once, then combine filters below. Filtering does not read the database again.</div></div><button type="button" class="btn secondary" id="qbReset">Reset filters</button></div><div class="bank-filter-grid"><div class="field"><label for="qbFamily">Source family</label><select id="qbFamily"><option value="">All source families</option></select></div><div class="field"><label for="qbBank">Data bank</label><select id="qbBank"><option value="">All uploaded banks</option></select></div><div class="field"><label for="qbChapter">Chapter</label><select id="qbChapter"><option value="">All chapters</option></select></div><div class="field"><label for="qbFormat">Question format</label><select id="qbFormat"><option value="">All question formats</option></select></div><div class="field"><label for="qbLevel">Difficulty</label><select id="qbLevel"><option value="">All levels</option><option value="Easy">Easy</option><option value="Medium">Moderate</option><option value="Hard">Hard</option><option value="__none">Not assessed</option></select></div><div class="field"><label for="qbSkill">Approach</label><select id="qbSkill"><option value="">All approaches</option></select></div><div class="field"><label for="qbVisual">Content</label><select id="qbVisual"><option value="">All content</option><option value="text">Editable text / LaTeX</option><option value="diagram">Text with diagram / picture options</option><option value="image">Full question image</option></select></div><div class="field"><label for="qbKey">Answer key</label><select id="qbKey"><option value="">Any key status</option><option value="available">Key available (non-AI)</option><option value="ai">AI-proposed key</option><option value="missing">Missing key / draft</option></select></div><div class="field"><label for="qbSearch">Search questions / source</label><input id="qbSearch" placeholder="ID, text, source paper or exercise" type="search"></div><div class="field"><label for="qbModel">Question model</label><input id="qbModel" placeholder="Model name or code" type="search"></div><div class="field"><label for="qbTime">Ideal time</label><select id="qbTime"><option value="">Any ideal time</option><option value="45">Up to 45 sec</option><option value="60">Up to 60 sec</option><option value="90">Up to 90 sec</option><option value="120">Up to 120 sec</option><option value="unset">Not assessed</option></select></div></div><p id="qbCount" class="filter-note" role="status" aria-live="polite">Load a subject to see available questions.</p></div><div id="qbMsg"></div>
+      <div class="bank-results"><table class="tbl"><thead><tr><th>ID / source</th><th>Format / level</th><th>Question</th><th>Ans</th><th>Chapter / model</th><th>Uploaded</th><th>Used in test(s)</th><th></th></tr></thead><tbody id="qbRows"></tbody></table></div><div id="qbPager" class="bank-page"></div>
     </div>
 
     <div id="atab-bulkimport" class="atab hidden">
@@ -674,9 +688,15 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
             <button class="btn secondary" data-btpreset="support" title="Easy only; auto-pick mix 100 % Easy">🌱 Weaker students</button>
             <button class="btn secondary" data-btpreset="clear">✕ Clear filters</button>
           </div>
-          <div id="btFilters"></div>
+          <div class="bank-filter-panel"><div class="bank-filter-grid">
+            <div class="field"><label for="btFamily">Source family</label><select id="btFamily"><option value="">All source families</option></select></div>
+            <div class="field"><label for="btVisual">Content</label><select id="btVisual"><option value="">All content</option><option value="text">Editable text / LaTeX</option><option value="diagram">Text with diagram / picture options</option><option value="image">Full question image</option><option value="unknown">Not indexed yet</option></select></div>
+            <div class="field"><label for="btSearch">Find ID, model or chapter</label><input id="btSearch" type="search" placeholder="Question ID, model code, bank or chapter"></div>
+            <div class="field"><label for="btTime">Ideal time</label><select id="btTime"><option value="">Any ideal time</option><option value="45">Up to 45 sec</option><option value="60">Up to 60 sec</option><option value="90">Up to 90 sec</option><option value="120">Up to 120 sec</option><option value="unset">Not assessed</option></select></div>
+          </div><p class="filter-note">Choose a source family, then combine bank, chapter and question-format chips below. Choices within a row combine; different rows narrow the results. Unindexed content remains under “Not indexed yet” until the next index rebuild.</p></div>
+          <div id="btFilters"></div><div id="btCatalog"></div>
           <div class="flexrow" style="gap:14px;margin-top:6px;font-size:13px">
-            <label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="btOkOnly" checked> Teacher-confirmed keys only</label>
+            <label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="btOkOnly" checked> Keys available (non-AI)</label>
             <label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="btNoDup" checked> Hide repeated pictures</label>
             <label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="btUnused"> Not used in any test yet</label>
             <label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="btTaggedOnly"> Only questions with a data bank</label>
@@ -933,7 +953,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <div style="flex:1;min-width:280px">
             <div style="font-weight:600;font-size:13px;margin-bottom:6px">From the question bank</div>
             <div class="flexrow">
-              <div class="field"><label>Filter topic contains</label><input id="dgBankFilter" placeholder="(uses Topic above if blank)"></div>
+              <div class="field"><label>Data bank</label><select id="dgSourceBank"><option value="">All data banks</option></select></div><div class="field"><label>Question format</label><select id="dgFormat"><option value="">All formats</option></select></div><div class="field"><label>Filter topic contains</label><input id="dgBankFilter" placeholder="(uses Topic above if blank)"></div>
               <button class="btn secondary" id="dgBankLoadBtn">Find questions</button>
             </div>
             <div id="dgBankPick" class="checklist hidden" style="max-height:260px;margin-top:6px"></div>
@@ -1640,7 +1660,7 @@ const isLevelWord = v => /^(easy|bloom|basic|medium|moderate|intermediate|hard|a
 
 /* ----- question bank tags (data bank, question type, approach) — used by Bank Tests and the analysis ----- */
 // The coaching material folders. Upload spelling is matched case-insensitively to these; other names are kept as sent.
-const DATA_BANKS = ["AIATS Papers by Syllabus - 2026-27", "AIM 720 & FTS Question Bank 2026", "Day Wise Question Papers", "ECAPS",
+const DATA_BANKS = ["AIATS PAPERS", "AIATS Papers by Syllabus - 2026-27", "AIM 720 & FTS Question Bank 2026", "Day Wise Question Papers", "ECAPS",
   "Engineering AIATS Question Bank", "Engineering FTS Phases 1-3 2025-26", "Engineering Modules", "Engineering PT, TE and UT 2025-26",
   "INVICTUS Modules", "INVICTUS Tests Question Bank 2025-26", "JEE Score Book 2024", "JEE Score Individual PDFs",
   "Medical AIATS Chapterwise - All Streams", "Medical Modules", "Medical Old Papers Question Bank", "Medical RM Modules",
@@ -1702,6 +1722,78 @@ function normSkill(v){
 const skillsOf  = q => Array.isArray(q?.skills) ? q.skills : q?.skills ? [q.skills] : [];
 const skillLabel = k => SKILLS.find(x => x.k === k)?.label || k;
 const skillShort = k => SKILLS.find(x => x.k === k)?.short || k;
+// Shared source and format facets. Read-only fallbacks keep older uploads discoverable.
+const BANK_CATALOG = [{"name": "AIATS PAPERS", "family": "Test papers", "images": 0, "pdfs": 234}, {"name": "AIATS Papers by Syllabus - 2026-27", "family": "Compiled papers", "images": 0, "pdfs": 2299}, {"name": "AIM 720 & FTS Question Bank 2026", "family": "Test papers", "images": 14220, "pdfs": 0}, {"name": "Day Wise Question Papers", "family": "Daily practice", "images": 0, "pdfs": 10}, {"name": "ECAPS", "family": "Practice sheets", "images": 4651, "pdfs": 0}, {"name": "Engineering AIATS Question Bank", "family": "Test papers", "images": 4964, "pdfs": 1}, {"name": "Engineering FTS Phases 1-3 2025-26", "family": "Test papers", "images": 2056, "pdfs": 0}, {"name": "Engineering Modules", "family": "Study packages", "images": 6831, "pdfs": 0}, {"name": "Engineering PT, TE and UT 2025-26", "family": "Test papers", "images": 3580, "pdfs": 0}, {"name": "INVICTUS Modules", "family": "Study packages", "images": 4877, "pdfs": 0}, {"name": "INVICTUS Tests Question Bank 2025-26", "family": "Test papers", "images": 7027, "pdfs": 0}, {"name": "JEE Score Book 2024", "family": "Enrichment banks", "images": 1338, "pdfs": 0}, {"name": "JEE Score Individual PDFs", "family": "Enrichment banks", "images": 1206, "pdfs": 0}, {"name": "Medical AIATS Chapterwise - All Streams", "family": "Test papers", "images": 13375, "pdfs": 501}, {"name": "Medical Modules", "family": "Study packages", "images": 26682, "pdfs": 24}, {"name": "Medical Old Papers Question Bank", "family": "Test papers", "images": 3043, "pdfs": 0}, {"name": "Medical RM Modules", "family": "Study packages", "images": 9718, "pdfs": 0}, {"name": "Momentum Booster", "family": "Practice sheets", "images": 19532, "pdfs": 0}, {"name": "N2 and AIATS Plus Sheets", "family": "Practice sheets", "images": 1837, "pdfs": 0}, {"name": "NSEP Question Bank", "family": "Enrichment banks", "images": 2103, "pdfs": 0}, {"name": "Success Achiever", "family": "Enrichment banks", "images": 2746, "pdfs": 0}, {"name": "Success Magnet", "family": "Enrichment banks", "images": 2892, "pdfs": 0}, {"name": "Toppers Question Bank (JEE TE UT FTS)", "family": "Compiled papers", "images": 0, "pdfs": 277}];
+const BANK_FAMILIES = [...new Set(BANK_CATALOG.map(b => b.family))];
+const bankFamily = bank => BANK_CATALOG.find(b => normBank(b.name) === normBank(bank))?.family || 'Other / unassigned';
+function bankForQuestion(q){
+  if (q.bank) return normBank(q.bank);
+  const source = String(q.source || q.bankName || '').trim();
+  if (/^ECAPS(?:$|\s)/i.test(source) || /^ECAPS_/i.test(q.id || q.i || q.docId || '')) return 'ECAPS';
+  if (/^MAIATS_/i.test(q.id || q.i || q.docId || '') || /^Medical AIATS(?: Chapterwise| - All Streams)/i.test(source)) return 'Medical AIATS Chapterwise - All Streams';
+  return BANK_CATALOG.find(b => normBank(b.name) === normBank(source))?.name || '';
+}
+function questionFormat(q){
+  const explicit = normQType(q.qType || q.qt || q.questionType);
+  if (explicit) return explicit;
+  if ((q.section || q.s) === 'B') return 'numerical';
+  const text = String(q.text || '').replace(/<[^>]*>/g, ' ');
+  if (/assertion/i.test(text) && /reason/i.test(text)) return 'assertion';
+  if (/match (?:the |each |following|column)|match.*column/i.test(text)) return 'match';
+  if (/statement\s*(?:I|1)\b/i.test(text) && /statement\s*(?:II|2)\b/i.test(text)) return 'statement';
+  if (isMultiKey(q.correct_answer)) return 'multi';
+  if (validMcqKey(q.correct_answer)) return 'single';
+  return '';
+}
+function questionVisual(q){
+  if (q.vf) return q.vf;
+  const hasText = !!String(q.text || '').trim();
+  const hasImage = !!q.image || (q.optionImages || []).some(Boolean);
+  return hasImage ? (hasText ? 'diagram' : 'image') : hasText ? 'text' : 'unknown';
+}
+const VISUAL_LABELS = {text:'Editable text / LaTeX', diagram:'Text with diagram / picture options', image:'Full question image', unknown:'Not indexed yet'};
+function matchesBankFilters(q, f){
+  const bank = bankForQuestion(q), fmt = questionFormat(q), visual = questionVisual(q);
+  const level = q.difficultyStatus === 'not-assessed' || !isLevelWord(q.difficulty || q.d) ? '' : normLevel(q.difficulty || q.d);
+  const skills = skillsOf(q).length ? skillsOf(q) : (q.sk || []);
+  const hay = [q.id,q.docId,q.i,q.text,q.topic,q.t,bank,q.bankRef,q.sourcePaperId,q.sourcePaper,q.model,q.modelCode,q.m,q.mc].filter(Boolean).join(' ').replace(/<[^>]*>/g,' ').toLowerCase();
+  return (!f.family || bankFamily(bank) === f.family) && (!f.bank || (f.bank === '__none' ? !bank : bank === f.bank)) &&
+    (!f.chapter || (q.topic || q.t || '__none') === f.chapter) && (!f.format || (fmt || '__none') === f.format) &&
+    (!f.level || (level || '__none') === f.level) && (!f.skill || skills.includes(f.skill)) &&
+    (!f.visual || visual === f.visual) && (!f.key || (f.key === 'missing' ? !hasKey(q) : f.key === 'ai' ? hasKey(q) && q.keySrc === 'ai' : hasKey(q) && q.keySrc !== 'ai')) &&
+    (!f.search || hay.includes(f.search.toLowerCase())) && (!f.model || [q.model,q.modelCode,q.m,q.mc].filter(Boolean).join(' ').toLowerCase().includes(f.model.toLowerCase())) &&
+    (!f.time || (f.time === 'unset' ? !(q.idealTimeSec > 0) : q.idealTimeSec > 0 && q.idealTimeSec <= Number(f.time)));
+}
+function bankCatalogHtml(){
+  return `<details class="bank-catalog"><summary>Local source library · ${BANK_CATALOG.length} collections · planned for JSON conversion</summary>
+    <p class="filter-note">These are source files found in your library, not uploaded question counts. Copies, solutions, answer keys and paper compilations may overlap. Only uploaded questions appear in the filters.</p>
+    <div class="bank-catalog-grid">${BANK_FAMILIES.map(f => `<div><b>${esc(f)}</b><ul>${BANK_CATALOG.filter(b=>b.family===f).map(b=>`<li>${esc(b.name)} <small>${b.images.toLocaleString()} image files${b.pdfs ? ` · ${b.pdfs.toLocaleString()} PDFs` : ''}</small></li>`).join('')}</ul></div>`).join('')}</div>
+    <p class="filter-note">Formats found in source headings: single / multiple correct, numerical / integer, assertion–reason, statements, matching / matrix, passage / case study, subjective (short / long answers) and worked examples. Subjective and open matrix responses need a future answering screen before use in scored tests. Worked solutions stay linked to their questions.</p></details>`;
+}
+function qbFilterValues(){
+  const ids = {family:'qbFamily',bank:'qbBank',chapter:'qbChapter',format:'qbFormat',level:'qbLevel',skill:'qbSkill',visual:'qbVisual',key:'qbKey',search:'qbSearch',model:'qbModel',time:'qbTime'};
+  return Object.fromEntries(Object.entries(ids).map(([k,id])=>[k,$(id).value.trim()]));
+}
+let qbPage = 0;
+function qbFillFacets(){
+  const f = qbFilterValues();
+  const put = (id, values, label, selected) => {
+    $(id).innerHTML = `<option value="">${label}</option>` + values.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('');
+    $(id).value = values.some(([v])=>v===selected) ? selected : '';
+  };
+  put('qbFamily',[...new Set(qbList.map(q=>bankFamily(bankForQuestion(q))))].sort().map(x=>[x,x]),'All source families',f.family);
+  const inFamily = qbList.filter(q=>!$('qbFamily').value || bankFamily(bankForQuestion(q))===$('qbFamily').value);
+  const banks = [...new Set(inFamily.map(bankForQuestion))].sort();
+  put('qbBank',banks.map(x=>[x||'__none',x||'Not assigned to a bank']),'All uploaded banks',f.bank);
+  const inBank=inFamily.filter(q=>!$('qbBank').value || (bankForQuestion(q)||'__none')===$('qbBank').value);
+  put('qbChapter',[...new Set(inBank.map(q=>q.topic||'__none'))].sort().map(x=>[x,x==='__none'?'No chapter':x]),'All chapters',f.chapter);
+  put('qbFormat',QTYPES.map(x=>[x.k,x.label]).concat([['__none','Not tagged / unknown']]),'All question formats',f.format);
+  put('qbSkill',SKILLS.map(x=>[x.k,x.label]),'All approaches',f.skill);
+}
+function qbRefresh(reset=true){ if(reset) qbPage=0; qbFillFacets(); renderQbList(); }
+function qbCatalog(){ $('qbCatalog').innerHTML=bankCatalogHtml(); }
+
+
 // "Too quick" rule: answering a tough question in a small fraction of its ideal time usually means a blind guess
 // or outside help. Hard: under 25% of ideal (min 8 s); Moderate: under 15% (min 5 s); Easy: never flagged.
 const QUICK_RULE = { Hard: [0.25, 8], Medium: [0.15, 5] };
@@ -5192,7 +5284,8 @@ $("dgBankLoadBtn").onclick = async () => {
   try {
     const list = await fetchQuestions($("dgType").value, $("dgSubject").value);
     const have = new Set(DG.rows.map(r=>r.docId));
-    dgBankList = list.filter(q => !have.has(q.docId) && (!filter || (q.topic||"").toLowerCase().includes(filter)));
+    dgBankList = list.filter(q => !have.has(q.docId) && (!filter || (q.topic||"").toLowerCase().includes(filter)) &&
+      (!$("dgSourceBank").value || bankForQuestion(q)===$("dgSourceBank").value) && (!$("dgFormat").value || questionFormat(q)===$("dgFormat").value));
     $("dgBankPick").innerHTML = dgBankList.length ? dgBankList.map((q,i) => `<label><input type="checkbox" value="${i}">
       <span><b>${esc(q.id)}</b> <span style="color:var(--muted)">[${esc(q.topic||"no topic")} · ${esc(levelShort(q.difficulty))}]</span>${q.image?" 🖼":""} — ${esc(String(q.text||"(image question)").replace(/<[^>]*>/g,"").slice(0,90))}</span></label>`).join("")
       : `<div style="padding:6px;color:var(--muted)">No${filter?` "${esc(filter)}"`:""} questions in ${esc($("dgSubject").value)} that aren't already in this test.</div>`;
@@ -5901,12 +5994,12 @@ $("tmIndexBtn").onclick = async () => {
       const k = `${q.examType}__${q.subject}`;
       const pk = q.imgHash ? `${q.examType}|${q.imgHash}` : null, dup = pk && picSeen.has(pk);
       if (pk) picSeen.add(pk);
-      const banks = fullBanks[k] = fullBanks[k] || [], bank = q.bank ? normBank(q.bank) : "";
+      const banks = fullBanks[k] = fullBanks[k] || [], bank = bankForQuestion(q);
       if (bank && !banks.includes(bank)) banks.push(bank);
       (full[k] = full[k] || []).push({ i: q.docId, t: (q.topic||"").trim(), d: normLevel(q.difficulty), s: q.section || "A",
         ...(q.modelCode ? { mc: String(q.modelCode).trim() } : {}), ...(q.model ? { m: String(q.model).trim() } : {}),
         k: hasKey(q) ? (q.keySrc === "ai" ? "ai" : "ok") : q.keySrc === "ai-unsure" ? "unsure" : q.keySrc === "pending-ai" ? "pending" : "none",
-        ...(bank ? { b: banks.indexOf(bank) } : {}), ...(q.qType ? { qt: q.qType } : {}),
+        ...(bank ? { b: banks.indexOf(bank) } : {}), ...(questionFormat(q) ? { qt: questionFormat(q) } : {}), vf: questionVisual(q),
         ...(skillsOf(q).length ? { sk: skillsOf(q) } : {}), ...(q.idealTimeSec > 0 ? { it: Math.round(q.idealTimeSec) } : {}),
         ...(dup ? { dup: 1 } : {}) });
     });
@@ -5933,7 +6026,9 @@ $("tmIndexBtn").onclick = async () => {
 };
 
 /* ----- question bank browse ----- */
-$("qbType").onchange = populateQbSubjects;
+$("qbType").onchange = () => { populateQbSubjects(); qbClearLoaded(); };
+$("qbSubject").onchange = qbClearLoaded;
+function qbClearLoaded(){ qbList=[]; qbPage=0; qbFillFacets(); renderQbList(); setMsg($("qbMsg"),"Press Load for the selected exam and subject.",true); }
 function populateQbSubjects(){
   $("qbSubject").innerHTML = EXAM_CONFIG[$("qbType").value].subjects
     .map(s=>`<option>${s}</option>`).join("");
@@ -5949,8 +6044,10 @@ let qbList = [];
 let allBankCache = null; // [{docId, examType, subject, section, ...}] – fetched once for overview
 $("qbLoadBtn").onclick = async () => {
   setMsg($("qbMsg"),"");
-  qbList = await fetchQuestions($("qbType").value, $("qbSubject").value);
-  renderQbList();
+  $("qbLoadBtn").disabled=true;
+  try { qbList = await fetchQuestions($("qbType").value, $("qbSubject").value); qbRefresh(); }
+  catch(e){ setMsg($("qbMsg"),"Could not load questions: "+e.message); }
+  finally { $("qbLoadBtn").disabled=false; }
 };
 // Replace only the picture of a saved question (used by every test that contains it).
 let qbImgTarget = null;
@@ -5976,15 +6073,21 @@ function renderQbList(){
   // map question id -> exam titles that use it
   const examsOf = qid => examsCache.filter(e => (e.questionIds||[]).includes(qid))
     .map(e => esc(e.title)).join(", ");
-  $("qbRows").innerHTML = qbList.map((q,i) => {
+  const filters=qbFilterValues(), matches = qbList.map((q,i)=>({q,i})).filter(({q})=>matchesBankFilters(q,filters));
+  const size=100, pages=Math.max(1,Math.ceil(matches.length/size)); qbPage=Math.min(qbPage,pages-1);
+  $("qbCount").textContent=`${matches.length} of ${qbList.length} loaded questions match · ${new Set(matches.map(({q})=>bankForQuestion(q)).filter(Boolean)).size} assigned banks`;
+  $("qbRows").innerHTML = matches.slice(qbPage*size,(qbPage+1)*size).map(({q,i}) => {
     const used = examsOf(q.docId);
-    return `<tr><td>${esc(q.id)}</td><td>${esc(q.section)}</td>
+    return `<tr><td>${esc(q.id)}<div class="filter-note">${esc(bankForQuestion(q)||"Unassigned bank")}${q.bankRef?` · ${esc(q.bankRef)}`:""}</div></td><td>${esc(qtypeLabel(questionFormat(q)))}<div class="filter-note">${q.difficultyStatus==='not-assessed'||!isLevelWord(q.difficulty)?'Not assessed':esc(levelLabel(q.difficulty))}</div></td>
     <td>${esc((q.text||"(image)").slice(0,90))}${(q.text||"").length>90?"&hellip;":""}${q.image?" 🖼":""}</td>
-    <td>${esc(q.correct_answer)}</td><td>${esc(q.topic)}</td>
+    <td>${esc(q.correct_answer)||"—"}</td><td>${esc(q.topic)}<div class="filter-note">${esc([q.modelCode,q.model].filter(Boolean).join(" · "))}</div></td>
     <td style="font-size:12px">${fmtDate(q.createdAt)}</td>
     <td style="font-size:12px">${used || '<span style="color:var(--muted)">— not used yet</span>'}</td>
     <td style="white-space:nowrap"><button class="btn secondary" style="padding:3px 9px" data-prev="${i}">Preview</button>${ownsItem(q)?` <button class="btn secondary" style="padding:3px 9px" data-qbimg="${i}" title="Swap in a new picture; answer key, topic and everything else stay the same">🖼 ${q.image?"Replace image":"Add image"}</button> <button class="btn danger" style="padding:3px 9px" data-delq="${q.docId}">Delete</button>`:""}</td></tr>`;
-  }).join("") || `<tr><td colspan="8">No questions in this bank.</td></tr>`;
+  }).join("") || `<tr><td colspan="8">${qbList.length?"No questions match. Reset filters to see all loaded questions.":"Load a subject to browse its questions."}</td></tr>`;
+  $("qbPager").innerHTML=matches.length?`<span>Page ${qbPage+1} of ${pages} · ${qbPage*size+1}–${Math.min((qbPage+1)*size,matches.length)} of ${matches.length}</span><div><button class="btn secondary" id="qbPrevPage" ${qbPage?'':'disabled'}>Previous</button> <button class="btn secondary" id="qbNextPage" ${qbPage+1<pages?'':'disabled'}>Next</button></div>`:'';
+  if($("qbPrevPage")) $("qbPrevPage").onclick=()=>{qbPage--;renderQbList();};
+  if($("qbNextPage")) $("qbNextPage").onclick=()=>{qbPage++;renderQbList();};
   $("qbRows").querySelectorAll("[data-prev]").forEach(b => b.onclick = () => previewQuestion(qbList[+b.dataset.prev]));
   $("qbRows").querySelectorAll("[data-qbimg]").forEach(b => b.onclick = () => {
     qbImgTarget = qbList[+b.dataset.qbimg];
@@ -6043,7 +6146,7 @@ async function loadBankOverview(force){
       .filter(q => (q.examType||"")===r.dataset.ovt && (q.subject||"")===r.dataset.ovs)
       .sort((a,b)=>(a.section||"A").localeCompare(b.section||"A") || (a.id||"").localeCompare(b.id||""));
     setMsg($("qbMsg"), `Showing ${qbList.length} questions in ${r.dataset.ovt} / ${r.dataset.ovs}.`, true);
-    renderQbList();
+    qbRefresh();
     $("qbRows").scrollIntoView({behavior:"smooth", block:"nearest"});
   });
 }
@@ -6466,7 +6569,7 @@ $("btLoadBtn").onclick = async () => {
       if (!sn.exists()) continue;
       const d = sn.data(), banks = d.banks || [];
       (d.q || []).forEach(e => rows.push({ i: e.i, sub, t: e.t || "", d: normLevel(e.d), s: e.s || "A", mc: e.mc || "", m: e.m || "", k: e.k || "none",
-        bank: e.b != null ? (banks[e.b] || "") : "", qt: e.qt || "", sk: e.sk || [], it: e.it || 0, dup: !!e.dup }));
+        bank: bankForQuestion({bank:e.b != null ? (banks[e.b] || "") : "",i:e.i}), qt: e.qt || "", sk: e.sk || [], it: e.it || 0, vf:e.vf || "unknown", dup: !!e.dup }));
     }
     if (BT.type !== type) { BT.picked = []; Object.values(BT.f).forEach(x => x.clear()); }
     BT.type = type; BT.rows = rows; BT.loaded = true;
@@ -6475,6 +6578,8 @@ $("btLoadBtn").onclick = async () => {
     setMsg($("btMsg"), rows.length ? `${rows.length} questions in the index (${tagged} with a data bank).` +
       (tagged ? "" : " None carry a data bank yet — upload bank files (see the format in CLAUDE_TO_GPT.md §4d) and rebuild the practice index.")
       : "The bank index is empty — Topics → Rebuild practice index first.", !!rows.length);
+    $("btFamily").innerHTML='<option value="">All source families</option>'+[...new Set(rows.map(r=>bankFamily(r.bank)))].sort().map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    $("btCatalog").innerHTML=bankCatalogHtml();
     btRenderAll();
   } catch(e) { setMsg($("btMsg"), "Could not read the bank index: " + e.message + (String(e.message).includes("permission") ? " — publish the updated firestore.rules (faculty need read access to bankIndex)." : "")); }
   finally { $("btLoadBtn").disabled = false; }
@@ -6486,8 +6591,12 @@ function btUsedCounts(){
 }
 // rows passing every filter except the one named in `skip` (so a chip group shows counts for its own choices)
 function btFiltered(skip){
-  const f = BT.f, used = $("btUnused").checked ? btUsedCounts() : null;
+  const f = BT.f, used = $("btUnused").checked ? btUsedCounts() : null, family=$("btFamily").value, visual=$("btVisual").value, search=$("btSearch").value.trim().toLowerCase(), time=$("btTime").value;
   return BT.rows.filter(r =>
+    (!family || bankFamily(r.bank)===family) &&
+    (!visual || r.vf===visual) &&
+    (!search || [r.i,r.t,r.bank,r.mc,r.m].join(' ').toLowerCase().includes(search)) &&
+    (!time || (time==='unset' ? !(r.it>0) : r.it>0 && r.it<=Number(time))) &&
     (skip === "subjects" || !f.subjects.size || f.subjects.has(r.sub)) &&
     (skip === "banks" || !f.banks.size || f.banks.has(r.bank || BT_NOBANK)) &&
     (skip === "chapters" || !f.chapters.size || f.chapters.has(r.t)) &&
@@ -6508,16 +6617,16 @@ function btRenderFilters(){
   const subs = btCount(btFiltered("subjects"), r => r.sub), banks = btCount(btFiltered("banks"), r => r.bank || BT_NOBANK),
         lv = btCount(btFiltered("levels"), r => r.d), qt = btCount(btFiltered("qtypes"), r => r.qt || (r.s === "B" ? "numerical" : "")),
         sk = btCount(btFiltered("skills"), r => r.sk), chs = btCount(btFiltered("chapters"), r => r.t);
-  const allBanks = [...new Set(BT.rows.map(r => r.bank || BT_NOBANK))]
+  const allBanks = [...new Set(BT.rows.filter(r=>!$("btFamily").value || bankFamily(r.bank)===$("btFamily").value || BT.f.banks.has(r.bank || BT_NOBANK)).map(r => r.bank || BT_NOBANK))]
     .sort((a, b) => (a === BT_NOBANK) - (b === BT_NOBANK) || (DATA_BANKS.indexOf(a) + 1 || 999) - (DATA_BANKS.indexOf(b) + 1 || 999) || a.localeCompare(b));
   const chapters = [...new Set(BT.rows.filter(r => !BT.f.subjects.size || BT.f.subjects.has(r.sub)).map(r => r.t))].sort((a, b) => a.localeCompare(b));
   const q = BT.chSearch.toLowerCase();
-  const row = (label, html) => `<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px"><div style="width:110px;font-size:12.5px;font-weight:700;padding-top:5px">${label}</div><div style="flex:1">${html}</div></div>`;
+  const row = (label, html) => `<div class="bank-filter-row"><div class="bank-filter-label">${label}</div><div style="flex:1;min-width:0">${html}</div></div>`;
   $("btFilters").innerHTML =
     row("Subject", btChips("subjects", EXAM_CONFIG[BT.type].subjects.filter(s => BT.rows.some(r => r.sub === s)).map(s => ({ v: s, label: s, n: subs[s] || 0 })))) +
     row("Data bank", btChips("banks", allBanks.map(b => ({ v: b, label: b, n: banks[b] || 0 })))) +
     row("Level", btChips("levels", LEVELS.map(L => ({ v: L.key, label: L.label, n: lv[L.key] || 0 })))) +
-    row("Question type", btChips("qtypes", QTYPES.map(x => ({ v: x.k, label: x.label, n: qt[x.k] || 0 })).filter(x => x.n || BT.f.qtypes.has(x.v)).concat(qt[""] ? [{ v: "", label: "(not tagged)", n: qt[""] }] : []))) +
+    row("Question format", btChips("qtypes", QTYPES.map(x => ({ v: x.k, label: x.label, n: qt[x.k] || 0 })).filter(x => x.n || BT.f.qtypes.has(x.v)).concat(qt[""] ? [{ v: "", label: "(not tagged)", n: qt[""] }] : []))) +
     row("Approach", btChips("skills", SKILLS.map(x => ({ v: x.k, label: x.label, n: sk[x.k] || 0 })))) +
     row("Chapter", `<input id="btChSearch" placeholder="search chapters" value="${esc(BT.chSearch)}" style="max-width:240px;margin-bottom:6px">
       ${BT.f.chapters.size ? `<span style="font-size:12px;margin-left:8px">${BT.f.chapters.size} chosen · <a href="#" id="btChClear">clear</a></span>` : ""}
@@ -6584,7 +6693,8 @@ function btRenderPicked(){
   if (chs.length === 1 && !$("btChapter").dataset.touched) $("btChapter").value = chs[0];
 }
 function btRenderAll(){ btRenderFilters(); btRenderList(); btRenderPicked(); }
-["btOkOnly", "btNoDup", "btUnused", "btTaggedOnly"].forEach(id => $(id).onchange = btRenderAll);
+["btFamily", "btVisual", "btTime", "btOkOnly", "btNoDup", "btUnused", "btTaggedOnly"].forEach(id => $(id).onchange = btRenderAll);
+$("btSearch").oninput=()=>{btRenderFilters();btRenderList();};
 ["btDur", "btChapter"].forEach(id => $(id).addEventListener("input", () => { $(id).dataset.touched = "1"; }));
 $("btKind").onchange = () => {
   const diag = $("btKind").value === "diagnostic";
@@ -6594,7 +6704,7 @@ $("btKind").onchange = () => {
 };
 document.querySelectorAll("[data-btpreset]").forEach(b => b.onclick = () => {
   const p = b.dataset.btpreset;
-  if (p === "clear") { Object.values(BT.f).forEach(x => x.clear()); BT.chSearch = ""; $("btMix").value = "any"; }
+  if (p === "clear") { Object.values(BT.f).forEach(x => x.clear()); BT.chSearch = ""; ["btFamily","btVisual","btSearch","btTime"].forEach(id=>$(id).value=""); $("btMix").value = "any"; }
   else { BT.f.levels = new Set(BT_PRESET_LEVELS[p]); $("btMix").value = p; }
   btRenderAll();
 });
@@ -9008,6 +9118,12 @@ $("resultBack").onclick = () => {
   if (currentUser?.role === "admin") enterAdmin(); else enterStudent();
 };
 
+for (const id of ['qbFamily','qbBank','qbChapter','qbFormat','qbLevel','qbSkill','qbVisual','qbKey','qbTime']) $(id).onchange=()=>qbRefresh();
+for (const id of ['qbSearch','qbModel']) $(id).oninput=()=>{qbPage=0;renderQbList();};
+$('qbReset').onclick=()=>{document.querySelectorAll('#qbFilterPanel input,#qbFilterPanel select').forEach(e=>e.value='');qbRefresh();};
+qbCatalog();
+$("dgSourceBank").innerHTML='<option value="">All data banks</option>'+DATA_BANKS.map(x=>`<option>${esc(x)}</option>`).join('');
+$("dgFormat").innerHTML='<option value="">All formats</option>'+QTYPES.map(x=>`<option value="${x.k}">${esc(x.label)}</option>`).join('');
 /* warn before leaving mid-exam */
 window.addEventListener("beforeunload", e => {
   if (EX && !EX.submitted) { e.preventDefault(); e.returnValue = ""; }
