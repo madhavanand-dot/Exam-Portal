@@ -1,0 +1,71 @@
+{
+  "bank": "ECAPS",
+  "questions": [
+    {
+      "id": "ECAPS_MED_PHY_LOM_E01_Q001",
+      "examType": "medical",
+      "subject": "Physics",
+      "topic": "Laws of Motion",
+      "model": "Tension in a string connecting two blocks",
+      "bankRef": "ECAPS 01 · Q1",
+      "difficulty": "Easy",
+      "qType": "single",
+      "skills": [
+        "concept"
+      ],
+      "idealTimeSec": 45,
+      "text": "Two blocks of masses $2\\,kg$ and $3\\,kg$ are pulled on a smooth floor by a force of $10\\,N$ applied on the $3\\,kg$ block. The tension in the connecting string is",
+      "options": [
+        "$2\\,N$",
+        "$4\\,N$",
+        "$6\\,N$",
+        "$10\\,N$"
+      ],
+      "correct_answer": "B",
+      "keySrc": "ai",
+      "aiKeyNote": "Solved by ChatGPT — not yet checked against the official key",
+      "solution": "$a = 10/5 = 2\\,m/s^2$; $T = 2 \\times 2 = 4\\,N$."
+    },
+    {
+      "id": "ECAPS_MED_PHY_LOM_E01_Q002",
+      "examType": "medical",
+      "subject": "Physics",
+      "topic": "Laws of Motion",
+      "bankRef": "ECAPS 01 · Q2",
+      "difficulty": "Hard",
+      "qType": "single",
+      "skills": [
+        "calculus",
+        "multiconcept"
+      ],
+      "idealTimeSec": 120,
+      "text": "A particle of mass $m$ moves under a force $F = -kv^2$. The distance it covers while its speed falls from $v_0$ to $v_0/2$ is",
+      "options": [
+        "$\\frac{m}{k}\\ln 2$",
+        "$\\frac{2m}{k}$",
+        "$\\frac{m}{2k}$",
+        "$\\frac{m}{k}$"
+      ],
+      "correct_answer": "A",
+      "keySrc": "ai",
+      "aiKeyNote": "Solved by ChatGPT — not yet checked against the official key"
+    },
+    {
+      "id": "ECAPS_MED_PHY_LOM_E01_Q003",
+      "examType": "medical",
+      "subject": "Physics",
+      "topic": "Laws of Motion",
+      "bankRef": "ECAPS 01 · Q3",
+      "difficulty": "Moderate",
+      "qType": "numerical",
+      "skills": [
+        "substitution"
+      ],
+      "idealTimeSec": 90,
+      "text": "A $5\\,kg$ block on a rough floor ($\\mu = 0.2$) is pushed with $20\\,N$. Find its acceleration in $m/s^2$ ($g = 10\\,m/s^2$).",
+      "correct_answer": "2",
+      "keySrc": "ai",
+      "aiKeyNote": "Solved by ChatGPT — not yet checked against the official key"
+    }
+  ]
+}

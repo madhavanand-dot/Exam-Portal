@@ -114,6 +114,16 @@ Do step 1 (publish the rules) first — students now read `settings/portal` (pra
 - [ ] Questions tab → upload a small JSON twice with **Safe import** ticked: the second time everything is "unchanged".
 - [ ] Diagnostic Builder → a question with "🤖 AI-proposed" → **✓ Confirm** → **Save test**.
 
+## 13. Tagged question bank and 🗂 Bank Tests
+
+- [ ] Publish `firestore.rules` again (step 1) — lets faculty read the bank index for Bank Tests.
+- [ ] Give ChatGPT the go-ahead to send **bank files** (`CLAUDE_TO_GPT.md` §4d; sample `sample_bank_questions.json`).
+- [ ] Questions → upload a bank file → **Topics → Rebuild practice index**.
+- [ ] 🗂 Bank Tests → Load question bank → pick a chapter + one data bank → **⚡ Whole chapter as a diagnostic** →
+      tick "Split into Easy / Moderate / Hard" → **Create test** → activate the Easy one in Assign Tests.
+- [ ] 🏆 Toppers quick filter → Auto-pick 30 → Timed test → **Create test** → choose the Toppers group in the dialog.
+- [ ] After a student writes it: result page shows **By approach / By question type**; Item Analysis shows the class split.
+
 ## 9. Clean up after testing
 
 - [ ] Delete the throwaway student and the **Diagnostic Dummy** test.

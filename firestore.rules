@@ -131,7 +131,7 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
     match /bankIndex/{id} {
-      allow read: if canSeeTaxonomy();
+      allow read: if canSeeTaxonomy() || isStaff();   // staff: Bank Tests filters the bank through it
       allow write: if isStaff();          // rebuilt together with the practice index
     }
 
