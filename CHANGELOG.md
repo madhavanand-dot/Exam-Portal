@@ -26,6 +26,8 @@ Format: each entry says **what changed**, and — where it matters — **what yo
   Attempts written before this change show switches without times.
 - **After deploying:** nothing to publish (no rules change).
 
+---
+
 ## 2026-10-18 — Toppers (handpicked groups) and one-file test upload for image-based papers
 
 - **Admin → 🏆 Groups (admins only):** handpick the students of a group. A **Toppers** group exists by default; add more
