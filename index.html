@@ -386,6 +386,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       <button data-atab="live"><span style="color:#e25555">●</span> Live Monitor</button>
       <button data-atab="exams">Exams</button>
       <button data-atab="diagnostic">Diagnostic Builder</button>
+      <button data-atab="banktests">🗂 Bank Tests</button>
       <button data-atab="packages">Study Packages</button>
       <button data-atab="modelbank" id="tabModelBank">Model Bank</button>
       <button data-atab="topicreports" id="tabTopicReports">Topic Reports</button>
@@ -645,6 +646,83 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <div class="field"><label>Show</label><select id="dgLibShow"><option value="">All tests</option><option value="active">Active only</option><option value="inactive">Inactive only</option></select></div>
         </div>
         <div id="dgLibList"></div>
+      </div>
+    </div>
+
+    <div id="atab-banktests" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">🗂 Bank Tests — make tests from the tagged question bank</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Questions uploaded with a <b>data bank</b> (ECAPS, Medical Modules, AIATS …), <b>question type</b>, <b>approach</b>, level, key and ideal time
+          can be filtered here — for toppers, average or weaker students — and turned into a <b>timed test</b> or an <b>untimed diagnostic</b>
+          (for example one chapter of one bank). Every test made here gets the full analysis (level, approach, question type, speed × accuracy).
+          The list comes from the bank index (one small read per subject): press <b>Topics → Rebuild practice index</b> after uploading questions.
+          Existing tests and questions are not changed.</p>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Exam type</label><select id="btType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+          <button class="btn" id="btLoadBtn">Load question bank</button>
+        </div>
+        <div id="btMsg"></div>
+      </div>
+      <div id="btBody" class="hidden">
+        <div class="card" style="margin-top:12px">
+          <h3 style="margin:0 0 8px">1 · Filter</h3>
+          <div class="flexrow" style="gap:6px;margin-bottom:8px;align-items:center">
+            <span style="font-size:13px;font-weight:600">Quick filter for:</span>
+            <button class="btn secondary" data-btpreset="toppers" title="Moderate + Hard; auto-pick mix 0 / 40 / 60 %">🏆 Toppers</button>
+            <button class="btn secondary" data-btpreset="average" title="Easy + Moderate; auto-pick mix 30 / 50 / 20 %">📘 Average students</button>
+            <button class="btn secondary" data-btpreset="support" title="Easy only; auto-pick mix 100 % Easy">🌱 Weaker students</button>
+            <button class="btn secondary" data-btpreset="clear">✕ Clear filters</button>
+          </div>
+          <div id="btFilters"></div>
+          <div class="flexrow" style="gap:14px;margin-top:6px;font-size:13px">
+            <label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="btOkOnly" checked> Teacher-confirmed keys only</label>
+            <label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="btNoDup" checked> Hide repeated pictures</label>
+            <label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="btUnused"> Not used in any test yet</label>
+            <label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="btTaggedOnly"> Only questions with a data bank</label>
+          </div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3 style="margin:0 0 8px">2 · Pick questions <span id="btCount" style="font-size:13px;color:var(--muted);font-weight:400"></span></h3>
+          <div id="btSummary"></div>
+          <div class="flexrow" style="align-items:flex-end;margin:8px 0">
+            <button class="btn secondary" id="btAllBtn">☑ Add all shown</button>
+            <button class="btn hidden" id="btChapterDiagBtn">⚡ Whole chapter as a diagnostic</button>
+            <div class="field"><label>Auto-pick how many</label><input id="btN" type="number" min="1" value="30" style="width:90px"></div>
+            <div class="field"><label>Level mix</label><select id="btMix">
+              <option value="any">As filtered (random)</option>
+              <option value="toppers">Toppers — 0 / 40 / 60 %</option>
+              <option value="average">Average — 30 / 50 / 20 %</option>
+              <option value="support">Weaker — 100 / 0 / 0 %</option>
+              <option value="even">Even — 33 / 34 / 33 %</option>
+            </select></div>
+            <button class="btn secondary" id="btAutoBtn">🎲 Auto-pick</button>
+          </div>
+          <div id="btList" style="max-height:440px;overflow:auto"></div>
+          <div id="btPreview"></div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3 style="margin:0 0 8px">3 · Selected questions <span id="btPickCount" style="font-size:13px;color:var(--muted);font-weight:400"></span></h3>
+          <div id="btPicked"></div>
+          <div class="flexrow" style="align-items:flex-end;margin-top:10px">
+            <div class="field" style="min-width:280px;flex:1"><label>Test title</label><input id="btTitle" placeholder="e.g. Laws of Motion — Toppers Test 01"></div>
+            <div class="field"><label>Kind</label><select id="btKind">
+              <option value="timed">Timed test (time limit, proctored)</option>
+              <option value="diagnostic">Diagnostic (untimed, no time limit)</option>
+            </select></div>
+            <div class="field" id="btDurWrap"><label>Time limit (min)</label><input id="btDur" type="number" min="1" style="width:90px"></div>
+          </div>
+          <div class="flexrow" style="align-items:flex-end">
+            <div class="field"><label>Chapter</label><input id="btChapter" placeholder="NCERT chapter"></div>
+            <div class="field"><label>Topic / sub-group</label><input id="btSubtopic" placeholder="optional"></div>
+            <label style="font-size:13px;display:inline-flex;gap:6px;align-items:center;margin-bottom:8px"><input type="checkbox" id="btShowIdeal"> Show ideal time to students</label>
+            <label style="font-size:13px;display:inline-flex;gap:6px;align-items:center;margin-bottom:8px"><input type="checkbox" id="btShuffle"> Shuffle options</label>
+            <label style="font-size:13px;display:inline-flex;gap:6px;align-items:center;margin-bottom:8px"><input type="checkbox" id="btKeep" checked> Keep this question order</label>
+            <label id="btSplitWrap" style="font-size:13px;display:none;gap:6px;align-items:center;margin-bottom:8px"><input type="checkbox" id="btSplit"> Split into Easy / Moderate / Hard tests</label>
+          </div>
+          <div class="flexrow"><button class="btn" id="btSaveBtn">💾 Create test → choose who takes it</button></div>
+          <div id="btSaveMsg"></div>
+        </div>
       </div>
     </div>
 
@@ -1534,7 +1612,8 @@ function normKey(v){
 }
 const validMcqKey = k => /^[A-D]{1,4}$/.test(normKey(k));
 const isMultiKey  = k => /^[A-D]{2,4}$/.test(normKey(k));
-const isMultiQ    = q => (q?.section || "A") === "A" && isMultiKey(q?.correct_answer);
+// qType "multi": tick boxes even when only one option is correct (otherwise the screen would give the answer count away)
+const isMultiQ    = q => (q?.section || "A") === "A" && (q?.qType === "multi" || isMultiKey(q?.correct_answer));
 const keyHas      = (q, L) => normKey(q?.correct_answer).includes(L);
 function isAnsCorrect(q, ans){
   if (ans == null || ans === "") return false;
@@ -1557,6 +1636,72 @@ function normLevel(v){
 const levelLabel = v => LEVELS.find(l => l.key === normLevel(v)).label;
 const levelShort = v => LEVELS.find(l => l.key === normLevel(v)).short;
 const levelOptions = sel => LEVELS.map(l => `<option value="${l.key}" ${normLevel(sel)===l.key?"selected":""}>${l.label}</option>`).join("");
+const isLevelWord = v => /^(easy|bloom|basic|medium|moderate|intermediate|hard|adv|advanced|difficult)$/i.test(String(v || "").trim());
+
+/* ----- question bank tags (data bank, question type, approach) — used by Bank Tests and the analysis ----- */
+// The coaching material folders. Upload spelling is matched case-insensitively to these; other names are kept as sent.
+const DATA_BANKS = ["AIATS Papers by Syllabus - 2026-27", "AIM 720 & FTS Question Bank 2026", "Day Wise Question Papers", "ECAPS",
+  "Engineering AIATS Question Bank", "Engineering FTS Phases 1-3 2025-26", "Engineering Modules", "Engineering PT, TE and UT 2025-26",
+  "INVICTUS Modules", "INVICTUS Tests Question Bank 2025-26", "JEE Score Book 2024", "JEE Score Individual PDFs",
+  "Medical AIATS Chapterwise - All Streams", "Medical Modules", "Medical Old Papers Question Bank", "Medical RM Modules",
+  "Momentum Booster", "N2 and AIATS Plus Sheets", "NSEP Question Bank", "Success Achiever", "Success Magnet",
+  "Toppers Question Bank (JEE TE UT FTS)"];
+function normBank(v){
+  const t = String(v ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  const k = s => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return DATA_BANKS.find(b => k(b) === k(t)) || t;
+}
+// Question type: how it is answered. numerical / integer = section B; the rest are option questions (section A).
+const QTYPES = [
+  { k: "single",        label: "Single-correct MCQ",     short: "SCQ"   },
+  { k: "multi",         label: "Multiple-correct MCQ",   short: "MCQ+"  },
+  { k: "numerical",     label: "Numerical answer",       short: "NUM"   },
+  { k: "integer",       label: "Integer answer",         short: "INT"   },
+  { k: "assertion",     label: "Assertion – Reason",     short: "A-R"   },
+  { k: "statement",     label: "Statement based",        short: "STMT"  },
+  { k: "match",         label: "Match the following",    short: "MATCH" },
+  { k: "comprehension", label: "Comprehension / passage", short: "COMP" }
+];
+function normQType(v){
+  const t = String(v ?? "").toLowerCase().replace(/[^a-z]/g, "");
+  if (!t) return "";
+  if (/^(single|scq|singlecorrect|singlechoice|mcq|mcqsingle|objective)/.test(t) && !/multi|more/.test(t)) return "single";
+  if (/multi|msq|morethanone|onetormore|oneormore/.test(t)) return "multi";
+  if (/^(numerical|nat|numeric|decimal|numericalanswer|numericalvalue)/.test(t)) return "numerical";
+  if (/^integer|^int$/.test(t)) return "integer";
+  if (/^(assertion|ar$|assertionreason)/.test(t)) return "assertion";
+  if (/^statement/.test(t)) return "statement";
+  if (/^(match|matrix|matching|column)/.test(t)) return "match";
+  if (/^(comprehension|passage|paragraph|case)/.test(t)) return "comprehension";
+  return QTYPES.some(x => x.k === t) ? t : "";
+}
+const qtypeLabel = k => QTYPES.find(x => x.k === k)?.label || "—";
+// What a question demands — the approach. A question may carry more than one.
+const SKILLS = [
+  { k: "concept",       label: "Direct concept",               short: "Concept"    },
+  { k: "substitution",  label: "Numerical substitution",       short: "Formula"    },
+  { k: "calculus",      label: "Calculus based",               short: "Calculus"   },
+  { k: "multiconcept",  label: "Inter-concept (multi-concept)", short: "Inter-concept" },
+  { k: "graphical",     label: "Graph / diagram based",        short: "Graph"      },
+  { k: "factual",       label: "NCERT fact / recall",          short: "Fact"       },
+  { k: "experimental",  label: "Experiment / practical",       short: "Expt"       }
+];
+function normSkill(v){
+  const t = String(v ?? "").toLowerCase().replace(/[^a-z]/g, "");
+  if (!t) return "";
+  if (/^(concept|direct|conceptual|theory|conceptbased|directconcept)/.test(t)) return "concept";
+  if (/(substitution|formula|plugin|directformula|numericalsub)/.test(t)) return "substitution";
+  if (/(calculus|integration|differentiation|derivative|integral)/.test(t)) return "calculus";
+  if (/(interconcept|multiconcept|multipleconcept|integrated|interchapter|mixed)/.test(t)) return "multiconcept";
+  if (/(graph|diagram|figure|plot|circuit)/.test(t)) return "graphical";
+  if (/(fact|ncert|recall|memory|statementrecall)/.test(t)) return "factual";
+  if (/(experiment|practical|lab)/.test(t)) return "experimental";
+  return "";
+}
+const skillsOf  = q => Array.isArray(q?.skills) ? q.skills : q?.skills ? [q.skills] : [];
+const skillLabel = k => SKILLS.find(x => x.k === k)?.label || k;
+const skillShort = k => SKILLS.find(x => x.k === k)?.short || k;
 // "Too quick" rule: answering a tough question in a small fraction of its ideal time usually means a blind guess
 // or outside help. Hard: under 25% of ideal (min 8 s); Moderate: under 15% (min 5 s); Easy: never flagged.
 const QUICK_RULE = { Hard: [0.25, 8], Medium: [0.15, 5] };
@@ -1580,6 +1725,35 @@ function defaultIdealSec(q, examType){
 function idealSecFor(q, idealTimes, examType){
   const v = idealTimes?.[q.docId] ?? q.idealTimeSec;
   return v > 0 ? Math.round(v) : defaultIdealSec(q, examType || q.examType);
+}
+// One student's result split by a question tag. detail: [{q, verdict, timeSec, idealSec}]; keysOf(q) → tag keys.
+function tagBreakdown(detail, keysOf){
+  const m = {};
+  detail.forEach(d => keysOf(d.q).forEach(k => {
+    const t = m[k] || (m[k] = { n: 0, c: 0, w: 0, u: 0, time: 0, ideal: 0, slow: 0 });
+    t.n++; t.time += d.timeSec || 0; t.ideal += d.idealSec || 0;
+    if (d.verdict === "correct") t.c++; else if (d.verdict === "wrong") t.w++; else t.u++;
+    if (d.verdict !== "unanswered" && d.idealSec > 0 && d.timeSec > d.idealSec) t.slow++;
+  }));
+  return m;
+}
+function tagTableHtml(title, note, m, labelOf){
+  const keys = Object.keys(m);
+  if (!keys.length) return "";
+  const rows = keys.map(k => ({ k, t: m[k], acc: Math.round(100 * m[k].c / m[k].n) })).sort((a, b) => a.acc - b.acc).map(({ k, t, acc }) =>
+    `<tr><td><b>${esc(labelOf(k))}</b></td><td>${t.n}</td><td>${t.c}</td><td>${t.w}</td><td>${t.u}</td>
+      <td><span class="analybar" style="width:${Math.max(2,acc)}px;background:${acc>=60?'var(--green)':acc>=35?'var(--orange)':'var(--red)'}"></span> ${acc}%</td>
+      <td>${fmtSec(t.time)} / ${fmtSec(t.ideal)}</td><td>${t.slow}</td>
+      <td style="font-size:12.5px">${acc >= 75 && t.slow <= t.n / 3 ? "Strong" : acc >= 60 ? (t.slow > t.n / 3 ? "Correct but slow — timed practice" : "Fine — keep practising") : t.u > t.w ? "Mostly skipped — learn the method first" : "Weak — practise this kind of question"}</td></tr>`).join("");
+  return `<h2 class="sec">${title}</h2>${note ? `<p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">${note}</p>` : ""}
+    <table class="tbl"><thead><tr><th></th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy (of all)</th><th>Time taken / ideal</th><th>Slower than ideal</th><th>Read-out</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function tagAnalysisHtml(detail){
+  const typed = detail.filter(d => d.q.qType), skilled = detail.filter(d => skillsOf(d.q).length), banked = detail.filter(d => d.q.bank);
+  return tagTableHtml("By approach (what the question demands)", "A question can need more than one approach, so it can count in more than one row.",
+      tagBreakdown(skilled, q => skillsOf(q)), skillLabel)
+    + tagTableHtml("By question type", "", tagBreakdown(typed, q => [q.qType]), qtypeLabel)
+    + (new Set(banked.map(d => d.q.bank)).size > 1 ? tagTableHtml("By data bank (source)", "", tagBreakdown(banked, q => [q.bank]), k => k) : "");
 }
 // Speed × accuracy bucket for one answered/unanswered question — the core of the diagnostic read-out.
 function speedBucket(verdict, timeSec, idealSec){
@@ -1901,6 +2075,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="keypatch") initKeyPatch();
     if (b.dataset.atab==="groups") grInit();
     if (b.dataset.atab==="diagnostic") initDiagnostic();
+    if (b.dataset.atab==="banktests") btInit();
     if (b.dataset.atab==="assign") { try { dgLibRender(); } catch(e) { console.warn(e); } }
     if (b.dataset.atab==="custompractice") initCustomPractice();
     lmStop(); if (b.dataset.atab==="live") $("lmDot").innerHTML = "not listening — press ▶ Start (listening reads the attempts of active tests)";
@@ -2062,6 +2237,29 @@ function initItemAnalysis(){
   $("iaBatch").innerHTML = `<option value="">(all batches)</option>` + batches.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join("");
 }
 const iaPct = (a,b) => b ? Math.round(1000*a/b)/10 : 0;
+// Class-level split of the test by approach, question type, level and data bank (tagged bank questions)
+function iaTagRollup(){
+  const block = (title, keysOf, labelOf) => {
+    const m = {};
+    iaRows.forEach(r => keysOf(r.q).forEach(k => {
+      const t = m[k] || (m[k] = { q: 0, correct: 0, wrong: 0, blank: 0, n: 0, time: 0, ideal: 0 });
+      t.q++; t.correct += r.correct; t.wrong += r.wrong; t.blank += r.blank; t.n += r.n; t.time += r.avgTime; t.ideal += r.idealSec || 0;
+    }));
+    const list = Object.entries(m).map(([k, t]) => ({ k, ...t, pct: iaPct(t.correct, t.n) })).sort((a, b) => a.pct - b.pct);
+    if (!list.length) return "";
+    return `<div style="flex:1;min-width:320px"><h3 style="margin:10px 0 6px;color:var(--blue)">${title}</h3>
+      <table class="tbl"><thead><tr><th></th><th>Qs</th><th>% Correct</th><th>% Wrong</th><th>% Blank</th><th>Avg time / Q vs ideal</th></tr></thead><tbody>` +
+      list.map(t => `<tr><td>${esc(labelOf(t.k))}</td><td>${t.q}</td><td style="${iaHeat(t.pct)}"><b>${t.pct}%</b></td>
+        <td>${iaPct(t.wrong, t.n)}%</td><td>${iaPct(t.blank, t.n)}%</td><td>${fmtSec(t.time / t.q)} / ${fmtSec(t.ideal / t.q)}</td></tr>`).join("") + `</tbody></table></div>`;
+  };
+  const html = block("By level", q => [normLevel(q.difficulty)], levelLabel)
+    + block("By approach", q => skillsOf(q), skillLabel)
+    + block("By question type", q => q.qType ? [q.qType] : [], qtypeLabel)
+    + (new Set(iaRows.map(r => r.q.bank).filter(Boolean)).size > 1 ? block("By data bank", q => q.bank ? [q.bank] : [], k => k) : "");
+  return `<h2 class="sec">Class split — level, approach, question type</h2>
+    <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">% of everyone who wrote the test. Approach and question type exist on questions from the tagged question bank (Bank Tests).</p>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">${html}</div>`;
+}
 function iaHeat(p, invert){           // p = 0..100; green good
   const good = invert ? 100-p : p;
   if (good >= 75) return "background:#e2f5e9";
@@ -2263,7 +2461,7 @@ function renderItemAnalysis(){
     topics.map(t=>`<tr><td>${esc(t.key)}</td><td>${t.q}</td>
       <td style="${iaHeat(t.pct)}"><b>${t.pct}%</b></td>
       <td>${iaPct(t.wrong,t.n)}%</td><td>${iaPct(t.blank,t.n)}%</td><td>${fmtSec(t.time/t.q)}</td></tr>`).join("") +
-    `</tbody></table>` + iaConceptMatrix();
+    `</tbody></table>` + iaTagRollup() + iaConceptMatrix();
 
   const sorters = {
     acc:   (a,b)=>a.pctCorrect-b.pctCorrect,
@@ -2602,7 +2800,7 @@ function nbRender(NB){
       }).join("") : "";
       out.innerHTML = `<div style="border:1px solid var(--border);border-radius:6px;padding:10px;background:#fbfcfd">
         <div style="font-size:15px;line-height:1.55;margin-bottom:6px">${q.text || ""}${imgHtml(q.image)}</div>${opts}
-        <div style="margin-top:6px"><b>Correct answer:</b> ${esc(q.correct_answer)}${isMultiQ(q) ? " (more than one correct)" : ""}${it.last.verdict === "wrong" ? ` &nbsp;·&nbsp; <b>Yours:</b> ${esc(String(it.last.answer))}` : ""}</div>
+        <div style="margin-top:6px"><b>Correct answer:</b> ${esc(q.correct_answer)}${isMultiKey(q.correct_answer) ? " (more than one correct)" : ""}${it.last.verdict === "wrong" ? ` &nbsp;·&nbsp; <b>Yours:</b> ${esc(String(it.last.answer))}` : ""}</div>
         ${solutionHtml(q)}</div>`;
       typeset(out);
     } catch(e) { out.textContent = "Could not load: " + e.message; }
@@ -3393,9 +3591,13 @@ $("qUploadBtn").onclick = async () => {
   if (!f) { say("Choose a JSON file first."); return; }
   let data;
   try { data = JSON.parse(await f.text()); } catch(e){ say("Invalid JSON: " + e.message); return; }
-  let pack = null;
-  if (data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.questions)) { pack = data.exam ?? {}; data = data.questions; say("Test file: questions + a test (created inactive)."); }
-  if (!Array.isArray(data)) { say('JSON root must be an array of questions, or a test file { "exam": {…}, "questions": […] }.'); return; }
+  let pack = null, fileBank = "";
+  if (data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.questions)) {
+    // { "bank": "ECAPS", "questions": [...] } = a bank file: every question goes into that data bank (no test is created)
+    if (data.exam == null && typeof data.bank === "string" && data.bank.trim()) { fileBank = normBank(data.bank); data = data.questions; say(`Bank file: questions for the data bank "${fileBank}".`); }
+    else { pack = data.exam ?? {}; data = data.questions; say("Test file: questions + a test (created inactive)."); }
+  }
+  if (!Array.isArray(data)) { say('JSON root must be an array of questions, a bank file { "bank": "…", "questions": […] } or a test file { "exam": {…}, "questions": […] }.'); return; }
 
   // validate
   const valid = [], errors = [];
@@ -3406,8 +3608,25 @@ $("qUploadBtn").onclick = async () => {
     if (!q.subject)                           return errors.push(`${where_}: missing subject`);
     if (!["medical","engineering"].includes(q.examType)) return errors.push(`${where_}: examType must be "medical" or "engineering"`);
     if (!EXAM_CONFIG[q.examType].subjects.includes(q.subject)) return errors.push(`${where_}: subject "${q.subject}" not valid for ${q.examType}`);
-    const section = q.section || "A";
+    // data bank / question type / approach (Bank Tests). A question that names its bank must carry every tag.
+    if (fileBank && (q.bank == null || q.bank === "")) q.bank = fileBank;
+    const bank = normBank(q.bank);
+    const rawType = q.qType ?? q.questionType, qType = normQType(rawType);
+    if (rawType != null && String(rawType).trim() && !qType) return errors.push(`${where_}: unknown qType "${rawType}" (use ${QTYPES.map(x => x.k).join(", ")})`);
+    const rawSkills = q.skills ?? q.skill ?? q.approach;
+    const skillList = (Array.isArray(rawSkills) ? rawSkills : rawSkills == null ? [] : String(rawSkills).split(/[,;|/+]/)).map(x => String(x).trim()).filter(Boolean);
+    const badSkill = skillList.find(x => !normSkill(x));
+    if (badSkill) return errors.push(`${where_}: unknown approach "${badSkill}" in skills (use ${SKILLS.map(x => x.k).join(", ")})`);
+    const skills = [...new Set(skillList.map(normSkill))];
+    const section = q.section || (qType === "numerical" || qType === "integer" ? "B" : "A");
     if (!["A","B"].includes(section))         return errors.push(`${where_}: section must be A or B`);
+    if (qType && (section === "B") !== (qType === "numerical" || qType === "integer")) return errors.push(`${where_}: qType "${qType}" does not fit section ${section} (numerical / integer = section B, the others = section A)`);
+    if (bank) {
+      const miss = [String(q.correct_answer ?? "").trim() === "" && "correct_answer", !isLevelWord(q.difficulty) && "difficulty (Easy / Moderate / Hard)",
+        !(Number(q.idealTimeSec) > 0) && "idealTimeSec (seconds)", !qType && "qType", !skills.length && "skills (approach)"].filter(Boolean);
+      if (miss.length) return errors.push(`${where_}: a data-bank question needs ${miss.join(", ")}`);
+    }
+    if (qType === "single" && isMultiKey(q.correct_answer)) return errors.push(`${where_}: qType "single" but the key "${q.correct_answer}" has several letters (use qType "multi")`);
     const hasImg = typeof q.image === "string" && q.image.length > 0;
     if (!q.text && !hasImg)                    return errors.push(`${where_}: needs "text" or "image"`);
     const optImgs = Array.isArray(q.optionImages) ? q.optionImages : null;
@@ -3427,6 +3646,11 @@ $("qUploadBtn").onclick = async () => {
                  text: q.text || "",
                  options: section==="A" ? (q.options || ["","","",""]) : [],
                  topic: q.topic || "", difficulty: normLevel(q.difficulty) };
+    delete clean.skill; delete clean.approach; delete clean.questionType;
+    if (bank) clean.bank = bank; else delete clean.bank;
+    if (qType) clean.qType = qType; else delete clean.qType;
+    if (skills.length) clean.skills = skills; else delete clean.skills;
+    if (Number(q.idealTimeSec) > 0) clean.idealTimeSec = Math.round(Number(q.idealTimeSec));
     if (hasImg) clean.image = q.image; else delete clean.image;
     if (q.solutionImage != null && !(typeof q.solutionImage === "string" && /^data:image\//.test(q.solutionImage))) return errors.push(`${where_}: solutionImage must be a data:image/... URI`);
     if (section==="A" && optImgs) clean.optionImages = optImgs; else delete clean.optionImages;
@@ -3472,7 +3696,7 @@ $("qUploadBtn").onclick = async () => {
   if ($("qSafe").checked) {
     say("Safe import: checking the bank for these ids and pictures…");
     const plan = { new: [], update: [], same: [], conflict: [], dup: [] };
-    const sameContent = (a, b) => ["correct_answer", "text", "topic", "difficulty", "section", "model", "modelCode", "solution", "idealTimeSec", "imgHash"]
+    const sameContent = (a, b) => ["correct_answer", "text", "topic", "difficulty", "section", "model", "modelCode", "solution", "idealTimeSec", "imgHash", "bank", "bankRef", "qType", "skills"]
       .every(k => String(a[k] ?? "") === String(b[k] ?? "")) && JSON.stringify(a.options || []) === JSON.stringify(b.options || []);
     for (let i = 0; i < valid.length; i++) {
       const q = valid[i];
@@ -5669,19 +5893,25 @@ $("tmIndexBtn").onclick = async () => {
       });
     });
     // full bank index for the Model Bank (admin view): every question incl. no-key ones and repeated pictures
-    const full = {}, picSeen = new Set();
+    // also feeds Bank Tests: data bank (b = position in the doc's "banks" list, to keep the doc small), question type,
+    // approach(es) and the question's own ideal time
+    const full = {}, fullBanks = {}, picSeen = new Set();
     allBankCache.forEach(q => {
       if (!q.examType || !q.subject) return;
       const k = `${q.examType}__${q.subject}`;
       const pk = q.imgHash ? `${q.examType}|${q.imgHash}` : null, dup = pk && picSeen.has(pk);
       if (pk) picSeen.add(pk);
+      const banks = fullBanks[k] = fullBanks[k] || [], bank = q.bank ? normBank(q.bank) : "";
+      if (bank && !banks.includes(bank)) banks.push(bank);
       (full[k] = full[k] || []).push({ i: q.docId, t: (q.topic||"").trim(), d: normLevel(q.difficulty), s: q.section || "A",
         ...(q.modelCode ? { mc: String(q.modelCode).trim() } : {}), ...(q.model ? { m: String(q.model).trim() } : {}),
         k: hasKey(q) ? (q.keySrc === "ai" ? "ai" : "ok") : q.keySrc === "ai-unsure" ? "unsure" : q.keySrc === "pending-ai" ? "pending" : "none",
+        ...(bank ? { b: banks.indexOf(bank) } : {}), ...(q.qType ? { qt: q.qType } : {}),
+        ...(skillsOf(q).length ? { sk: skillsOf(q) } : {}), ...(q.idealTimeSec > 0 ? { it: Math.round(q.idealTimeSec) } : {}),
         ...(dup ? { dup: 1 } : {}) });
     });
     for (const k of Object.keys(full)) {
-      try { await setDoc(doc(db,"bankIndex",k), { q: full[k], count: full[k].length, updatedAt: serverTimestamp(), updatedBy: currentUser.name }); }
+      try { await setDoc(doc(db,"bankIndex",k), { q: full[k], banks: fullBanks[k] || [], count: full[k].length, updatedAt: serverTimestamp(), updatedBy: currentUser.name }); }
       catch(e) { setMsg($("tmMsg"), "Bank index (Model Bank) not saved: " + e.message + " — publish the updated firestore.rules.", false); }
     }
     TX.bank = {};
@@ -5832,7 +6062,7 @@ function previewQuestion(q){
       Uploaded ${fmtDate(q.createdAt)}${q.createdByName?` by ${esc(q.createdByName)}`:""} &bull; Used in: ${used.length?used.join(", "):"— not added to any test yet"}</div>
     <div style="font-size:15.5px;line-height:1.6;margin-bottom:10px">${q.text||""}${imgHtml(q.image)}</div>
     ${opts}
-    <div style="margin-top:8px;font-size:13px"><b>Correct answer:</b> ${esc(q.correct_answer)}${isMultiQ(q)?" (more than one correct)":""}</div>`;
+    <div style="margin-top:8px;font-size:13px"><b>Correct answer:</b> ${esc(q.correct_answer)}${isMultiKey(q.correct_answer)?" (more than one correct)":""}</div>`;
   $("qpvBack").classList.remove("hidden");
   typeset($("qpvBody"));
 }
@@ -6209,6 +6439,295 @@ $("audConfirm").onclick = async () => {
   $("audBack").classList.add("hidden");
   audTargetDocId = null;
   loadExams();
+};
+
+/* ============================================================
+   BANK TESTS — filter the tagged question bank (data bank, chapter, level, question type, approach), pick by hand or
+   auto-pick by a level mix, then save a timed test or an untimed diagnostic (e.g. a whole chapter of one bank) and
+   choose who takes it. Reads only the bankIndex docs (one per subject), never the whole bank.
+   ============================================================ */
+const BT = { type: "medical", rows: [], picked: [], loaded: false,
+  f: { subjects: new Set(), banks: new Set(), chapters: new Set(), levels: new Set(), qtypes: new Set(), skills: new Set() }, chSearch: "" };
+const BT_MIX = { toppers: { Easy: 0, Medium: 0.4, Hard: 0.6 }, average: { Easy: 0.3, Medium: 0.5, Hard: 0.2 },
+  support: { Easy: 1, Medium: 0, Hard: 0 }, even: { Easy: 0.33, Medium: 0.34, Hard: 0.33 } };
+const BT_PRESET_LEVELS = { toppers: ["Medium", "Hard"], average: ["Easy", "Medium"], support: ["Easy"] };
+const BT_NOBANK = "(no data bank — older questions)";
+function btInit(){
+  if (!BT.loaded) setMsg($("btMsg"), "Choose the exam type and press Load question bank.", true);
+}
+$("btLoadBtn").onclick = async () => {
+  const type = $("btType").value;
+  $("btLoadBtn").disabled = true;
+  try {
+    setMsg($("btMsg"), "Reading the bank index…", true);
+    const rows = [];
+    for (const sub of EXAM_CONFIG[type].subjects) {
+      const sn = await getDoc(doc(db,"bankIndex",`${type}__${sub}`));
+      if (!sn.exists()) continue;
+      const d = sn.data(), banks = d.banks || [];
+      (d.q || []).forEach(e => rows.push({ i: e.i, sub, t: e.t || "", d: normLevel(e.d), s: e.s || "A", mc: e.mc || "", m: e.m || "", k: e.k || "none",
+        bank: e.b != null ? (banks[e.b] || "") : "", qt: e.qt || "", sk: e.sk || [], it: e.it || 0, dup: !!e.dup }));
+    }
+    if (BT.type !== type) { BT.picked = []; Object.values(BT.f).forEach(x => x.clear()); }
+    BT.type = type; BT.rows = rows; BT.loaded = true;
+    $("btBody").classList.toggle("hidden", !rows.length);
+    const tagged = rows.filter(r => r.bank).length;
+    setMsg($("btMsg"), rows.length ? `${rows.length} questions in the index (${tagged} with a data bank).` +
+      (tagged ? "" : " None carry a data bank yet — upload bank files (see the format in CLAUDE_TO_GPT.md §4d) and rebuild the practice index.")
+      : "The bank index is empty — Topics → Rebuild practice index first.", !!rows.length);
+    btRenderAll();
+  } catch(e) { setMsg($("btMsg"), "Could not read the bank index: " + e.message + (String(e.message).includes("permission") ? " — publish the updated firestore.rules (faculty need read access to bankIndex)." : "")); }
+  finally { $("btLoadBtn").disabled = false; }
+};
+function btUsedCounts(){
+  const m = {};
+  examsCache.forEach(e => (e.questionIds || []).forEach(id => { m[id] = (m[id] || 0) + 1; }));
+  return m;
+}
+// rows passing every filter except the one named in `skip` (so a chip group shows counts for its own choices)
+function btFiltered(skip){
+  const f = BT.f, used = $("btUnused").checked ? btUsedCounts() : null;
+  return BT.rows.filter(r =>
+    (skip === "subjects" || !f.subjects.size || f.subjects.has(r.sub)) &&
+    (skip === "banks" || !f.banks.size || f.banks.has(r.bank || BT_NOBANK)) &&
+    (skip === "chapters" || !f.chapters.size || f.chapters.has(r.t)) &&
+    (skip === "levels" || !f.levels.size || f.levels.has(r.d)) &&
+    (skip === "qtypes" || !f.qtypes.size || f.qtypes.has(r.qt || (r.s === "B" ? "numerical" : ""))) &&
+    (skip === "skills" || !f.skills.size || r.sk.some(x => f.skills.has(x))) &&
+    (!$("btOkOnly").checked || r.k === "ok") && (!$("btNoDup").checked || !r.dup) &&
+    (!$("btTaggedOnly").checked || r.bank) && (!used || !used[r.i]));
+}
+function btChips(name, items){
+  // items: [{v, label, n}]
+  const sel = BT.f[name];
+  return items.map(x => `<button type="button" data-btf="${name}" data-v="${esc(x.v)}" class="btn ${sel.has(x.v) ? "" : "secondary"}"
+    style="padding:3px 10px;font-size:12.5px;margin:0 6px 6px 0;${x.n ? "" : "opacity:.45"}">${esc(x.label)} <span style="opacity:.75">${x.n}</span></button>`).join("");
+}
+const btCount = (rows, keyOf) => { const m = {}; rows.forEach(r => [].concat(keyOf(r)).forEach(k => { m[k] = (m[k] || 0) + 1; })); return m; };
+function btRenderFilters(){
+  const subs = btCount(btFiltered("subjects"), r => r.sub), banks = btCount(btFiltered("banks"), r => r.bank || BT_NOBANK),
+        lv = btCount(btFiltered("levels"), r => r.d), qt = btCount(btFiltered("qtypes"), r => r.qt || (r.s === "B" ? "numerical" : "")),
+        sk = btCount(btFiltered("skills"), r => r.sk), chs = btCount(btFiltered("chapters"), r => r.t);
+  const allBanks = [...new Set(BT.rows.map(r => r.bank || BT_NOBANK))]
+    .sort((a, b) => (a === BT_NOBANK) - (b === BT_NOBANK) || (DATA_BANKS.indexOf(a) + 1 || 999) - (DATA_BANKS.indexOf(b) + 1 || 999) || a.localeCompare(b));
+  const chapters = [...new Set(BT.rows.filter(r => !BT.f.subjects.size || BT.f.subjects.has(r.sub)).map(r => r.t))].sort((a, b) => a.localeCompare(b));
+  const q = BT.chSearch.toLowerCase();
+  const row = (label, html) => `<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px"><div style="width:110px;font-size:12.5px;font-weight:700;padding-top:5px">${label}</div><div style="flex:1">${html}</div></div>`;
+  $("btFilters").innerHTML =
+    row("Subject", btChips("subjects", EXAM_CONFIG[BT.type].subjects.filter(s => BT.rows.some(r => r.sub === s)).map(s => ({ v: s, label: s, n: subs[s] || 0 })))) +
+    row("Data bank", btChips("banks", allBanks.map(b => ({ v: b, label: b, n: banks[b] || 0 })))) +
+    row("Level", btChips("levels", LEVELS.map(L => ({ v: L.key, label: L.label, n: lv[L.key] || 0 })))) +
+    row("Question type", btChips("qtypes", QTYPES.map(x => ({ v: x.k, label: x.label, n: qt[x.k] || 0 })).filter(x => x.n || BT.f.qtypes.has(x.v)).concat(qt[""] ? [{ v: "", label: "(not tagged)", n: qt[""] }] : []))) +
+    row("Approach", btChips("skills", SKILLS.map(x => ({ v: x.k, label: x.label, n: sk[x.k] || 0 })))) +
+    row("Chapter", `<input id="btChSearch" placeholder="search chapters" value="${esc(BT.chSearch)}" style="max-width:240px;margin-bottom:6px">
+      ${BT.f.chapters.size ? `<span style="font-size:12px;margin-left:8px">${BT.f.chapters.size} chosen · <a href="#" id="btChClear">clear</a></span>` : ""}
+      <div style="max-height:150px;overflow:auto">${btChips("chapters", chapters.filter(c => !q || c.toLowerCase().includes(q) || BT.f.chapters.has(c)).map(c => ({ v: c, label: c || "(no chapter)", n: chs[c] || 0 })))}</div>`);
+  $("btFilters").querySelectorAll("[data-btf]").forEach(b => b.onclick = () => {
+    const set = BT.f[b.dataset.btf], v = b.dataset.v;
+    set.has(v) ? set.delete(v) : set.add(v);
+    btRenderAll();
+  });
+  $("btChSearch").oninput = e => { BT.chSearch = e.target.value; const pos = e.target.selectionStart; btRenderFilters(); $("btChSearch").focus(); $("btChSearch").setSelectionRange(pos, pos); };
+  if ($("btChClear")) $("btChClear").onclick = e => { e.preventDefault(); BT.f.chapters.clear(); btRenderAll(); };
+}
+function btIdeal(r){ return r.it > 0 ? r.it : defaultIdealSec({ difficulty: r.d, section: r.s }, BT.type); }
+const btKeyBadge = k => k === "ok" ? "" : `<span class="badge ${k === "ai" ? "zero" : "neg"}" title="${k === "ai" ? "AI-proposed key, not yet confirmed" : "no usable key"}">${k === "ai" ? "AI key" : k}</span>`;
+function btRenderList(){
+  const rows = btFiltered(), pickedSet = new Set(BT.picked.map(r => r.i)), used = btUsedCounts();
+  $("btCount").textContent = `— ${rows.length} match`;
+  // level × approach overview of what matches
+  const lvl = LEVELS.map(L => rows.filter(r => r.d === L.key));
+  const skillCols = SKILLS.filter(x => rows.some(r => r.sk.includes(x.k)));
+  $("btSummary").innerHTML = rows.length ? `<table class="tbl" style="font-size:12.5px;width:auto"><thead><tr><th>Level</th><th>Qs</th>${skillCols.map(x => `<th>${esc(x.short)}</th>`).join("")}<th>Avg ideal time</th></tr></thead><tbody>` +
+    lvl.map((rs, j) => `<tr><td><b>${LEVELS[j].label}</b></td><td>${rs.length}</td>${skillCols.map(x => `<td>${rs.filter(r => r.sk.includes(x.k)).length || ""}</td>`).join("")}
+      <td>${rs.length ? fmtSec(rs.reduce((t, r) => t + btIdeal(r), 0) / rs.length) : "—"}</td></tr>`).join("") + `</tbody></table>` : "";
+  const ch = [...BT.f.chapters];
+  $("btChapterDiagBtn").classList.toggle("hidden", !(ch.length === 1 && rows.length));
+  if (ch.length === 1) $("btChapterDiagBtn").textContent = `⚡ Whole chapter as a diagnostic — ${ch[0]}${BT.f.banks.size === 1 ? " · " + [...BT.f.banks][0] : ""} (${rows.length} Qs)`;
+  const LIM = 400;
+  $("btList").innerHTML = rows.length ? `<table class="tbl" style="font-size:12.5px"><thead><tr><th></th><th>Id</th><th>Data bank</th><th>Subject — Chapter</th><th>Model</th><th>Level</th><th>Type</th><th>Approach</th><th>Ideal</th><th>Used</th><th></th></tr></thead><tbody>` +
+    rows.slice(0, LIM).map(r => `<tr><td><input type="checkbox" data-btpick="${esc(r.i)}" ${pickedSet.has(r.i) ? "checked" : ""}></td>
+      <td style="font-family:monospace;font-size:11.5px">${esc(r.i)}</td><td>${esc(r.bank || "—")}</td><td>${esc(r.sub)} — ${esc(r.t || "—")}</td>
+      <td>${esc([r.mc, r.m].filter(Boolean).join(" · ") || "—")}</td><td>${esc(levelLabel(r.d))}</td>
+      <td>${esc(r.qt ? QTYPES.find(x => x.k === r.qt)?.short || r.qt : r.s === "B" ? "NUM" : "—")}</td><td>${esc(r.sk.map(skillShort).join(", ") || "—")}</td>
+      <td>${fmtSec(btIdeal(r))}</td><td>${used[r.i] ? used[r.i] + "×" : ""}</td>
+      <td style="white-space:nowrap">${btKeyBadge(r.k)} <button class="btn secondary" style="padding:1px 7px;font-size:11.5px" data-btview="${esc(r.i)}">👁</button></td></tr>`).join("") +
+    `</tbody></table>${rows.length > LIM ? `<p style="font-size:12px;color:var(--muted)">Showing the first ${LIM} of ${rows.length} — narrow the filters, or use “Add all shown” / Auto-pick (they use every match).</p>` : ""}`
+    : `<p style="font-size:13px;color:var(--muted)">No question matches these filters.</p>`;
+  $("btList").querySelectorAll("[data-btpick]").forEach(c => c.onchange = () => {
+    const r = BT.rows.find(x => x.i === c.dataset.btpick);
+    if (c.checked) { if (r && !BT.picked.some(x => x.i === r.i)) BT.picked.push(r); }
+    else BT.picked = BT.picked.filter(x => x.i !== c.dataset.btpick);
+    btRenderPicked();
+  });
+  $("btList").querySelectorAll("[data-btview]").forEach(b => b.onclick = () => btPreview(b.dataset.btview));
+}
+function btRenderPicked(){
+  const P = BT.picked, tot = P.reduce((t, r) => t + btIdeal(r), 0);
+  const by = (keyOf, labelOf) => Object.entries(btCount(P, keyOf)).map(([k, n]) => `${esc(labelOf(k))} ${n}`).join(" · ");
+  $("btPickCount").textContent = P.length ? `— ${P.length} question(s), total ideal time ${fmtSec(tot)}` : "";
+  $("btPicked").innerHTML = P.length ? `<p style="font-size:12.5px;margin:0 0 6px"><b>Levels:</b> ${by(r => r.d, levelLabel)} &nbsp;|&nbsp; <b>Approach:</b> ${by(r => r.sk.length ? r.sk : ["—"], k => k === "—" ? "untagged" : skillShort(k))}
+      &nbsp;|&nbsp; <b>Type:</b> ${by(r => r.qt || (r.s === "B" ? "numerical" : "—"), k => k === "—" ? "untagged" : QTYPES.find(x => x.k === k)?.short || k)} &nbsp;|&nbsp; <b>Banks:</b> ${by(r => r.bank || "—", k => k)}</p>
+    <div style="max-height:220px;overflow:auto"><table class="tbl" style="font-size:12.5px"><tbody>` +
+    P.map((r, j) => `<tr><td>${j + 1}</td><td style="font-family:monospace;font-size:11.5px">${esc(r.i)}</td><td>${esc(r.sub)} — ${esc(r.t)}</td><td>${esc(levelLabel(r.d))}</td>
+      <td>${esc(r.sk.map(skillShort).join(", "))}</td><td>${fmtSec(btIdeal(r))}</td>
+      <td style="white-space:nowrap"><button class="btn secondary" style="padding:1px 7px" data-btup="${j}" ${j ? "" : "disabled"}>↑</button>
+      <button class="btn secondary" style="padding:1px 7px" data-btrm="${j}">✕</button></td></tr>`).join("") +
+    `</tbody></table></div><button class="btn secondary" id="btClearPick" style="margin-top:6px">Clear selection</button>`
+    : `<p style="font-size:13px;color:var(--muted)">Tick questions above, or use Auto-pick / Whole chapter.</p>`;
+  $("btPicked").querySelectorAll("[data-btrm]").forEach(b => b.onclick = () => { BT.picked.splice(+b.dataset.btrm, 1); btRenderPicked(); btRenderList(); });
+  $("btPicked").querySelectorAll("[data-btup]").forEach(b => b.onclick = () => { const j = +b.dataset.btup; [P[j - 1], P[j]] = [P[j], P[j - 1]]; btRenderPicked(); });
+  if ($("btClearPick")) $("btClearPick").onclick = () => { BT.picked = []; btRenderPicked(); btRenderList(); };
+  // defaults for the save form
+  if ($("btKind").value === "timed" && P.length && !$("btDur").dataset.touched) $("btDur").value = Math.max(1, Math.ceil(tot / 60));
+  const chs = [...new Set(P.map(r => r.t))];
+  if (chs.length === 1 && !$("btChapter").dataset.touched) $("btChapter").value = chs[0];
+}
+function btRenderAll(){ btRenderFilters(); btRenderList(); btRenderPicked(); }
+["btOkOnly", "btNoDup", "btUnused", "btTaggedOnly"].forEach(id => $(id).onchange = btRenderAll);
+["btDur", "btChapter"].forEach(id => $(id).addEventListener("input", () => { $(id).dataset.touched = "1"; }));
+$("btKind").onchange = () => {
+  const diag = $("btKind").value === "diagnostic";
+  $("btDurWrap").style.display = diag ? "none" : "";
+  $("btSplitWrap").style.display = diag ? "inline-flex" : "none";
+  btRenderPicked();
+};
+document.querySelectorAll("[data-btpreset]").forEach(b => b.onclick = () => {
+  const p = b.dataset.btpreset;
+  if (p === "clear") { Object.values(BT.f).forEach(x => x.clear()); BT.chSearch = ""; $("btMix").value = "any"; }
+  else { BT.f.levels = new Set(BT_PRESET_LEVELS[p]); $("btMix").value = p; }
+  btRenderAll();
+});
+$("btAllBtn").onclick = () => {
+  const have = new Set(BT.picked.map(r => r.i));
+  btFiltered().forEach(r => { if (!have.has(r.i)) BT.picked.push(r); });
+  btRenderList(); btRenderPicked();
+};
+function btShuffle(a){ for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// spread the picks over approaches and chapters: round-robin over (first approach, chapter) groups of a shuffled pool
+function btSpread(pool, n){
+  const g = {};
+  btShuffle(pool.slice()).forEach(r => { const k = (r.sk[0] || "") + "|" + r.t; (g[k] = g[k] || []).push(r); });
+  const lists = Object.values(g), out = [];
+  while (out.length < n && lists.some(l => l.length)) lists.forEach(l => { if (l.length && out.length < n) out.push(l.shift()); });
+  return out;
+}
+$("btAutoBtn").onclick = () => {
+  const n = parseInt($("btN").value, 10);
+  if (!(n > 0)) { uiAlert("Enter how many questions to pick."); return; }
+  const have = new Set(BT.picked.map(r => r.i)), pool = btFiltered().filter(r => !have.has(r.i));
+  const mix = BT_MIX[$("btMix").value], got = [], short = [];
+  if (!mix) got.push(...btSpread(pool, n));
+  else {
+    const want = {}; let left = n;
+    LEVELS.forEach((L, j) => { want[L.key] = j === LEVELS.length - 1 ? left : Math.round(n * mix[L.key]); left -= want[L.key]; });
+    LEVELS.forEach(L => {
+      if (!want[L.key]) return;
+      const part = btSpread(pool.filter(r => r.d === L.key), want[L.key]);
+      if (part.length < want[L.key]) short.push(`${L.label}: wanted ${want[L.key]}, only ${part.length}`);
+      got.push(...part);
+    });
+  }
+  // easy → hard order inside the new picks
+  got.sort((a, b) => LEVELS.findIndex(L => L.key === a.d) - LEVELS.findIndex(L => L.key === b.d));
+  BT.picked.push(...got);
+  btRenderList(); btRenderPicked();
+  setMsg($("btSaveMsg"), `Auto-picked ${got.length} question(s).` + (short.length ? ` Not enough questions — ${short.join("; ")}. Nothing was filled from another level.` : ""), !short.length);
+};
+$("btChapterDiagBtn").onclick = () => {
+  const ch = [...BT.f.chapters][0], bank = BT.f.banks.size === 1 ? [...BT.f.banks][0] : "";
+  const rows = btFiltered();
+  // whole chapter, easy → hard
+  BT.picked = rows.slice().sort((a, b) => LEVELS.findIndex(L => L.key === a.d) - LEVELS.findIndex(L => L.key === b.d));
+  $("btKind").value = "diagnostic"; $("btKind").onchange();
+  $("btChapter").value = ch; $("btChapter").dataset.touched = "1";
+  $("btSubtopic").value = bank && bank !== BT_NOBANK ? bank : "";
+  $("btTitle").value = `${ch}${bank && bank !== BT_NOBANK ? " — " + bank : ""} — Diagnostic`;
+  btRenderList(); btRenderPicked();
+  $("btTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+};
+// one question in full (one read), with its tags editable
+async function btPreview(id){
+  const box = $("btPreview");
+  box.innerHTML = `<div class="card" style="margin-top:10px">Loading ${esc(id)}…</div>`;
+  let q;
+  try { const sn = await getDoc(doc(db,"questions",id)); if (!sn.exists()) { box.innerHTML = `<div class="msg err">${esc(id)} is no longer in the bank — rebuild the practice index.</div>`; return; } q = { docId: sn.id, ...sn.data() }; }
+  catch(e) { box.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; return; }
+  const sk = new Set(skillsOf(q));
+  box.innerHTML = `<div class="card" style="margin-top:10px;border-color:var(--blue)">
+    <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-family:monospace">${esc(q.id || q.docId)}</b><button class="btn secondary" style="padding:1px 8px" id="btPvClose">✕</button></div>
+    <p style="font-size:12.5px;color:var(--muted);margin:4px 0">${esc(q.bank || "no data bank")}${q.bankRef ? " · " + esc(q.bankRef) : ""} · ${esc(q.subject)} — ${esc(q.topic || "—")}${q.model ? " · " + esc(q.model) : ""}</p>
+    <div class="qexp">${q.text || ""}${imgHtml(q.image)}${q.options?.length && (q.section || "A") === "A" ? "<br>" + q.options.map((o, k) => `(${"ABCD"[k]}) ${esc(String(o).replace(/^\s*[A-D][).]\s*/, ""))}${q.optionImages ? imgHtml(q.optionImages[k]) : ""}`).join("<br>") : ""}</div>
+    <p style="margin:8px 0 4px"><b>Key:</b> ${esc(q.correct_answer || "—")} ${q.keySrc === "ai" ? "<span class='badge zero'>AI-proposed</span>" : ""}</p>
+    ${solutionHtml(q)}
+    <div class="flexrow" style="align-items:flex-end;margin-top:8px">
+      <div class="field"><label>Level</label><select id="btPvLevel">${levelOptions(q.difficulty)}</select></div>
+      <div class="field"><label>Question type</label><select id="btPvType"><option value="">—</option>${QTYPES.map(x => `<option value="${x.k}" ${q.qType === x.k ? "selected" : ""}>${x.label}</option>`).join("")}</select></div>
+      <div class="field"><label>Ideal time (s)</label><input id="btPvIdeal" type="number" min="1" style="width:90px" value="${q.idealTimeSec > 0 ? Math.round(q.idealTimeSec) : ""}"></div>
+      <div class="field"><label>Data bank</label><input id="btPvBank" list="btBankList" value="${esc(q.bank || "")}" style="min-width:220px"><datalist id="btBankList">${DATA_BANKS.map(b => `<option value="${esc(b)}">`).join("")}</datalist></div>
+    </div>
+    <div style="font-size:13px;margin:4px 0"><b>Approach:</b> ${SKILLS.map(x => `<label style="display:inline-flex;gap:4px;margin-right:10px"><input type="checkbox" data-btpvsk="${x.k}" ${sk.has(x.k) ? "checked" : ""}>${x.label}</label>`).join("")}</div>
+    <button class="btn secondary" id="btPvSave">Save tags</button> <span id="btPvMsg" style="font-size:12.5px"></span></div>`;
+  typeset(box);
+  $("btPvClose").onclick = () => { box.innerHTML = ""; };
+  $("btPvSave").onclick = async () => {
+    const qType = $("btPvType").value, sec = q.section || "A";
+    if (qType && (sec === "B") !== (qType === "numerical" || qType === "integer")) { $("btPvMsg").textContent = `⚠ "${qtypeLabel(qType)}" does not fit this ${sec === "B" ? "numerical" : "option"} question.`; return; }
+    const upd = { difficulty: $("btPvLevel").value, qType: qType || deleteField(),
+      skills: [...box.querySelectorAll("[data-btpvsk]:checked")].map(c => c.dataset.btpvsk),
+      bank: normBank($("btPvBank").value) || deleteField() };
+    const it = parseInt($("btPvIdeal").value, 10); upd.idealTimeSec = it > 0 ? it : deleteField();
+    if (!upd.skills.length) upd.skills = deleteField();
+    try {
+      await updateDoc(doc(db,"questions",q.docId), upd);
+      const r = BT.rows.find(x => x.i === q.docId);
+      if (r) Object.assign(r, { d: upd.difficulty, qt: qType, sk: Array.isArray(upd.skills) ? upd.skills : [], it: it > 0 ? it : 0, bank: typeof upd.bank === "string" ? upd.bank : "" });
+      $("btPvMsg").textContent = "✓ Saved (the bank index updates with the next rebuild).";
+      btRenderAll();
+    } catch(e) { $("btPvMsg").textContent = e.code === "permission-denied" ? "You don't own this question — ask an admin." : e.message; }
+  };
+}
+$("btSaveBtn").onclick = async () => {
+  const P = BT.picked, title = $("btTitle").value.trim(), diag = $("btKind").value === "diagnostic";
+  if (!P.length) { setMsg($("btSaveMsg"), "Pick at least one question."); return; }
+  if (!title) { setMsg($("btSaveMsg"), "Give the test a title."); return; }
+  const noKey = P.filter(r => r.k !== "ok" && r.k !== "ai");
+  if (noKey.length) { setMsg($("btSaveMsg"), `${noKey.length} picked question(s) have no key (${noKey.slice(0, 5).map(r => r.i).join(", ")}…). Remove them or set their keys first.`); return; }
+  const dur = parseInt($("btDur").value, 10);
+  if (!diag && !(dur > 0)) { setMsg($("btSaveMsg"), "Enter the time limit in minutes."); return; }
+  const marks = EXAM_CONFIG[BT.type].marks;
+  const groups = diag && $("btSplit").checked
+    ? LEVELS.map(L => ({ level: L.key, suffix: " — " + L.label, rows: P.filter(r => r.d === L.key) })).filter(g => g.rows.length)
+    : [{ level: [...new Set(P.map(r => r.d))].length === 1 ? P[0].d : null, suffix: "", rows: P }];
+  $("btSaveBtn").disabled = true;
+  try {
+    const ids = [];
+    for (const g of groups) {
+      const tot = g.rows.reduce((t, r) => t + btIdeal(r), 0);
+      const ref = await addDoc(collection(db,"exams"), {
+        title: title + g.suffix, examType: BT.type, questionIds: g.rows.map(r => r.i),
+        subjects: [...new Set(g.rows.map(r => r.sub))].sort((a, b) => ALL_SUBJECTS.indexOf(a) - ALL_SUBJECTS.indexOf(b)),
+        durationMin: diag ? Math.max(1, Math.ceil(tot / 60)) : dur,   // diagnostics: only an estimate, never enforced
+        marks, maxMarks: g.rows.reduce((t, r) => t + (r.s === "B" ? marks.B : marks.A).correct, 0),
+        idealTimes: Object.fromEntries(g.rows.map(r => [r.i, btIdeal(r)])), showIdealTime: $("btShowIdeal").checked,
+        keepOrder: $("btKeep").checked, shuffleOptions: $("btShuffle").checked,
+        chapter: $("btChapter").value.trim() || g.rows[0].t || "", subtopic: $("btSubtopic").value.trim(), level: g.level,
+        topics: [...new Set(g.rows.map(r => r.t).filter(Boolean))], proctorStrict: null, audience: { mode: "all" },
+        ...(diag ? { diagnostic: true, aiFollowUp: false } : {}),
+        fromBank: { banks: [...new Set(g.rows.map(r => r.bank).filter(Boolean))] },
+        startAt: null, endAt: null, isActive: false, createdAt: serverTimestamp(), createdBy: currentUser.uid, createdByName: currentUser.name });
+      ids.push(ref.id);
+    }
+    await loadExams();
+    const aiKeys = P.filter(r => r.k === "ai").length;
+    setMsg($("btSaveMsg"), `Created ${ids.length} ${diag ? "diagnostic test(s) (untimed)" : "timed test"} — inactive.` +
+      (aiKeys ? ` ${aiKeys} question(s) still have an AI-proposed key: confirm them in the Diagnostic Builder.` : "") +
+      (ids.length === 1 ? " Choose who takes it in the window that opened." : " Activate each one in Assign Tests (Easy first)."), true);
+    if (ids.length === 1) openAudienceModal(ids[0]);
+    BT.picked = []; $("btTitle").value = ""; delete $("btDur").dataset.touched; delete $("btChapter").dataset.touched;
+    btRenderList(); btRenderPicked();
+  } catch(e) { setMsg($("btSaveMsg"), "Not saved: " + e.message); }
+  finally { $("btSaveBtn").disabled = false; }
 };
 
 /* ----- 🏆 Groups: handpicked students (e.g. Toppers) ----- */
@@ -7551,7 +8070,8 @@ async function submitExam(auto, flag={}){
     examSubjects: cfg.subjects, examMaxMarks: cfg.maxMarks, examMarks: cfg.marks, examDurationSec: cfg.durationSec,
     examUntimed: cfg.untimed,
     // subject / chapter / level of each question, so progress and the mistake notebook need no extra reads
-    qMeta: Object.fromEntries(EX.questions.map(q => [q.docId, { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), ...(q.model ? { m: String(q.model).trim() } : {}), ...(q.modelCode ? { mc: String(q.modelCode).trim() } : {}) }])),
+    qMeta: Object.fromEntries(EX.questions.map(q => [q.docId, { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), ...(q.model ? { m: String(q.model).trim() } : {}), ...(q.modelCode ? { mc: String(q.modelCode).trim() } : {}),
+      ...(q.qType ? { qt: q.qType } : {}), ...(skillsOf(q).length ? { sk: skillsOf(q) } : {}), ...(q.bank ? { b: q.bank } : {}) }])),
     idealTimes, quickAnswers, pledgedAt: EX.pledgedAt,
     // queue for the hourly AI follow-up job (ai/ + .github/workflows/ai-followup.yml)
     ...(activeExam?.aiFollowUp ? { aiStatus: "queued", aiTries: 0 } : {}),
@@ -8152,6 +8672,8 @@ async function showResult(attempt){
       <td><span class="analybar" style="width:${Math.max(2,acc)}px;background:${acc>=60?'var(--green)':acc>=35?'var(--orange)':'var(--red)'}"></span> ${acc}%</td>
       <td>${fmtSec(tt)}</td><td>${fmtSec(ti)}</td><td>${acc>=60?'<span class="badge pos">cleared</span>':'<span class="badge neg">not cleared</span>'}</td></tr>`;
   }).join("");
+  // question type / approach / data bank (questions from the tagged question bank; older questions have no tags)
+  const tagCards = tagAnalysisHtml(detail);
   const diagChips = Object.entries(diagCounts).map(([b,n]) =>
     `<div class="stat" title="${esc(BUCKET_LABEL[b][2])}"><div class="v">${n}</div><div class="l">${BUCKET_LABEL[b][0]}</div></div>`).join("");
 
@@ -8212,6 +8734,7 @@ async function showResult(attempt){
     <h2 class="sec">Level-wise (Easy → Moderate → Hard)</h2>
     <p style="font-size:12.5px;color:var(--muted);margin:-4px 0 8px">A level is <b>cleared</b> at 60% or more correct.</p>
     <table class="tbl"><thead><tr><th>Level</th><th>Qs</th><th>Correct</th><th>Wrong</th><th>Skipped</th><th>Accuracy</th><th>Time taken</th><th>Ideal time</th><th></th></tr></thead><tbody>${levelRows}</tbody></table>
+    ${tagCards}
     <h2 class="sec">Question-by-question</h2>
     <table class="tbl"><thead><tr><th>Q#</th><th>Subject</th><th>Topic</th><th>Level</th><th>Your Answer</th><th>Correct</th><th>&plusmn;Marks</th><th>Time Taken</th><th>Ideal</th><th title="Of everyone who wrote this test: % who got it right (✓), got it wrong (✗) and left it blank (–)">Class: correct / wrong / left</th><th title="Average time of everyone who had this question">Class avg time</th><th title="Average time of the students who got it right">Avg time (correct)</th><th title="Your time vs the average of those who got it right">You vs class</th><th>Diagnosis</th><th>Why (student)</th></tr></thead><tbody>${qRows}</tbody></table>
     <p style="font-size:12px;color:var(--muted);margin-top:4px">Class columns compare you with all ${clsN || "—"} student(s) who took this test.</p>

@@ -6,7 +6,7 @@
 - **Part 2:** a briefing on the whole project. Claude keeps it current, so read it before every batch of work.
 - **Part 3:** Claude's message log, with timestamped messages at the bottom.
 
-Last briefing update: **2026-10-11 23:54 IST** (repository `main` after PR #21; level split pending in the next PR).
+Last briefing update: **2026-10-18 21:25 IST** (adds §4d: tagged question-bank files and Bank Tests).
 
 ---
 
@@ -266,6 +266,7 @@ Every row is validated; rejected rows are listed with the reason, and the rest a
 
 **Gotchas:**
 - Unknown fields are kept as they are (for example `source`, `sortKey`), but nothing in the portal uses them yet.
+  `bank`, `bankRef`, `qType` and `skills` **are** used now (Bank Tests, analysis): see §4d.
 - Uploading a picture through the **Diagnostic Builder** that is already in the bank reuses the existing question
   and its key ("♻ already in bank"). It does not create a duplicate.
 - An upload is written under the account that uploads it. Faculty can only edit their own questions later; admins
@@ -348,6 +349,63 @@ file is pre-selected).
 - `aliases`: other names questions may carry in `model` (old free-text names) so they still count.
 - An array of such objects uploads several chapters at once. Re-uploading a chapter replaces its taxonomy.
 - Concept group = the taxonomy `group` (questions don't need a separate `concept` field).
+
+## 4d. Question-bank files — every question tagged (Bank Tests) — **the default for new work**
+
+Madhav now builds tests from a tagged question bank: he filters by **data bank**, chapter, level, **question type** and
+**approach**, then makes timed tests or untimed diagnostics (e.g. one chapter of one bank) in the new **🗂 Bank Tests**
+tab. Old tests and old questions are not changed. For every batch of question images he gives you, return **one bank
+file** (same upload button, Questions → Upload). Example in the repository: `sample_bank_questions.json`.
+
+```json
+{
+  "bank": "ECAPS",
+  "questions": [
+    { "id": "ECAPS_MED_PHY_LOM_E01_Q001", "examType": "medical", "subject": "Physics", "topic": "Laws of Motion",
+      "model": "Tension in a connecting string", "bankRef": "ECAPS 01 · Q1",
+      "difficulty": "Easy", "qType": "single", "skills": ["concept"], "idealTimeSec": 45,
+      "text": "…", "options": ["…", "…", "…", "…"], "correct_answer": "B",
+      "keySrc": "ai", "aiKeyNote": "Solved by ChatGPT — not yet checked against the official key",
+      "solution": "…", "image": "data:image/png;base64,…" }
+  ]
+}
+```
+
+- **`bank`** (top level, or per question; a question's own value wins): the data bank = the folder the image came from.
+  Use these names (matched ignoring case and punctuation; a new name is accepted as typed, so spell it the same every
+  time): `AIATS Papers by Syllabus - 2026-27`, `AIM 720 & FTS Question Bank 2026`, `Day Wise Question Papers`, `ECAPS`,
+  `Engineering AIATS Question Bank`, `Engineering FTS Phases 1-3 2025-26`, `Engineering Modules`,
+  `Engineering PT, TE and UT 2025-26`, `INVICTUS Modules`, `INVICTUS Tests Question Bank 2025-26`, `JEE Score Book 2024`,
+  `JEE Score Individual PDFs`, `Medical AIATS Chapterwise - All Streams`, `Medical Modules`,
+  `Medical Old Papers Question Bank`, `Medical RM Modules`, `Momentum Booster`, `N2 and AIATS Plus Sheets`,
+  `NSEP Question Bank`, `Success Achiever`, `Success Magnet`, `Toppers Question Bank (JEE TE UT FTS)`.
+- **A question with a `bank` is rejected unless it has all of:** `correct_answer`, `difficulty` (Easy / Moderate /
+  Hard — spelled out), `idealTimeSec` (> 0, seconds a well-prepared student needs), `qType` and `skills`.
+- **`qType`** — how it is answered:
+  - `single` (single-correct MCQ), `multi` (one or more correct; students tick boxes even if only one is right; key
+    like `"AC"`), `assertion` (Assertion–Reason), `statement` (statement based), `match` (match the following / matrix),
+    `comprehension` (passage based): all option questions, `section` "A", 4 options;
+  - `numerical` (decimal answer) and `integer`: `section` "B", no options, key = number string.
+  - `section` may be left out: it follows from `qType`. A `single` question with a several-letter key is rejected.
+- **`skills`** — the approach (array; one or more; this is what "direct concept / numerical substitution / calculus /
+  inter-concept" filters use): `concept` (direct concept), `substitution` (numerical substitution / formula plug-in),
+  `calculus` (calculus based), `multiconcept` (inter-concept: needs two or more ideas, possibly across chapters),
+  `graphical` (graph / diagram reading), `factual` (NCERT fact / recall — most Biology), `experimental` (experiment /
+  practical). Tag what the question **demands**, not the chapter.
+- **`difficulty`** decides who it is for: Toppers filter = Moderate + Hard, Average = Easy + Moderate, Weaker
+  students = Easy. Auto-pick mixes (Easy / Moderate / Hard): Toppers 0 / 40 / 60 %, Average 30 / 50 / 20 %,
+  Weaker 100 / 0 / 0 %. Shortages are reported, never filled from another level — so tag levels honestly.
+- **`bankRef`** (optional, recommended): where it is in the source, e.g. `"AIATS 03 Code A · Q17"`. Shown in Bank Tests.
+- Ids: `<BANK>_<MED|ENG>_<SUBJ>_<CHAPTER>_<PAPER/EXERCISE>_<QNNN>`, stable across re-uploads (Safe import as in §4).
+- Keys: the official key when the pages have it (no `keySrc`); a key you solved → `keySrc: "ai"` + `aiKeyNote`
+  (Madhav confirms it in the Diagnostic Builder). Questions with unconfirmed keys are hidden in Bank Tests until he
+  unticks "Teacher-confirmed keys only".
+- Images: follow §4c's conversion rules (text + LaTeX; crop only diagrams; or the whole question as `image`).
+- After uploading: **Topics → Rebuild practice index** — Bank Tests reads the bank index, so new questions appear only
+  after the rebuild. Then report in `GPT_TO_CLAUDE.md` as usual (file, count, id range, bank, which keys are `ai`).
+
+**Analysis:** results now also show accuracy and time vs ideal **by approach, by question type and by data bank**
+(student result page, and a class split in Item Analysis), on top of the topic, level and speed × accuracy analysis.
 
 ## 5. The AI job (so you know what happens to your questions)
 
@@ -798,3 +856,23 @@ Never put student names, PS-IDs or passwords in these files.
   key is on the pages you were given; never put student names or PS-IDs in a file or in this channel.
 
 — Claude
+
+
+### C-015 · 2026-10-18 21:25 IST · report · Re: —
+**Subject:** New default: tagged question-bank files (§4d) and the 🗂 Bank Tests tab (branch `claude/jolly-cori-9ix9ef`)
+
+Madhav wants every new question image turned into a **tagged bank question**, so he can build tests by filtering.
+Live once Madhav merges the PR.
+
+- **Please read Part 2 §4d** before your next batch. Deliver `{ "bank": "<data bank>", "questions": [...] }` files;
+  every question needs `correct_answer`, `difficulty`, `idealTimeSec`, `qType` and `skills`, or the row is rejected.
+  Example: `sample_bank_questions.json` in the repository (same shape as the `diagnostic_test1_*.json` files, plus
+  the new tags).
+- New in the portal: **🗂 Bank Tests** (filter by bank / chapter / level / type / approach, presets for toppers,
+  average and weaker students, auto-pick by level mix, "whole chapter of one bank as a diagnostic", timed or untimed,
+  then choose who takes it), and analysis by approach / question type / data bank.
+- Nothing changes for old tests, old questions or plain question arrays without `bank`.
+- One upload per data bank per batch is easiest; report the bank name in your `report`.
+
+— Claude
+

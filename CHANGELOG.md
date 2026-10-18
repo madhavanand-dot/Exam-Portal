@@ -7,6 +7,35 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-18 — Tagged question bank and 🗂 Bank Tests (custom tests and chapter diagnostics from any data bank)
+
+- **New question tags** (JSON upload, Questions tab): `bank` (data bank / source folder: ECAPS, Medical Modules,
+  AIATS …), `bankRef` (place in the source), `qType` (single / multi / numerical / integer / assertion / statement /
+  match / comprehension) and `skills` (approach: direct concept, numerical substitution, calculus based,
+  inter-concept, graph / diagram, NCERT fact, experiment). A **bank file** `{ "bank": "ECAPS", "questions": [...] }`
+  tags every question with that bank. A question with a `bank` must also carry its key, level, ideal time, type and
+  approach, or the row is rejected with the reason. Example: `sample_bank_questions.json`; full rules for ChatGPT in
+  `CLAUDE_TO_GPT.md` §4d. Plain question arrays and test files without `bank` work exactly as before.
+- **Admin → 🗂 Bank Tests (admins and faculty):** load the bank index (one small read per subject), filter by subject,
+  data bank, chapter, level, question type and approach (counts on every choice), with quick filters for
+  🏆 Toppers / 📘 Average / 🌱 Weaker students. Tick questions, **Add all shown**, or **🎲 Auto-pick** N questions with a
+  level mix (spread over approaches and chapters; a shortage is reported, never filled from another level).
+  **⚡ Whole chapter as a diagnostic** takes one chapter (of one bank) in one click. 👁 shows a question in full and
+  lets you correct its level, type, approach, ideal time and bank.
+  **Create test** makes a **timed test** (time limit suggested from the total ideal time) or an **untimed diagnostic**
+  (optionally split into Easy / Moderate / Hard tests), inactive, and opens the "who takes it" dialog (all, batches,
+  students, a group such as Toppers, a programme). Ideal times are copied into the test.
+- **Analysis:** the result page now also has **By approach**, **By question type** and (when a test mixes sources)
+  **By data bank** tables (accuracy, time vs ideal, slower than ideal, a one-line read-out). Item Analysis has a
+  **class split** by level, approach, question type and data bank. Attempts store the tags in `qMeta` (`qt`, `sk`, `b`).
+  Old tests show these tables only for tagged questions, so nothing changes for them.
+- `qType: "multi"` shows tick boxes even when only one option is correct (so the screen doesn't give away the count).
+- **After deploying:** (1) publish `firestore.rules` (faculty may now read `bankIndex`; admins work without it);
+  (2) upload the first bank files from ChatGPT; (3) **Topics → Rebuild practice index** after every upload (Bank Tests
+  reads the bank index); (4) Bank Tests → Load question bank → try a chapter diagnostic and a toppers test.
+
+---
+
 ## 2026-10-18 — Toppers (handpicked groups) and one-file test upload for image-based papers
 
 - **Admin → 🏆 Groups (admins only):** handpick the students of a group. A **Toppers** group exists by default; add more
