@@ -7,6 +7,16 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+
+## 2026-10-19 — Source-library and question-format filters
+
+- **Questions:** combine source family, uploaded data bank, chapter, question format, difficulty, approach, content representation, answer-key status, model, search and ideal time. Results show bank and format, with 100 questions per page; Preview and image replacement retain original question identity. Filters run locally after loading a subject.
+- **Bank Tests:** extend the existing picker with source-family, content, ID/model/chapter search and ideal-time filters. Manual picks stay selected as filters change. The Diagnostic Builder also accepts data-bank and format filters.
+- **Source library catalogue:** 23 local collections grouped into packages, practice sheets, tests, enrichment, daily practice and compiled papers. Counts are source files, not distinct or uploaded question totals. Subjective and open matrix responses are recorded for future conversion; they are not enabled as scored response types.
+- Older ECAPS questions are recognised from source/IDs without rewriting saved questions. Explicit format tags take precedence; reliable text/key/section fallbacks help older uploads. Unknown types and unassessed metadata stay visible.
+- **After deployment:** reload the portal. Questions filters work immediately. Rebuild the practice index once to update Bank Tests with derived banks/formats and content representation (optional `vf` flag in the existing bank index). Old rows show “Not indexed yet” until rebuilt. No new collection, rules deployment or question migration. Student practice settings and test assignments are unchanged.
+- Future conversion contract and inventory: `QUESTION_BANK_FILTERS.md`. Existing bank-file validation is unchanged; the separate draft-import PR #29 is not merged by this update.
+
 ## 2026-10-18 — Tagged question bank and 🗂 Bank Tests (custom tests and chapter diagnostics from any data bank)
 
 - **New question tags** (JSON upload, Questions tab): `bank` (data bank / source folder: ECAPS, Medical Modules,
