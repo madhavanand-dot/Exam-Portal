@@ -7,6 +7,30 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-18 — 🚩 Cheating signals (staff only)
+
+- **Every attempt gets a cheating-signal level (High / Medium / Low)** built from the signals below. Each one is
+  *weak* (1 point) or *strong* (2 points); 4+ points is High, 2–3 Medium, 1 Low. They are signals, not proof.
+  - ⏳ **Away too long:** one absence of 30 s (weak) / 60 s+ (strong), or 2 min+ away over many short switches.
+  - 🔁 **Frequent switching:** 5+ switches (8+ strong), or 3 switches inside 5 minutes.
+  - ⚡ **Too fast on tough questions:** 2+ Hard/Moderate questions answered *correctly* in a fraction of the
+    ideal time (4+ strong). There is no "critical thinking" question type, so Hard/Moderate stand in for it.
+  - 🔍 **Left and came back to answer:** the student left on an unanswered question, was away 10 s+, came back
+    and got that question right (the classic "looked it up"). 2+ such questions is strong.
+  - 📈 **Upside-down accuracy:** Hard accuracy at least 25 points above Easy accuracy (needs 3+ answered of each).
+  - 🏁 **Very fast finish:** submitted within 35% of the test time with 80%+ of answers right.
+  - 🪟 **Split screen / floating window** (test window shrunk) and 🚪 **closed the test and came back**.
+  - 📋 **Copy attempts:** 3+ blocked tries to copy, paste, right-click / long-press, print-screen or open developer
+    tools (8+ strong). Stored as `copyTries` on the attempt.
+  - ⛔ Malpractice auto-submit / stop by a teacher counts as strong.
+- **Where staff see it:** the result page's integrity report (the list, with weak/strong), a 🚩 badge in Reports
+  and on the Live Monitor (hover for the reasons). Students never see the signals.
+- Switches now also record which question was on screen and whether it was answered yet (`violations[].q/n/qa`).
+  Older attempts simply show fewer signals. Thresholds are in `FLAG_RULES` in `index.html`.
+- **After deploying:** nothing to publish (no rules change).
+
+---
+
 ## 2026-10-18 — Time away from the test (how long each tab / window switch lasted)
 
 - **Every tab or window switch now records how long the student was away** (seconds until they came back to the

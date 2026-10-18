@@ -1571,6 +1571,89 @@ const VIOLATION_TEXT = { tab_hidden: "switched tab", window_blur: "switched to a
 const LONG_AWAY_SEC = 30;
 const awaySecOf = a => a?.awaySec ?? (a?.violations || []).reduce((s, v) => s + (v.dur || 0), 0);
 function fmtAway(s){ s = Math.round(s || 0); return s < 60 ? `${s}s` : fmtSec(s); }
+// One switch fires several events within 1.5 s (blur + hidden + fullscreen exit): group them into incidents.
+// An incident keeps the longest time away and the question that was on screen when the student left.
+function violIncidents(a){
+  const viol = (a?.violations || []).map(v => ({ ...v, at: tsMs(v.at) })), out = [];
+  viol.forEach((v,i) => {
+    if (i === 0 || v.at - viol[i-1].at > 1500) { out.push({ ...v }); return; }
+    const g = out[out.length-1];
+    if (v.dur != null) g.dur = Math.max(g.dur || 0, v.dur);
+    if (g.q == null && v.q != null) Object.assign(g, { q: v.q, qa: v.qa, n: v.n });
+  });
+  return out;
+}
+/* ---- Cheating signals (staff only) ----
+   Each rule looks at data the attempt already stores; none is proof on its own. Several together are what
+   count. Thresholds in one place so they are easy to tune. */
+const FLAG_RULES = {
+  awayOne: [30, 60],            // one absence of 30 s (medium) / 60 s+ (high)
+  awayTotal: 120,               // total time away (s) → medium; 2× → high
+  switches: [5, 8],             // tab / window switches in the test
+  burst: [3, 300],              // 3 switches inside 5 minutes
+  fastCorrect: [2, 4],          // tough questions answered correctly far under their ideal time
+  lookup: [1, 2],               // left on an unanswered question, came back and got it right
+  upsideDown: [25, 3],          // Hard accuracy ≥ Easy accuracy + 25 points (needs 3+ answered of each)
+  copyTries: [3, 8],            // tried to copy / paste / right-click / open dev tools / print
+  fastFinish: [0.35, 0.8]       // submitted inside 35% of the test time with 80%+ accuracy
+};
+function cheatFlags(a, awayNowSec = 0){
+  const R = FLAG_RULES, f = [], add = (sev, icon, text) => f.push({ sev, icon, text });
+  const inc = violIncidents(a), done = !!a.submitTime;
+  if (a.malpractice) add("high", "⛔", `Stopped / auto-submitted for malpractice${a.malpracticeReason ? `: ${a.malpracticeReason}` : ""}`);
+  // 1. away too long
+  const longest = Math.max(awayNowSec, ...inc.map(v => v.dur || 0)), total = awaySecOf(a) + awayNowSec;
+  if (longest >= R.awayOne[0]) add(longest >= R.awayOne[1] ? "high" : "med", "⏳", `Away from the test for ${fmtAway(longest)} at a stretch${awayNowSec ? " (still away)" : ""}`);
+  else if (total >= R.awayTotal) add(total >= 2 * R.awayTotal ? "high" : "med", "⏳", `Away ${fmtAway(total)} in total over many short switches`);
+  // 2. switching often, or in bursts
+  const sw = inc.filter(v => v.type === "tab_hidden" || v.type === "window_blur" || v.type === "exit_fullscreen");
+  const burst = sw.some((v,i) => i + R.burst[0] - 1 < sw.length && sw[i + R.burst[0] - 1].at - v.at <= R.burst[1] * 1000);
+  if (sw.length >= R.switches[0]) add(sw.length >= R.switches[1] ? "high" : "med", "🔁", `Switched away ${sw.length} times`);
+  else if (burst) add("med", "🔁", `${R.burst[0]} switches within ${R.burst[1] / 60} minutes`);
+  // 3. split screen / floating window, closing the test
+  const shrink = inc.filter(v => v.type === "window_resized").length, closed = inc.filter(v => v.type === "page_closed");
+  if (shrink) add("med", "🪟", `Test window shrunk ${shrink} time(s) — split screen or a floating window (e.g. a chat app beside the test)`);
+  if (closed.length) add(closed.some(v => v.dur >= R.awayOne[1]) ? "high" : "med", "🚪", `Closed the test and came back ${closed.length} time(s) (${closed.map(v => fmtAway(v.dur)).join(", ")})`);
+  // 4. tough questions answered correctly too fast
+  if (done) {
+    const fc = Object.values(a.quickAnswers || {}).filter(x => x.correct).length;
+    if (fc >= R.fastCorrect[0]) add(fc >= R.fastCorrect[1] ? "high" : "med", "⚡", `${fc} Hard/Moderate questions answered correctly in a fraction of their ideal time`);
+  } else {
+    const fq = Object.keys(a.quickLive || {}).length;
+    if (fq >= R.fastCorrect[0]) add(fq >= R.fastCorrect[1] ? "high" : "med", "⚡", `${fq} Hard/Moderate questions answered far too fast`);
+  }
+  // 5. left on a question, came back and got it right → looked it up?
+  if (done) {
+    const oc = attemptOutcomes(a);
+    const hits = [...new Map(inc.filter(v => v.q && !v.qa && (v.dur || 0) >= 10 && oc[v.q] === "correct").map(v => [v.q, v])).values()];
+    if (hits.length >= R.lookup[0]) add(hits.length >= R.lookup[1] ? "high" : "med", "🔍",
+      `Left the test on an unanswered question and came back to answer it correctly: ${hits.map(v => `Q${v.n} (away ${fmtAway(v.dur)})`).join(", ")}`);
+    // 6. upside-down accuracy: right on Hard, wrong on Easy
+    const lv = { Easy: [0, 0], Hard: [0, 0] };
+    Object.entries(a.qMeta || {}).forEach(([id, m]) => { if (lv[m.d] && oc[id] && oc[id] !== "blank") { lv[m.d][0]++; if (oc[id] === "correct") lv[m.d][1]++; } });
+    const [eN, eC] = lv.Easy, [hN, hC] = lv.Hard;
+    if (eN >= R.upsideDown[1] && hN >= R.upsideDown[1] && 100 * hC / hN - 100 * eC / eN >= R.upsideDown[0])
+      add("med", "📈", `Upside-down accuracy: ${Math.round(100 * hC / hN)}% on Hard but ${Math.round(100 * eC / eN)}% on Easy — Hard answers may have come from outside`);
+    // 7. finished very fast with very high accuracy
+    const answered = Object.values(oc).filter(o => o !== "blank").length, correct = Object.values(oc).filter(o => o === "correct").length;
+    if (!a.examUntimed && a.examDurationSec && a.totalTimeSec < R.fastFinish[0] * a.examDurationSec
+        && answered >= 0.5 * Object.keys(oc).length && answered && correct / answered >= R.fastFinish[1])
+      add("med", "🏁", `Finished in ${fmtSec(a.totalTimeSec)} of ${fmtSec(a.examDurationSec)} with ${Math.round(100 * correct / answered)}% of answers right`);
+  }
+  // 8. trying to copy the question out (to search it or ask an AI) or open the developer tools
+  if ((a.copyTries || 0) >= R.copyTries[0]) add(a.copyTries >= R.copyTries[1] ? "high" : "med", "📋", `Tried ${a.copyTries} times to copy, paste, right-click, print or open developer tools`);
+  return f;
+}
+// Points: high 2, medium 1 → level. Several signals together matter more than any single one.
+function cheatLevel(flags){
+  const pts = flags.reduce((x, f) => x + (f.sev === "high" ? 2 : 1), 0);
+  return pts >= 4 ? { key: "high", label: "High", color: "#c0392b" } : pts >= 2 ? { key: "med", label: "Medium", color: "#d35400" }
+    : pts ? { key: "low", label: "Low", color: "#a4610b" } : null;
+}
+function cheatBadge(a, awayNowSec = 0){
+  const fl = cheatFlags(a, awayNowSec), lv = cheatLevel(fl);
+  return lv ? `<span class="badge" style="background:${lv.color};color:#fff" title="${esc(fl.map(f => `${f.icon} ${f.text}`).join("\n"))}">🚩 ${lv.label}</span>` : "";
+}
 // Ideal (target) time to solve one question, in seconds. Resolution order:
 // the exam's own per-question setting → the question's stored idealTimeSec → a default by difficulty.
 const IDEAL_DEFAULTS = {
@@ -5329,7 +5412,7 @@ function lmRender(){
           <b>Too quick:</b> ${nq ? Object.values(a.quickLive).map(x => `Q${x.n} (${esc(LEVELS.find(l=>l.key===x.level)?.short||"")}) ${x.t}s / ideal ${fmtSec(x.ideal)}`).join(" · ") : "none"}
           ${a.staffWarning ? `<br><b>Last warning sent:</b> "${esc(a.staffWarning.msg)}" by ${esc(a.staffWarning.by||"")}` : ""}
           ${a.forceSubmit ? `<br><b style="color:#c0392b">Stop requested</b> by ${esc(a.forceSubmit.by||"")} — waiting for the student's device` : ""}</td></tr>` : "";
-      return `<tr style="${bg}"><td><b>${esc(a.studentName||"?")}</b>${a.device?.mobile ? ` <span title="On a phone/tablet: split screen or a floating window may go undetected">📱</span>` : ""}${a.proctorStrict === false ? ` <span class="badge zero" title="Silent tracking: no warnings, no auto-submit">silent</span>` : ""}<br><span style="font-size:11px;color:var(--muted)">${esc(byUid[a.studentUid]?.batch||"")}</span></td>
+      return `<tr style="${bg}"><td><b>${esc(a.studentName||"?")}</b>${a.device?.mobile ? ` <span title="On a phone/tablet: split screen or a floating window may go undetected">📱</span>` : ""}${a.proctorStrict === false ? ` <span class="badge zero" title="Silent tracking: no warnings, no auto-submit">silent</span>` : ""} ${cheatBadge(a, awayNow)}<br><span style="font-size:11px;color:var(--muted)">${esc(byUid[a.studentUid]?.batch||"")}</span></td>
         <td style="font-size:12.5px">${esc(a._exam.title)}</td>
         <td style="min-width:130px"><div style="background:#eef1f4;border-radius:4px;height:8px"><div style="width:${pct}%;background:var(--blue);height:8px;border-radius:4px"></div></div>
           <span style="font-size:11.5px">${L.answered||0}/${L.total||"?"} answered · on Q${L.q||"?"}</span></td>
@@ -6357,7 +6440,7 @@ async function loadReports(){
     <td>${Math.round((a.totalTimeSec||0)/60)}</td>
     <td>${a.wrongQuestions?.length||0}</td><td>${a.unansweredQuestions?.length||0}</td>
     <td>${a.malpractice?'<span class="badge neg">MALPRACTICE</span>':(a.warnings||Object.keys(a.quickAnswers||{}).length)?'<span class="badge zero">flagged</span>':'<span class="badge pos">clean</span>'}
-      ${a.warnings?`<span title="tab switches / fullscreen exits" style="font-size:12px"> 🚨${a.warnings}</span>`:""}${awaySecOf(a)>=1?`<span title="time away from the test (tab / window switches)" style="font-size:12px"> ⏳${fmtAway(awaySecOf(a))}</span>`:""}${Object.keys(a.quickAnswers||{}).length?`<span title="tough questions answered too quickly" style="font-size:12px"> ⚡${Object.keys(a.quickAnswers).length}</span>`:""}</td>
+      ${a.warnings?`<span title="tab switches / fullscreen exits" style="font-size:12px"> 🚨${a.warnings}</span>`:""}${awaySecOf(a)>=1?`<span title="time away from the test (tab / window switches)" style="font-size:12px"> ⏳${fmtAway(awaySecOf(a))}</span>`:""}${Object.keys(a.quickAnswers||{}).length?`<span title="tough questions answered too quickly" style="font-size:12px"> ⚡${Object.keys(a.quickAnswers).length}</span>`:""} ${cheatBadge(a)}</td>
     <td><button class="btn danger" style="padding:2px 9px" data-rpdel="${a.docId}">Delete</button></td></tr>`).join("")
     || `<tr><td colspan="11">No attempts found.</td></tr>`;
   $("rpRows").querySelectorAll("[data-rpview]").forEach(b => b.onclick = () => {
@@ -7116,7 +7199,7 @@ async function startExam(){
   const attemptRef = doc(db,"attempts",attemptId);
   const prev = await getDoc(attemptRef);
   let startTime = Date.now(), savedResponses = {}, savedTimes = {}, pledgedAt = Timestamp.now();
-  let savedViol = [], savedWarnings = 0, savedAway = 0;
+  let savedViol = [], savedWarnings = 0, savedAway = 0, savedCopyTries = 0;
   if (prev.exists() && !prev.data().submitTime) {
     const p = prev.data();
     startTime = p.startTime?.toDate?.().getTime() ?? Date.now();
@@ -7124,8 +7207,9 @@ async function startExam(){
     savedTimes = p.questionTimeSec || {};
     if (p.pledgedAt) pledgedAt = p.pledgedAt;
     // keep the switches already recorded: reloading the page must not wipe them (or reset the warning count)
-    savedViol = (p.violations || []).map(v => ({ type: v.type, at: tsMs(v.at), ...(v.dur != null ? { dur: v.dur } : {}) }));
+    savedViol = (p.violations || []).map(v => ({ ...v, at: tsMs(v.at) }));
     savedWarnings = p.warnings || 0;
+    savedCopyTries = p.copyTries || 0;
     savedAway = awaySecOf(p);
     if (cfg.proctored) {
       const now = Date.now(), awaySince = tsMs(p.live?.awaySince), lastSeen = tsMs(p.live?.lastSeen);
@@ -7183,6 +7267,7 @@ async function startExam(){
     warnings: savedWarnings,
     awaySec: savedAway,       // total seconds away from the test
     awayStart: null, awayVi: -1,   // the absence in progress (ms) and its violation
+    copyTries: savedCopyTries,     // blocked copy / paste / right-click / dev-tools / print attempts
     quick: {},          // questions answered "too quickly" (live, for the teacher's monitor)
     pledgedAt,
     seenWarnAt: Date.now()
@@ -7236,7 +7321,12 @@ let _lastViolAt = 0;
 // Leaving the page (tab or window switch) starts an absence; endAway() stamps its length when the student is back.
 function logViolation(type, now){
   EX.violations.push({ type, at: now });
-  if ((type === "tab_hidden" || type === "window_blur") && EX.awayStart == null) { EX.awayStart = now; EX.awayVi = EX.violations.length - 1; }
+  if ((type === "tab_hidden" || type === "window_blur") && EX.awayStart == null) {
+    EX.awayStart = now; EX.awayVi = EX.violations.length - 1;
+    // the question on screen, and whether it was answered yet: "left, came back, answered it right" is a signal
+    const v = EX.violations[EX.awayVi], q = EX.questions[EX.idx];
+    if (q) Object.assign(v, { q: q.docId, n: EX.idx + 1, qa: captureCurrentInput() != null || EX.state[EX.idx].answer != null });
+  }
 }
 function endAway(){
   if (!EX || EX.awayStart == null) return;
@@ -7288,13 +7378,16 @@ function startProctoring(){
     if (!document.fullscreenElement && EX && !EX.submitted && EX.cfg.proctored)
       recordViolation("exit_fullscreen","You exited fullscreen mode.");
   };
-  const block = e => { e.preventDefault(); };
+  // blocked, and counted: trying to copy a question out (to search it / ask an AI) is a cheating signal
+  const tried = () => { if (EX && !EX.submitted) EX.copyTries++; };
+  const block = e => { e.preventDefault(); tried(); };
   const onKey = e => {
     // block copy/cut/paste, print, devtools, view-source
-    if ((e.ctrlKey||e.metaKey) && ["c","v","x","p","u","s"].includes(e.key.toLowerCase())) { e.preventDefault(); }
-    if (e.key === "F12") e.preventDefault();
-    if ((e.ctrlKey||e.metaKey) && e.shiftKey && ["i","j","c"].includes(e.key.toLowerCase())) e.preventDefault();
+    if ((e.ctrlKey||e.metaKey) && ["c","v","x","p","u","s"].includes(e.key.toLowerCase())) { e.preventDefault(); tried(); }
+    if (e.key === "F12") { e.preventDefault(); tried(); }
+    if ((e.ctrlKey||e.metaKey) && e.shiftKey && ["i","j","c"].includes(e.key.toLowerCase())) { e.preventDefault(); tried(); }
   };
+  const onKeyUp = e => { if (e.key === "PrintScreen") tried(); };
   // Phones can run Chrome in split screen / a floating window / picture-in-picture without a tab switch: the page
   // stays "visible", so watch for the test area suddenly shrinking (ignored while typing — the keyboard shrinks it too).
   let baseArea = window.innerWidth * window.innerHeight, rzT = null;
@@ -7319,6 +7412,8 @@ function startProctoring(){
   document.addEventListener("cut", block);
   document.addEventListener("paste", block);
   document.addEventListener("keydown", onKey, true);
+  document.addEventListener("keyup", onKeyUp, true);
+  document.addEventListener("contextmenu", block);
   proctorHandlers = [
     ()=>window.removeEventListener("resize", onResize),
     ()=>window.removeEventListener("orientationchange", onOrient),
@@ -7329,7 +7424,9 @@ function startProctoring(){
     ()=>document.removeEventListener("copy", block),
     ()=>document.removeEventListener("cut", block),
     ()=>document.removeEventListener("paste", block),
-    ()=>document.removeEventListener("keydown", onKey, true)
+    ()=>document.removeEventListener("keydown", onKey, true),
+    ()=>document.removeEventListener("keyup", onKeyUp, true),
+    ()=>document.removeEventListener("contextmenu", block)
   ];
 }
 function stopProctoring(){ proctorHandlers.forEach(fn=>fn()); proctorHandlers = []; }
@@ -7519,10 +7616,11 @@ async function saveProgress(){
                  answered: EX.state.filter(st => st.answer != null).length, subject: cq.subject || "",
                  awaySince: EX.awayStart ? Timestamp.fromMillis(EX.awayStart) : null };   // away right now (live monitor)
   await setDoc(EX.attemptRef, { responses, live, warnings: EX.warnings, quickLive: EX.quick,
-    violations: EX.violations.map(violationDoc), awaySec: EX.awaySec }, { merge:true });
+    violations: EX.violations.map(violationDoc), awaySec: EX.awaySec, copyTries: EX.copyTries }, { merge:true });
 }
 function violationDoc(v){
-  return { type: v.type, at: Timestamp.fromMillis(v.at), ...(v.dur != null ? { dur: v.dur } : {}) };
+  return { type: v.type, at: Timestamp.fromMillis(v.at), ...(v.dur != null ? { dur: v.dur } : {}),
+    ...(v.q != null ? { q: v.q, n: v.n, qa: !!v.qa } : {}) };
 }
 
 /* ---- submit ---- */
@@ -7606,7 +7704,7 @@ async function submitExam(auto, flag={}){
     // proctoring
     malpractice: !!flag.malpractice,
     malpracticeReason: flag.malpractice ? (flag.reason || "") : "",
-    violations: EX.violations.map(violationDoc), awaySec: EX.awaySec,
+    violations: EX.violations.map(violationDoc), awaySec: EX.awaySec, copyTries: EX.copyTries,
     warnings: EX.warnings
   };
   try { await setDoc(EX.attemptRef, attemptData, { merge:true }); }
@@ -8442,13 +8540,8 @@ function renderTimeSummary(attempt, detail, durSec){
 function renderIntegrity(attempt, detail){
   const box = $("integrityCard"); if (!box) return;
   const isStaffView = currentUser && (currentUser.role === "admin" || currentUser.role === "faculty");
-  const viol = (attempt.violations || []).map(v => ({ type: v.type, at: tsMs(v.at), dur: v.dur }));
-  // de-duplicate the burst of events one switch produces (blur + hidden within 1.5 s); the burst keeps its time away
-  const allIncidents = [];
-  viol.forEach((v,i) => {
-    if (i === 0 || v.at - viol[i-1].at > 1500) allIncidents.push({ ...v });
-    else if (v.dur != null) { const g = allIncidents[allIncidents.length-1]; g.dur = Math.max(g.dur || 0, v.dur); }
-  });
+  const allIncidents = violIncidents(attempt);
+  const flags = isStaffView ? cheatFlags(attempt) : [], flagLv = cheatLevel(flags);
   // time away is for staff only: students see their switches (strict mode) but not how long they were away
   const away = isStaffView ? awaySecOf(attempt) : 0, longAway = isStaffView ? allIncidents.filter(v => v.dur >= LONG_AWAY_SEC).length : 0;
   const awayTxt = v => v.dur == null || !isStaffView ? "" : ` — <span style="${v.dur >= LONG_AWAY_SEC ? "color:#c0392b;font-weight:700" : ""}">away ${fmtAway(v.dur)}</span>`;
@@ -8461,6 +8554,10 @@ function renderIntegrity(attempt, detail){
   const attemptId = attempt.docId || `${attempt.examId}_${attempt.studentUid}`;
   box.innerHTML = `<div class="card" style="margin:16px 0;border-color:${clean ? "#2e8b57" : attempt.malpractice ? "#c0392b" : "var(--orange)"}">
     <h3 style="color:var(--blue);margin-bottom:6px">🛡 Integrity report</h3>
+    ${isStaffView ? `<div style="margin:4px 0 10px;padding:8px 10px;border-radius:6px;background:${flagLv ? "#fdf2f0" : "#eef8f1"};border-left:4px solid ${flagLv ? flagLv.color : "#2e8b57"}">
+      <b>🚩 Cheating signals (staff only):</b> ${flagLv ? `<b style="color:${flagLv.color}">${flagLv.label}</b>` : `<b style="color:#1e7a44">none</b>`}
+      ${flags.length ? `<ul style="font-size:13px;margin:4px 0 0 18px">${flags.map(f => `<li>${f.icon} ${esc(f.text)} <span class="badge ${f.sev === "high" ? "neg" : "zero"}">${f.sev === "high" ? "strong" : "weak"}</span></li>`).join("")}</ul>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Signals, not proof: one weak signal is common in honest attempts. Several together, or a strong one, are worth a conversation.</div>` : ""}</div>` : ""}
     ${clean ? `<p style="color:#1e7a44"><b>✅ Honest attempt.</b> No tab switches, no tough questions answered suspiciously fast. Well done — this is how real progress is measured.</p>` : ""}
     ${attempt.pledgedAt ? `<p style="font-size:12px;color:var(--muted)">Honesty pledge taken ${fmtDate(attempt.pledgedAt)}.</p>` : ""}
     ${isStaffView && silent ? `<p style="font-size:12.5px;margin-top:4px">🤫 <b>Silent tracking</b> was on: the student got no warnings and the test was not auto-submitted. Recorded below.</p>` : ""}
