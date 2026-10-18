@@ -719,7 +719,6 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
             <button class="btn secondary" id="btAutoBtn">🎲 Auto-pick</button>
           </div>
           <div id="btList" style="max-height:440px;overflow:auto"></div>
-          <div id="btPreview"></div>
         </div>
         <div class="card" style="margin-top:12px">
           <h3 style="margin:0 0 8px">3 · Selected questions <span id="btPickCount" style="font-size:13px;color:var(--muted);font-weight:400"></span></h3>
@@ -1386,10 +1385,10 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
 
 <input type="file" id="qbImgFile" accept="image/*" class="hidden">
 <!-- question preview modal -->
-<div id="qpvBack" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;display:flex;align-items:center;justify-content:center;padding:20px">
+<div id="qpvBack" class="hidden" role="dialog" aria-modal="true" aria-labelledby="qpvTitle" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;display:flex;align-items:center;justify-content:center;padding:20px">
   <div class="card" style="width:680px;max-width:96vw;max-height:88vh;overflow:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <h3 style="color:var(--blue)">Question Preview</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;position:sticky;top:-20px;background:#fff;z-index:1;padding:8px 0">
+      <h3 id="qpvTitle" style="color:var(--blue)">Question Preview</h3>
       <button class="btn secondary" id="qpvClose" style="padding:3px 12px">Close</button>
     </div>
     <div id="qpvBody"></div>
@@ -1975,7 +1974,7 @@ $("lightbox").onclick = closeLightbox;                 // click anywhere on the 
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
     if (!$("lightbox").classList.contains("hidden")) { closeLightbox(); return; }
-    if (!$("qpvBack").classList.contains("hidden")) { $("qpvBack").classList.add("hidden"); }
+    if (!$("qpvBack").classList.contains("hidden")) { closeQuestionPreview(); }
   }
 });
 function typeset(el){ if (window.MathJax?.typesetPromise) MathJax.typesetPromise(el?[el]:undefined).catch(()=>{}); }
@@ -6169,8 +6168,13 @@ function previewQuestion(q){
   $("qpvBack").classList.remove("hidden");
   typeset($("qpvBody"));
 }
-$("qpvClose").onclick = () => $("qpvBack").classList.add("hidden");
-$("qpvBack").addEventListener("click", e => { if (e.target===$("qpvBack")) $("qpvBack").classList.add("hidden"); });
+let btPreviewTrigger = null;
+function closeQuestionPreview(){
+  $("qpvBack").classList.add("hidden");
+  btPreviewTrigger?.focus({preventScroll:true}); btPreviewTrigger=null;
+}
+$("qpvClose").onclick = closeQuestionPreview;
+$("qpvBack").addEventListener("click", e => { if (e.target===$("qpvBack")) closeQuestionPreview(); });
 
 // Admin: preview the WHOLE test (all questions + correct answers), read-only, no attempt saved.
 async function previewExam(docId){
@@ -6757,12 +6761,17 @@ $("btChapterDiagBtn").onclick = () => {
   $("btTitle").scrollIntoView({ behavior: "smooth", block: "center" });
 };
 // one question in full (one read), with its tags editable
+let btPreviewSequence = 0;
 async function btPreview(id){
-  const box = $("btPreview");
+  const sequence = ++btPreviewSequence, box = $("qpvBody");
+  btPreviewTrigger = document.activeElement;
+  $("qpvBack").classList.remove("hidden");
+  box.parentElement.scrollTop=0;
+  $("qpvClose").focus({preventScroll:true});
   box.innerHTML = `<div class="card" style="margin-top:10px">Loading ${esc(id)}…</div>`;
   let q;
-  try { const sn = await getDoc(doc(db,"questions",id)); if (!sn.exists()) { box.innerHTML = `<div class="msg err">${esc(id)} is no longer in the bank — rebuild the practice index.</div>`; return; } q = { docId: sn.id, ...sn.data() }; }
-  catch(e) { box.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; return; }
+  try { const sn = await getDoc(doc(db,"questions",id)); if (sequence !== btPreviewSequence || $("qpvBack").classList.contains("hidden")) return; if (!sn.exists()) { box.innerHTML = `<div class="msg err">${esc(id)} is no longer in the bank — rebuild the practice index.</div>`; return; } q = { docId: sn.id, ...sn.data() }; }
+  catch(e) { if (sequence === btPreviewSequence) box.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; return; }
   const sk = new Set(skillsOf(q));
   box.innerHTML = `<div class="card" style="margin-top:10px;border-color:var(--blue)">
     <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-family:monospace">${esc(q.id || q.docId)}</b><button class="btn secondary" style="padding:1px 8px" id="btPvClose">✕</button></div>
@@ -6779,7 +6788,7 @@ async function btPreview(id){
     <div style="font-size:13px;margin:4px 0"><b>Approach:</b> ${SKILLS.map(x => `<label style="display:inline-flex;gap:4px;margin-right:10px"><input type="checkbox" data-btpvsk="${x.k}" ${sk.has(x.k) ? "checked" : ""}>${x.label}</label>`).join("")}</div>
     <button class="btn secondary" id="btPvSave">Save tags</button> <span id="btPvMsg" style="font-size:12.5px"></span></div>`;
   typeset(box);
-  $("btPvClose").onclick = () => { box.innerHTML = ""; };
+  $("btPvClose").onclick = closeQuestionPreview;
   $("btPvSave").onclick = async () => {
     const qType = $("btPvType").value, sec = q.section || "A";
     if (qType && (sec === "B") !== (qType === "numerical" || qType === "integer")) { $("btPvMsg").textContent = `⚠ "${qtypeLabel(qType)}" does not fit this ${sec === "B" ? "numerical" : "option"} question.`; return; }

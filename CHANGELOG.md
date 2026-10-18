@@ -8,6 +8,13 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 ---
 
 
+## 2026-10-19 — Bank Tests preview stays in view
+
+- Bank Tests question previews now open in the existing centred Question Preview popup instead of below the question list. Loading messages, the full question, diagrams, key, solution and tag controls are visible in the popup.
+- The popup scrolls internally with a persistent Close button. Close, Escape or clicking the backdrop returns to the same bank filters, selected questions and page position. A slow response cannot replace a newer Bank Tests preview.
+- No data migration, index rebuild, practice-setting change or rules deployment is needed. Reload the portal after deployment.
+
+
 ## 2026-10-19 — Source-library and question-format filters
 
 - **Questions:** combine source family, uploaded data bank, chapter, question format, difficulty, approach, content representation, answer-key status, model, search and ideal time. Results show bank and format, with 100 questions per page; Preview and image replacement retain original question identity. Filters run locally after loading a subject.
