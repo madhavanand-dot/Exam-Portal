@@ -8449,11 +8449,12 @@ function renderIntegrity(attempt, detail){
     if (i === 0 || v.at - viol[i-1].at > 1500) allIncidents.push({ ...v });
     else if (v.dur != null) { const g = allIncidents[allIncidents.length-1]; g.dur = Math.max(g.dur || 0, v.dur); }
   });
-  const away = awaySecOf(attempt), longAway = allIncidents.filter(v => v.dur >= LONG_AWAY_SEC).length;
-  const awayTxt = v => v.dur == null ? "" : ` — <span style="${v.dur >= LONG_AWAY_SEC ? "color:#c0392b;font-weight:700" : ""}">away ${fmtAway(v.dur)}</span>`;
+  // time away is for staff only: students see their switches (strict mode) but not how long they were away
+  const away = isStaffView ? awaySecOf(attempt) : 0, longAway = isStaffView ? allIncidents.filter(v => v.dur >= LONG_AWAY_SEC).length : 0;
+  const awayTxt = v => v.dur == null || !isStaffView ? "" : ` — <span style="${v.dur >= LONG_AWAY_SEC ? "color:#c0392b;font-weight:700" : ""}">away ${fmtAway(v.dur)}</span>`;
   // silent tracking: the student is not told about switches (not during the test, not here); staff always see them
   const silent = attempt.proctorStrict === false;
-  const incidents = silent && !isStaffView ? [] : allIncidents;
+  const incidents = silent && !isStaffView ? [] : isStaffView ? allIncidents : allIncidents.filter(v => v.type !== "page_closed");
   const quick = detail.map((d,i) => ({ d, i })).filter(({d}) => d.answer != null && d.timeSec < quickThreshold(d.q, d.idealSec));
   const note = attempt.integrityNote;
   const clean = !incidents.length && !quick.length && !attempt.malpractice && !(silent && !isStaffView);

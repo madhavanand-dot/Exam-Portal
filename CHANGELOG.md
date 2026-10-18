@@ -13,7 +13,8 @@ Format: each entry says **what changed**, and — where it matters — **what yo
   test). Stored on the attempt as `violations[].dur` and the total `awaySec`.
 - **Integrity report** (result page): "Left the test screen 3 time(s), away 2m 15s in total", with the time away on
   each switch. Absences of **30 s or more are shown in red**: long enough to look an answer up, unlike a 1–2 s slip.
-  In silent mode students still see nothing; staff see it all.
+  **Staff only:** students never see time away, not on their result either (in strict mode they still see the list
+  of their switches, as before, but not the "closed the test" entries).
 - **Live Monitor:** the Switches column shows **● away now 0:45** while a student is off the test, plus their total
   time away; the row details list the time away per switch, and an alert sounds when a student comes back after 30 s+.
 - **Closing the test counts too:** if a student closes or leaves the test and resumes it 1 min+ later, that gap is
