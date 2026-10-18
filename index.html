@@ -461,6 +461,8 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <button class="btn" id="qUploadBtn" style="margin-left:10px">Upload</button>
         <label style="font-size:13px;display:inline-flex;gap:6px;align-items:center;margin-left:10px" title="Checks the bank first: skips unchanged and duplicate-picture questions, never overwrites a teacher-confirmed key, and asks before writing">
           <input type="checkbox" id="qSafe" checked> Safe import (recommended)</label>
+        <label style="font-size:13px;display:inline-flex;gap:6px;align-items:center;margin-left:10px" title="Store questions without an answer key for teachers to complete later. Questions without keys are excluded from practice.">
+          <input type="checkbox" id="qDrafts"> Import unkeyed drafts</label>
         <div id="uploadLog" class="hidden"></div>
       </div>
       <h2 class="sec">Question Bank</h2>
@@ -3396,6 +3398,10 @@ $("qUploadBtn").onclick = async () => {
   let pack = null;
   if (data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.questions)) { pack = data.exam ?? {}; data = data.questions; say("Test file: questions + a test (created inactive)."); }
   if (!Array.isArray(data)) { say('JSON root must be an array of questions, or a test file { "exam": {…}, "questions": […] }.'); return; }
+  const bankDrafts = !pack && $("qDrafts").checked;
+  if (bankDrafts && !$("qSafe").checked && data.some(q => String(q?.correct_answer ?? "").trim() === "")) {
+    say("Enable Safe import to upload unkeyed drafts. This protects answer keys already in the bank."); return;
+  }
 
   // validate
   const valid = [], errors = [];
@@ -3411,8 +3417,8 @@ $("qUploadBtn").onclick = async () => {
     const hasImg = typeof q.image === "string" && q.image.length > 0;
     if (!q.text && !hasImg)                    return errors.push(`${where_}: needs "text" or "image"`);
     const optImgs = Array.isArray(q.optionImages) ? q.optionImages : null;
-    // in a test file the key may be left blank: the teacher marks it (Answer Key tab) before the test can be activated
-    const noKey = !!pack && String(q.correct_answer ?? "").trim() === "";
+    // Blank keys are explicit bank drafts or test-file drafts; other key validation stays unchanged.
+    const noKey = (!!pack || bankDrafts) && String(q.correct_answer ?? "").trim() === "";
     if (section === "A") {
       const optsOk = Array.isArray(q.options) && q.options.length === 4;
       const optImgsOk = optImgs && optImgs.length === 4 && optImgs.every(x => typeof x === "string" && x);
@@ -3422,7 +3428,7 @@ $("qUploadBtn").onclick = async () => {
     } else {
       if (!noKey && (q.correct_answer === undefined || isNaN(parseFloat(q.correct_answer)))) return errors.push(`${where_}: numerical correct_answer must be a number string`);
     }
-    if (noKey) { q.correct_answer = ""; q.keySrc = "ai-unsure"; q.aiKeyNote = "No key in the uploaded test file — set it in the Answer Key tab"; }
+    if (noKey) { q.correct_answer = ""; q.keySrc = "ai-unsure"; q.aiKeyNote = pack ? "No key in the uploaded test file — set it in the Answer Key tab" : "Unkeyed bank draft — set the answer key before using this question in a test"; }
     const clean = { ...q, section,
                  text: q.text || "",
                  options: section==="A" ? (q.options || ["","","",""]) : [],
