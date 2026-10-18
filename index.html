@@ -18,6 +18,7 @@
 window.MathJax = {
   tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$','$$'], ['\\[','\\]']] },
   options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
+  chtml: { scale: 1, matchFontHeight: false, mtextInheritFont: true, merrorInheritFont: true },
   startup: { typeset: false }
 };
 </script>
@@ -335,6 +336,10 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
 .bank-results{overflow:auto}.bank-page{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:10px 0;font-size:13px;flex-wrap:wrap}
 @media(max-width:600px){.bank-filter-grid{grid-template-columns:1fr}.bank-filter-row{display:block}.bank-filter-label{width:auto;margin-bottom:5px}.bank-filter-panel{padding:12px}}
 
+
+/* Consistent question typography; form controls retain the interface font. */
+#qText,#qOptions,.question-copy{font-family:'Times New Roman',Times,serif;font-size:18px;line-height:1.65}
+#qText :where(p,span,div,td,th,b,strong,em),#qOptions .opt,#qOptions .opt span,.question-copy :where(p,span,div,td,th,b,strong,em){font-family:inherit;font-size:inherit}
 </style>
 </head>
 <body>
@@ -3675,6 +3680,43 @@ function uploadExamCheck(E, qs){
     proctorStrict: E.proctorStrict === true ? true : E.proctorStrict === false ? false : null,
     ...(E.chapter ? { chapter: String(E.chapter).trim() } : {}), ...(E.subtopic ? { subtopic: String(E.subtopic).trim() } : {}) };
 }
+// Tag-only imports fill blanks without replacing question content or assessed values.
+async function importMissingQuestionTags(rows, say){
+  if (!rows.length) { say("No question tags supplied."); return; }
+  const seen=new Set(), clean=[];
+  for(const r of rows){
+    if(!r || typeof r.id!=="string" || !r.id.trim() || r.id.includes("/") || seen.has(r.id)) { say("ERROR: every tag row needs a unique question id."); return; }
+    if(Object.keys(r).some(k=>!["id","bank","qType","skills"].includes(k))) { say("ERROR: tag-only rows accept id, bank, qType and skills only."); return; }
+    const bank=normBank(r.bank), qt=normQType(r.qType), skills=Array.isArray(r.skills)?[...new Set(r.skills.map(normSkill))]:[];
+    if(!bank || !qt || !skills.length || skills.some(x=>!x)) { say(`ERROR: incomplete or invalid tags for ${r.id}.`); return; }
+    seen.add(r.id); clean.push({id:r.id,bank,qType:qt,skills});
+  }
+  const plan=[];
+  say(`Checking ${clean.length} saved questions. Existing tags, answers, difficulty and ideal times will be retained.`);
+  for(let start=0;start<clean.length;start+=20){
+    const part=clean.slice(start,start+20), snaps=await Promise.all(part.map(r=>getDoc(doc(db,"questions",r.id))));
+    for(let i=0;i<part.length;i++){
+      const r=part[i], sn=snaps[i];
+      if(!sn.exists()) { say(`ERROR: ${r.id} was not found. Nothing written.`); return; }
+      const q={docId:sn.id,...sn.data()};
+      if(!ownsItem(q)) { say(`ERROR: you cannot edit ${r.id}. Nothing written.`); return; }
+      if(!q.qType && ((q.section||"A")==="B") !== ["numerical","integer"].includes(r.qType)) { say(`ERROR: format does not fit ${r.id}. Nothing written.`); return; }
+      const fields={};
+      if(!String(q.bank||"").trim()) fields.bank=r.bank;
+      if(!String(q.qType||"").trim()) fields.qType=r.qType;
+      if(!skillsOf(q).length) fields.skills=r.skills;
+      if(Object.keys(fields).length) plan.push({id:r.id,fields});
+    }
+  }
+  say(`Ready: ${plan.length} questions with missing tags; ${clean.length-plan.length} already complete. Only blank bank, question type and approach fields will be filled.`);
+  if(!plan.length) return;
+  if(!await uiConfirm(`Fill missing bank, question type and approach tags for ${plan.length} saved question(s)? Existing tags, answers, content, difficulty and ideal times are kept.`)) { say("Cancelled. Nothing written."); return; }
+  for(let start=0;start<plan.length;start+=400){
+    const batch=writeBatch(db);plan.slice(start,start+400).forEach(r=>batch.update(doc(db,"questions",r.id),r.fields));await batch.commit();
+  }
+  allBankCache=null;
+  say(`Saved missing tags for ${plan.length} questions. No questions or tests created. Rebuild the practice index once to refresh Bank Tests.`);
+}
 $("qUploadBtn").onclick = async () => {
   const f = $("qFile").files[0];
   const log = $("uploadLog"); log.classList.remove("hidden"); log.textContent = "";
@@ -3682,6 +3724,10 @@ $("qUploadBtn").onclick = async () => {
   if (!f) { say("Choose a JSON file first."); return; }
   let data;
   try { data = JSON.parse(await f.text()); } catch(e){ say("Invalid JSON: " + e.message); return; }
+  if(data && !Array.isArray(data) && Array.isArray(data.questionTags)) {
+    try { await importMissingQuestionTags(data.questionTags,say); } catch(e) { say("Tag update failed: "+e.message); }
+    return;
+  }
   let pack = null, fileBank = "";
   if (data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.questions)) {
     // { "bank": "ECAPS", "questions": [...] } = a bank file: every question goes into that data bank (no test is created)
@@ -6162,8 +6208,8 @@ function previewQuestion(q){
     <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">
       <b>${esc(q.id)}</b> &bull; ${esc(q.subject)} &bull; Section ${esc(q.section||"A")} &bull; ${esc(q.topic||"")} &bull; ${esc(levelLabel(q.difficulty))}<br>
       Uploaded ${fmtDate(q.createdAt)}${q.createdByName?` by ${esc(q.createdByName)}`:""} &bull; Used in: ${used.length?used.join(", "):"— not added to any test yet"}</div>
-    <div style="font-size:15.5px;line-height:1.6;margin-bottom:10px">${q.text||""}${imgHtml(q.image)}</div>
-    ${opts}
+    <div class="question-copy" style="margin-bottom:10px">${q.text||""}${imgHtml(q.image)}</div>
+    <div class="question-copy">${opts}</div>
     <div style="margin-top:8px;font-size:13px"><b>Correct answer:</b> ${esc(q.correct_answer)}${isMultiKey(q.correct_answer)?" (more than one correct)":""}</div>`;
   $("qpvBack").classList.remove("hidden");
   typeset($("qpvBody"));
@@ -6776,7 +6822,7 @@ async function btPreview(id){
   box.innerHTML = `<div class="card" style="margin-top:10px;border-color:var(--blue)">
     <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-family:monospace">${esc(q.id || q.docId)}</b><button class="btn secondary" style="padding:1px 8px" id="btPvClose">✕</button></div>
     <p style="font-size:12.5px;color:var(--muted);margin:4px 0">${esc(q.bank || "no data bank")}${q.bankRef ? " · " + esc(q.bankRef) : ""} · ${esc(q.subject)} — ${esc(q.topic || "—")}${q.model ? " · " + esc(q.model) : ""}</p>
-    <div class="qexp">${q.text || ""}${imgHtml(q.image)}${q.options?.length && (q.section || "A") === "A" ? "<br>" + q.options.map((o, k) => `(${"ABCD"[k]}) ${esc(String(o).replace(/^\s*[A-D][).]\s*/, ""))}${q.optionImages ? imgHtml(q.optionImages[k]) : ""}`).join("<br>") : ""}</div>
+    <div class="qexp question-copy">${q.text || ""}${imgHtml(q.image)}${q.options?.length && (q.section || "A") === "A" ? "<br>" + q.options.map((o, k) => `(${"ABCD"[k]}) ${esc(String(o).replace(/^\s*[A-D][).]\s*/, ""))}${q.optionImages ? imgHtml(q.optionImages[k]) : ""}`).join("<br>") : ""}</div>
     <p style="margin:8px 0 4px"><b>Key:</b> ${esc(q.correct_answer || "—")} ${q.keySrc === "ai" ? "<span class='badge zero'>AI-proposed</span>" : ""}</p>
     ${solutionHtml(q)}
     <div class="flexrow" style="align-items:flex-end;margin-top:8px">

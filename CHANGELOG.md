@@ -8,6 +8,13 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 ---
 
 
+## 2026-10-19 — Consistent question typography
+
+- Question stems and options in the test screen and question previews use a consistent 18px serif style. MathJax uses a fixed scale with font-height matching disabled so equations no longer appear oversized beside the text. Interface labels and controls retain their existing font.
+- Questions JSON upload also accepts a tag-only file `{ "questionTags": [{ "id": "…", "bank": "ECAPS", "qType": "single", "skills": ["concept"] }] }`. It validates all saved IDs and ownership, then fills only blank bank/type/approach fields after showing a confirmation. Existing tags, content, answers, difficulty and ideal times are retained. No test or question is created.
+- Reload after deployment. Typography needs no rules or index change; rebuild the index once after completing tags.
+
+
 ## 2026-10-19 — Bank Tests preview stays in view
 
 - Bank Tests question previews now open in the existing centred Question Preview popup instead of below the question list. Loading messages, the full question, diagrams, key, solution and tag controls are visible in the popup.
