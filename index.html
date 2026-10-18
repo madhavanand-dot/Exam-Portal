@@ -1565,7 +1565,12 @@ function quickThreshold(q, idealSec){
   return r ? Math.max(r[1], r[0] * (idealSec || 0)) : 0;
 }
 const VIOLATION_TEXT = { tab_hidden: "switched tab", window_blur: "switched to another window/app", exit_fullscreen: "left fullscreen",
-  window_resized: "test window shrunk (split screen / floating window?)" };
+  window_resized: "test window shrunk (split screen / floating window?)", page_closed: "closed or reloaded the test" };
+// Time away from the test: a tab/window switch carries `dur` (seconds until the student came back), and the
+// attempt keeps the total in `awaySec`. A long absence is enough time to look an answer up.
+const LONG_AWAY_SEC = 30;
+const awaySecOf = a => a?.awaySec ?? (a?.violations || []).reduce((s, v) => s + (v.dur || 0), 0);
+function fmtAway(s){ s = Math.round(s || 0); return s < 60 ? `${s}s` : fmtSec(s); }
 // Ideal (target) time to solve one question, in seconds. Resolution order:
 // the exam's own per-question setting → the question's stored idealTimeSec → a default by difficulty.
 const IDEAL_DEFAULTS = {
@@ -2210,7 +2215,7 @@ function iaFastStudents(){
       list.map((x, i) => `<tr><td><b>${esc(x.a.studentName || "")}</b></td><td>${esc(x.a._batch || "—")}</td><td>${x.a.score ?? "—"}</td>
         <td><span class="badge ${x.hits.length / x.correct >= 0.3 ? "neg" : "zero"}">${x.hits.length} of ${x.correct}</span></td>
         <td style="font-size:12px">${x.hits.slice(0, 8).map(h => `Q${h.r.idx}: <b>${fmtSec(h.t)}</b> vs ${h.r.correct ? fmtSec(h.r.avgTimeCorrect) : "—"}`).join(" · ")}${x.hits.length > 8 ? " …" : ""}</td>
-        <td>${(x.a.violations || []).length || 0}</td>
+        <td>${(x.a.violations || []).length || 0}${awaySecOf(x.a) >= 1 ? `<div style="font-size:11px;color:var(--muted)">away ${fmtAway(awaySecOf(x.a))}</div>` : ""}</td>
         <td><button class="btn secondary" style="padding:2px 8px;font-size:12px" data-iafast="${i}">Open result</button></td></tr>`).join("")}</tbody></table>`
       : `<div style="font-size:12.5px;color:#1e7a44">✅ No suspiciously fast correct answers in this test${iaMeta.batch ? " / batch" : ""}.</div>`}
   </div>`;
@@ -2651,6 +2656,7 @@ async function runAtRisk(){
       const recent5 = mine.slice(-5);
       const switches = recent5.reduce((x, a) => x + (a.violations || []).length, 0), malp = recent5.filter(a => a.malpractice).length;
       const quick = recent5.reduce((x, a) => x + Object.keys(a.quickAnswers || {}).length, 0);
+      const away = recent5.reduce((x, a) => x + awaySecOf(a), 0);
       const missed = myExams.filter(e => (takers[e.docId]?.size || 0) > 0 && !(takers[e.docId].has(s.uid)) && assignedStudents(e).some(x => x.uid === s.uid));
       const lastAt = mine.length ? atMs(mine[mine.length - 1].submitTime) : 0;
       const idle = lastAt ? Math.floor((now - lastAt) / 86400000) : null;
@@ -2663,12 +2669,12 @@ async function runAtRisk(){
         if (skip != null && skip >= 40) add(1, `skips ${skip.toFixed(0)}% of questions`);
         if (dead != null && dead >= 40) add(1, `${dead.toFixed(0)}% dead time`);
         if (missed.length >= 2) add(2, `missed ${missed.length} tests`); else if (missed.length === 1) add(1, "missed 1 test");
-        if (malp) add(2, `${malp} malpractice flag(s)`); else if (switches >= 5) add(1, `${switches} tab switches`);
+        if (malp) add(2, `${malp} malpractice flag(s)`); else if (switches >= 5 || away >= 300) add(1, `${switches} tab switches${away ? `, ${fmtAway(away)} away` : ""}`);
         if (quick >= 5) add(1, `${quick} too-quick answers`);
         if (idle != null && idle >= 14) add(1, `no test for ${idle} days`);
       }
       const level = pts >= 4 ? "high" : pts >= 2 ? "watch" : "ok";
-      return { s, n: mine.length, last: pcts.length ? pcts[pcts.length - 1] : null, recentAvg, trend, skip, dead, switches, malp, quick, missed: missed.length, idle, pts, why, level };
+      return { s, n: mine.length, last: pcts.length ? pcts[pcts.length - 1] : null, recentAvg, trend, skip, dead, switches, away, malp, quick, missed: missed.length, idle, pts, why, level };
     }).sort((a, b) => b.pts - a.pts || (a.recentAvg ?? 101) - (b.recentAvg ?? 101));
     arRender();
     setMsg($("arMsg"), `${arRows.filter(r => r.level === "high").length} high risk · ${arRows.filter(r => r.level === "watch").length} to watch · ${arRows.length} student(s) checked.`, true);
@@ -2700,8 +2706,8 @@ $("arShow").onchange = () => { if (arRows.length) arRender(); };
 $("arCsvBtn").onclick = () => {
   if (!arRows.length) { setMsg($("arMsg"), "Run it first."); return; }
   const f = v => v == null ? "" : Math.round(v);
-  downloadCsv("at_risk_students.csv", [["Student","Batch","Risk","Points","Tests","LastScore%","AvgLast3%","Trend","Skipped%","DeadTime%","Missed","Malpractice","TabSwitches","TooQuick","DaysSinceLastTest","Why"],
-    ...arRows.map(r => [r.s.name, r.s.batch || "", r.level, r.pts, r.n, f(r.last), f(r.recentAvg), f(r.trend), f(r.skip), f(r.dead), r.missed, r.malp, r.switches, r.quick, r.idle ?? "", r.why.join("; ")])]);
+  downloadCsv("at_risk_students.csv", [["Student","Batch","Risk","Points","Tests","LastScore%","AvgLast3%","Trend","Skipped%","DeadTime%","Missed","Malpractice","TabSwitches","AwaySec","TooQuick","DaysSinceLastTest","Why"],
+    ...arRows.map(r => [r.s.name, r.s.batch || "", r.level, r.pts, r.n, f(r.last), f(r.recentAvg), f(r.trend), f(r.skip), f(r.dead), r.missed, r.malp, r.switches, Math.round(r.away || 0), r.quick, r.idle ?? "", r.why.join("; ")])]);
 };
 
 /* ---------- Item Analysis extras: question quality, answer-key check, copying ---------- */
@@ -2789,7 +2795,7 @@ function iaCopyHtml(){
       iaCopyPairs.map((p, i) => `<tr><td><b>${esc(p.a.studentName || "")}</b> &amp; <b>${esc(p.b.studentName || "")}</b></td><td>${esc(p.a._batch || "—")} / ${esc(p.b._batch || "—")}</td>
         <td><b>${p.sameWrong}</b> of ${p.bothWrong} both wrong<div style="font-size:11px;color:var(--muted)">${esc(p.qs.slice(0, 10).join(" · "))}${p.qs.length > 10 ? " …" : ""}</div></td>
         <td>${p.rare ? `<span class="badge neg">${p.rare}</span>` : "0"}</td><td>${p.simPct.toFixed(0)}%</td>
-        <td>${p.gapMin < 1 ? "&lt; 1 min" : Math.round(p.gapMin) + " min"}</td><td>${(p.a.violations || []).length} / ${(p.b.violations || []).length}</td>
+        <td>${p.gapMin < 1 ? "&lt; 1 min" : Math.round(p.gapMin) + " min"}</td><td>${(p.a.violations || []).length} / ${(p.b.violations || []).length}${awaySecOf(p.a) + awaySecOf(p.b) >= 1 ? `<div style="font-size:11px;color:var(--muted)">away ${fmtAway(awaySecOf(p.a))} / ${fmtAway(awaySecOf(p.b))}</div>` : ""}</td>
         <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 7px;font-size:11.5px" data-iacopy="${i}" data-who="a">Open 1</button> <button class="btn secondary" style="padding:2px 7px;font-size:11.5px" data-iacopy="${i}" data-who="b">Open 2</button></td></tr>`).join("")}</tbody></table>`
       : `<div style="font-size:12.5px;color:#1e7a44">✅ No suspicious overlap in wrong answers.</div>`}
   </div>`;
@@ -5282,6 +5288,8 @@ function lmDiff(cur){
       const last = (a.violations || []).slice(-1)[0];
       lmAlert("violation", `🚨 ${who} ${esc(VIOLATION_TEXT[last?.type] || "left the test screen")} — warning ${a.warnings}/${MAX_WARNINGS} · ${test}`);
     }
+    const back = awaySecOf(a) - awaySecOf(p);
+    if (p && back >= LONG_AWAY_SEC) lmAlert("violation", `⏳ ${who} came back after <b>${fmtAway(back)}</b> away from the test · ${test}`);
     const pq = p?.quickLive || {};
     Object.entries(a.quickLive || {}).forEach(([qid, x]) => {
       if (!pq[qid]) lmAlert("quick", `⚡ ${who} answered an ${esc(LEVELS.find(l=>l.key===x.level)?.short || "")} question (Q${x.n}) in <b>${x.t}s</b> — ideal ${fmtSec(x.ideal)} · ${test}`);
@@ -5314,9 +5322,10 @@ function lmRender(){
       const seen = now - tsMs(a.live?.lastSeen), online = seen < 90e3;
       const L = a.live || {}, pct = L.total ? Math.round(100*(L.answered||0)/L.total) : 0;
       const nq = Object.keys(a.quickLive||{}).length, w = a.warnings||0;
+      const awayNow = a.live?.awaySince ? Math.max(0, (now - tsMs(a.live.awaySince)) / 1000) : 0, awayTot = awaySecOf(a) + awayNow;
       const bg = w >= 2 ? "background:#fdecea" : (w || nq) ? "background:#fff6e0" : "";
       const detail = lmOpen.has(a.docId) ? `<tr><td colspan="8" style="background:#fafbfc;font-size:12.5px">
-          <b>Tab switches:</b> ${(a.violations||[]).length ? (a.violations||[]).map(v => `${new Date(tsMs(v.at)).toLocaleTimeString("en-IN")} ${esc(VIOLATION_TEXT[v.type]||v.type)}`).join(" · ") : "none"}<br>
+          <b>Tab switches:</b> ${(a.violations||[]).length ? (a.violations||[]).map(v => `${new Date(tsMs(v.at)).toLocaleTimeString("en-IN")} ${esc(VIOLATION_TEXT[v.type]||v.type)}${v.dur != null ? ` (away <b style="${v.dur >= LONG_AWAY_SEC ? "color:#c0392b" : ""}">${fmtAway(v.dur)}</b>)` : ""}`).join(" · ") : "none"}<br>
           <b>Too quick:</b> ${nq ? Object.values(a.quickLive).map(x => `Q${x.n} (${esc(LEVELS.find(l=>l.key===x.level)?.short||"")}) ${x.t}s / ideal ${fmtSec(x.ideal)}`).join(" · ") : "none"}
           ${a.staffWarning ? `<br><b>Last warning sent:</b> "${esc(a.staffWarning.msg)}" by ${esc(a.staffWarning.by||"")}` : ""}
           ${a.forceSubmit ? `<br><b style="color:#c0392b">Stop requested</b> by ${esc(a.forceSubmit.by||"")} — waiting for the student's device` : ""}</td></tr>` : "";
@@ -5326,7 +5335,7 @@ function lmRender(){
           <span style="font-size:11.5px">${L.answered||0}/${L.total||"?"} answered · on Q${L.q||"?"}</span></td>
         <td>${cfg.untimed ? `<span title="No time limit — time spent so far">⏱ ${fmtClock((now - tsMs(a.startTime))/1000)}</span>` : fmtClock(left)}<div style="font-size:11px;color:var(--muted)">started ${new Date(tsMs(a.startTime)).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}</div></td>
         <td>${online ? `<span style="color:#2e8b57">● live</span>` : `<span style="color:var(--muted)" title="no heartbeat for ${Math.round(seen/60000)} min">○ ${tsMs(a.live?.lastSeen) ? Math.round(seen/60000)+" min" : "—"}</span>`}</td>
-        <td>${w ? `<span class="badge ${w>=2?"neg":"zero"}">${w}/${MAX_WARNINGS}</span>` : "0"}</td>
+        <td>${w ? `<span class="badge ${w>=2?"neg":"zero"}">${w}/${MAX_WARNINGS}</span>` : "0"}${awayNow ? `<div style="font-size:11.5px;color:#c0392b;font-weight:700">● away now ${fmtClock(awayNow)}</div>` : ""}${awayTot >= 1 ? `<div style="font-size:11px;color:var(--muted)">away ${fmtAway(awayTot)} total</div>` : ""}</td>
         <td>${nq ? `<span class="badge zero">${nq}</span>` : "0"}</td>
         <td style="white-space:nowrap"><button class="btn secondary" style="padding:2px 8px" data-lmdet="${a.docId}">${lmOpen.has(a.docId)?"Hide":"Details"}</button>
           <button class="btn secondary" style="padding:2px 8px" data-lmwarn="${a.docId}" title="Pops up on the student's screen">📢 Warn</button>
@@ -6348,7 +6357,7 @@ async function loadReports(){
     <td>${Math.round((a.totalTimeSec||0)/60)}</td>
     <td>${a.wrongQuestions?.length||0}</td><td>${a.unansweredQuestions?.length||0}</td>
     <td>${a.malpractice?'<span class="badge neg">MALPRACTICE</span>':(a.warnings||Object.keys(a.quickAnswers||{}).length)?'<span class="badge zero">flagged</span>':'<span class="badge pos">clean</span>'}
-      ${a.warnings?`<span title="tab switches / fullscreen exits" style="font-size:12px"> 🚨${a.warnings}</span>`:""}${Object.keys(a.quickAnswers||{}).length?`<span title="tough questions answered too quickly" style="font-size:12px"> ⚡${Object.keys(a.quickAnswers).length}</span>`:""}</td>
+      ${a.warnings?`<span title="tab switches / fullscreen exits" style="font-size:12px"> 🚨${a.warnings}</span>`:""}${awaySecOf(a)>=1?`<span title="time away from the test (tab / window switches)" style="font-size:12px"> ⏳${fmtAway(awaySecOf(a))}</span>`:""}${Object.keys(a.quickAnswers||{}).length?`<span title="tough questions answered too quickly" style="font-size:12px"> ⚡${Object.keys(a.quickAnswers).length}</span>`:""}</td>
     <td><button class="btn danger" style="padding:2px 9px" data-rpdel="${a.docId}">Delete</button></td></tr>`).join("")
     || `<tr><td colspan="11">No attempts found.</td></tr>`;
   $("rpRows").querySelectorAll("[data-rpview]").forEach(b => b.onclick = () => {
@@ -7107,12 +7116,29 @@ async function startExam(){
   const attemptRef = doc(db,"attempts",attemptId);
   const prev = await getDoc(attemptRef);
   let startTime = Date.now(), savedResponses = {}, savedTimes = {}, pledgedAt = Timestamp.now();
+  let savedViol = [], savedWarnings = 0, savedAway = 0;
   if (prev.exists() && !prev.data().submitTime) {
     const p = prev.data();
     startTime = p.startTime?.toDate?.().getTime() ?? Date.now();
     savedResponses = p.responses || {};
     savedTimes = p.questionTimeSec || {};
     if (p.pledgedAt) pledgedAt = p.pledgedAt;
+    // keep the switches already recorded: reloading the page must not wipe them (or reset the warning count)
+    savedViol = (p.violations || []).map(v => ({ type: v.type, at: tsMs(v.at), ...(v.dur != null ? { dur: v.dur } : {}) }));
+    savedWarnings = p.warnings || 0;
+    savedAway = awaySecOf(p);
+    if (cfg.proctored) {
+      const now = Date.now(), awaySince = tsMs(p.live?.awaySince), lastSeen = tsMs(p.live?.lastSeen);
+      const open = awaySince ? savedViol.findLastIndex(v => v.dur == null) : -1;
+      if (open >= 0) {                  // left the test and never came back to that page: away until now
+        savedViol[open].dur = Math.max(0, Math.round((now - awaySince) / 1000));
+        savedAway += savedViol[open].dur;
+      } else if (lastSeen && now - lastSeen >= 2 * AUTOSAVE_MS) {   // closed the test for a while (a quick reload is ignored)
+        const dur = Math.round((now - lastSeen) / 1000);
+        savedViol.push({ type: "page_closed", at: lastSeen, dur });
+        savedAway += dur;
+      }
+    }
   } else if (prev.exists() && prev.data().submitTime) {
     if (!await uiConfirm(cfg.proctored ? "You have already submitted this exam. Start a fresh attempt? (Previous result is kept in reports but will be overwritten on this attempt id.)"
                                : "You have already completed this chapter. Solve it again from the start? (Your previous result will be replaced.)")) {
@@ -7153,8 +7179,10 @@ async function startExam(){
     }),
     shownAt: null,
     submitted: false,
-    violations: [],     // {type, at}
-    warnings: 0,
+    violations: savedViol,     // {type, at, dur?}  dur = seconds away (tab/window switches)
+    warnings: savedWarnings,
+    awaySec: savedAway,       // total seconds away from the test
+    awayStart: null, awayVi: -1,   // the absence in progress (ms) and its violation
     quick: {},          // questions answered "too quickly" (live, for the teacher's monitor)
     pledgedAt,
     seenWarnAt: Date.now()
@@ -7205,17 +7233,29 @@ async function startExam(){
 const MAX_WARNINGS = 3;
 let proctorHandlers = [];
 let _lastViolAt = 0;
+// Leaving the page (tab or window switch) starts an absence; endAway() stamps its length when the student is back.
+function logViolation(type, now){
+  EX.violations.push({ type, at: now });
+  if ((type === "tab_hidden" || type === "window_blur") && EX.awayStart == null) { EX.awayStart = now; EX.awayVi = EX.violations.length - 1; }
+}
+function endAway(){
+  if (!EX || EX.awayStart == null) return;
+  const dur = Math.max(0, Math.round((Date.now() - EX.awayStart) / 1000));
+  const v = EX.violations[EX.awayVi]; if (v) v.dur = dur;
+  EX.awaySec += dur; EX.awayStart = null;
+  if (!EX.submitted) saveProgress().catch(()=>{});
+}
 function recordViolation(type, label){
   if (!EX || EX.submitted) return;
   const now = Date.now();
   if (!EX.cfg.strict) {   // silent mode: record for the teacher (live monitor, result), no warning, no auto-submit
-    if (now - _lastViolAt >= 1500) { _lastViolAt = now; EX.violations.push({ type, at: now }); saveProgress().catch(()=>{}); }
-    else EX.violations.push({ type, at: now });
+    if (now - _lastViolAt >= 1500) { _lastViolAt = now; logViolation(type, now); saveProgress().catch(()=>{}); }
+    else logViolation(type, now);
     return;
   }
-  if (now - _lastViolAt < 1500) { EX.violations.push({ type, at: now }); return; } // same incident, log but don't double-warn
+  if (now - _lastViolAt < 1500) { logViolation(type, now); return; } // same incident, log but don't double-warn
   _lastViolAt = now;
-  EX.violations.push({ type, at: now });
+  logViolation(type, now);
   EX.warnings++;
   saveProgress().catch(()=>{});
   if (EX.warnings >= MAX_WARNINGS) {
@@ -7233,7 +7273,8 @@ function recordViolation(type, label){
 }
 function startProctoring(){
   stopProctoring();
-  const onHide = () => { if (document.hidden) recordViolation("tab_hidden","You switched away from the exam tab/window."); };
+  const onHide = () => { if (document.hidden) recordViolation("tab_hidden","You switched away from the exam tab/window."); else onBack(); };
+  const onBack = () => { if (!document.hidden && document.hasFocus()) endAway(); };
   // blur fires on transient focus loss too (notifications, IME, OS chrome); only flag a real, sustained switch
   const onBlur = () => {
     setTimeout(() => {
@@ -7272,6 +7313,7 @@ function startProctoring(){
   window.addEventListener("orientationchange", onOrient);
   document.addEventListener("visibilitychange", onHide);
   window.addEventListener("blur", onBlur);
+  window.addEventListener("focus", onBack);
   document.addEventListener("fullscreenchange", onFsChange);
   document.addEventListener("copy", block);
   document.addEventListener("cut", block);
@@ -7282,6 +7324,7 @@ function startProctoring(){
     ()=>window.removeEventListener("orientationchange", onOrient),
     ()=>document.removeEventListener("visibilitychange", onHide),
     ()=>window.removeEventListener("blur", onBlur),
+    ()=>window.removeEventListener("focus", onBack),
     ()=>document.removeEventListener("fullscreenchange", onFsChange),
     ()=>document.removeEventListener("copy", block),
     ()=>document.removeEventListener("cut", block),
@@ -7473,9 +7516,13 @@ async function saveProgress(){
   const cq = EX.questions[EX.idx];
   if (responses[cq.docId]) responses[cq.docId].timeSec = Math.round(EX.state[EX.idx].timeSec + liveExtra);
   const live = { lastSeen: serverTimestamp(), q: EX.idx + 1, total: EX.questions.length,
-                 answered: EX.state.filter(st => st.answer != null).length, subject: cq.subject || "" };
+                 answered: EX.state.filter(st => st.answer != null).length, subject: cq.subject || "",
+                 awaySince: EX.awayStart ? Timestamp.fromMillis(EX.awayStart) : null };   // away right now (live monitor)
   await setDoc(EX.attemptRef, { responses, live, warnings: EX.warnings, quickLive: EX.quick,
-    violations: EX.violations.map(v => ({ type: v.type, at: Timestamp.fromMillis(v.at) })) }, { merge:true });
+    violations: EX.violations.map(violationDoc), awaySec: EX.awaySec }, { merge:true });
+}
+function violationDoc(v){
+  return { type: v.type, at: Timestamp.fromMillis(v.at), ...(v.dur != null ? { dur: v.dur } : {}) };
 }
 
 /* ---- submit ---- */
@@ -7498,6 +7545,7 @@ $("modalConfirm").onclick = () => { $("modalBack").classList.add("hidden"); subm
 async function submitExam(auto, flag={}){
   if (!EX || EX.submitted) return;
   EX.submitted = true;
+  endAway();          // submitted (or timed out) while away: the absence lasts until now
   try { EX.unsubAttempt?.(); } catch(e){}
   clearInterval(tickInt); clearInterval(autosaveInt);
   stopProctoring();
@@ -7558,7 +7606,7 @@ async function submitExam(auto, flag={}){
     // proctoring
     malpractice: !!flag.malpractice,
     malpracticeReason: flag.malpractice ? (flag.reason || "") : "",
-    violations: EX.violations.map(v => ({ type:v.type, at: Timestamp.fromMillis(v.at) })),
+    violations: EX.violations.map(violationDoc), awaySec: EX.awaySec,
     warnings: EX.warnings
   };
   try { await setDoc(EX.attemptRef, attemptData, { merge:true }); }
@@ -8394,9 +8442,15 @@ function renderTimeSummary(attempt, detail, durSec){
 function renderIntegrity(attempt, detail){
   const box = $("integrityCard"); if (!box) return;
   const isStaffView = currentUser && (currentUser.role === "admin" || currentUser.role === "faculty");
-  const viol = (attempt.violations || []).map(v => ({ type: v.type, at: v.at?.toMillis ? v.at.toMillis() : (v.at?.seconds ? v.at.seconds*1000 : v.at) }));
-  // de-duplicate the burst of events one switch produces (blur + hidden within 1.5 s)
-  const allIncidents = viol.filter((v,i) => i === 0 || v.at - viol[i-1].at > 1500);
+  const viol = (attempt.violations || []).map(v => ({ type: v.type, at: tsMs(v.at), dur: v.dur }));
+  // de-duplicate the burst of events one switch produces (blur + hidden within 1.5 s); the burst keeps its time away
+  const allIncidents = [];
+  viol.forEach((v,i) => {
+    if (i === 0 || v.at - viol[i-1].at > 1500) allIncidents.push({ ...v });
+    else if (v.dur != null) { const g = allIncidents[allIncidents.length-1]; g.dur = Math.max(g.dur || 0, v.dur); }
+  });
+  const away = awaySecOf(attempt), longAway = allIncidents.filter(v => v.dur >= LONG_AWAY_SEC).length;
+  const awayTxt = v => v.dur == null ? "" : ` — <span style="${v.dur >= LONG_AWAY_SEC ? "color:#c0392b;font-weight:700" : ""}">away ${fmtAway(v.dur)}</span>`;
   // silent tracking: the student is not told about switches (not during the test, not here); staff always see them
   const silent = attempt.proctorStrict === false;
   const incidents = silent && !isStaffView ? [] : allIncidents;
@@ -8410,8 +8464,9 @@ function renderIntegrity(attempt, detail){
     ${attempt.pledgedAt ? `<p style="font-size:12px;color:var(--muted)">Honesty pledge taken ${fmtDate(attempt.pledgedAt)}.</p>` : ""}
     ${isStaffView && silent ? `<p style="font-size:12.5px;margin-top:4px">🤫 <b>Silent tracking</b> was on: the student got no warnings and the test was not auto-submitted. Recorded below.</p>` : ""}
     ${isStaffView && attempt.device?.mobile ? `<p style="font-size:12.5px;margin-top:4px">📱 Written on a <b>phone/tablet</b> (${esc(attempt.device.screen || "")}). Split screen, floating windows or picture-in-picture may not register as a switch; shrinking of the test window is flagged.</p>` : ""}
-    ${incidents.length ? `<p style="margin-top:6px"><b>🚨 Left the test screen ${incidents.length} time(s)</b>${silent ? " (recorded silently)" : " — your teacher was notified each time"}:</p>
-      <ul style="font-size:13px;margin:4px 0 0 18px">${incidents.map(v => `<li>${new Date(v.at).toLocaleTimeString("en-IN")} — ${esc(VIOLATION_TEXT[v.type] || v.type)}</li>`).join("")}</ul>` : ""}
+    ${incidents.length ? `<p style="margin-top:6px"><b>🚨 Left the test screen ${incidents.length} time(s)</b>${away ? `, <b style="color:${longAway ? "#c0392b" : "inherit"}">away ${fmtAway(away)} in total</b>` : ""}${silent ? " (recorded silently)" : " — your teacher was notified each time"}:</p>
+      <ul style="font-size:13px;margin:4px 0 0 18px">${incidents.map(v => `<li>${new Date(v.at).toLocaleTimeString("en-IN")} — ${esc(VIOLATION_TEXT[v.type] || v.type)}${awayTxt(v)}</li>`).join("")}</ul>
+      ${longAway ? `<p style="font-size:12.5px;color:var(--muted);margin-top:4px">${longAway} absence(s) of ${LONG_AWAY_SEC}s or more (in red) — long enough to look an answer up. A switch of a second or two is usually a notification or a slip.</p>` : ""}` : ""}
     ${quick.length ? `<p style="margin-top:8px"><b>⚡ ${quick.length} tough question(s) answered too quickly.</b>
       <span style="font-size:12.5px;color:var(--muted)">A Hard/Moderate question answered in a small fraction of its ideal time usually means a blind guess or outside help. Your teacher reviews these.</span></p>
       <table class="tbl" style="margin-top:6px"><thead><tr><th>Q#</th><th>Topic</th><th>Level</th><th>Your time</th><th>Ideal</th><th>Result</th></tr></thead><tbody>

@@ -7,6 +7,25 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-18 — Time away from the test (how long each tab / window switch lasted)
+
+- **Every tab or window switch now records how long the student was away** (seconds until they came back to the
+  test). Stored on the attempt as `violations[].dur` and the total `awaySec`.
+- **Integrity report** (result page): "Left the test screen 3 time(s), away 2m 15s in total", with the time away on
+  each switch. Absences of **30 s or more are shown in red**: long enough to look an answer up, unlike a 1–2 s slip.
+  In silent mode students still see nothing; staff see it all.
+- **Live Monitor:** the Switches column shows **● away now 0:45** while a student is off the test, plus their total
+  time away; the row details list the time away per switch, and an alert sounds when a student comes back after 30 s+.
+- **Closing the test counts too:** if a student closes or leaves the test and resumes it 1 min+ later, that gap is
+  recorded as "closed or reloaded the test" with its length. A quick reload is ignored.
+- **Fixed:** reloading the test page used to wipe the recorded tab switches and reset the strict-mode warning count
+  to 0. They are now kept, so a reload no longer gives a student fresh warnings.
+- Time away also shows in Reports (⏳), Item Analysis (fast-correct and copying tables) and the At-risk CSV (`AwaySec`;
+  5 min+ away across the last 5 tests adds a risk point).
+- Fullscreen exits and split-screen shrinks are still flagged, but have no time away (the test is still on screen).
+  Attempts written before this change show switches without times.
+- **After deploying:** nothing to publish (no rules change).
+
 ## 2026-10-18 — Toppers (handpicked groups) and one-file test upload for image-based papers
 
 - **Admin → 🏆 Groups (admins only):** handpick the students of a group. A **Toppers** group exists by default; add more
