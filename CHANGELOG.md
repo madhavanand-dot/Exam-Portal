@@ -7,6 +7,28 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-18 — Toppers (handpicked groups) and one-file test upload for image-based papers
+
+- **Admin → 🏆 Groups (admins only):** handpick the students of a group. A **Toppers** group exists by default; add more
+  with **+ New group**, rename with **Rename**. Filter by name / PS-ID, batch and exam type, tick, then **Save members**.
+  Membership is stored on each student (`users/{uid}.groups`), the group list in `settings/portal.groups`.
+- **New audience "A group (e.g. Toppers)"** in Exams, Diagnostic Builder and the Activate dialog. Only members see the
+  test, in a separate gold **🏆 Toppers tests** section at the top of their dashboard; they still see their normal batch
+  tests. Adding or removing a member changes every group test for that student at once. Attendance (absentees) counts
+  the group members.
+- **Group leaderboard:** the Groups tab lists the group's tests and ranks members by % of marks across the tests each
+  one wrote (absent tests shown), with a CSV.
+- **Test files (Questions → Upload):** a file `{ "exam": {...}, "questions": [...] }` writes the questions and creates
+  the test **inactive**, in file order (format in `CLAUDE_TO_GPT.md` §4c). The whole file is checked first; one bad row
+  or a bad `exam` block means nothing is written. **Keys may be blank in a test file**; such questions are stored as
+  "no key yet", and the test can't be activated until every key is set (**Answer Key** tab → the test → paste
+  `1-A 2-C …` → Apply). Re-uploading never wipes a key the bank already has; a picture already in the bank under
+  another id is reused in the test. Plain question arrays work as before (keys still required).
+- **After deploying:** nothing to publish (no rules change: only admins write `users` and `settings`, which they already
+  may). Open 🏆 Groups, tick the toppers, **Save members**. Ask ChatGPT for §4c test files for image-based papers.
+
+---
+
 ## 2026-10-16 — Topic-wise progress report for students (imported from the progress board)
 
 - **Admin → Topic Reports tab:** upload `student_topic_summary.json` + `taxonomy.json` (from `PROGRESS REPORT/EXAM_PORTAL_HANDOFF`).

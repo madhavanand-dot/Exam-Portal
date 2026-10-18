@@ -390,6 +390,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       <button data-atab="modelbank" id="tabModelBank">Model Bank</button>
       <button data-atab="topicreports" id="tabTopicReports">Topic Reports</button>
       <button data-atab="assign">Assign Tests</button>
+      <button data-atab="groups" id="tabGroups">🏆 Groups</button>
       <button data-atab="custompractice">Custom Practice</button>
       <button data-atab="reports">Reports</button>
       <button data-atab="leaderboard">Leaderboard</button>
@@ -613,7 +614,9 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
             <option value="all">All students of this exam type</option>
             <option value="batch">Specific batch(es)</option>
             <option value="students">Specific students</option>
+            <option value="group">A group (e.g. Toppers)</option>
           </select></div>
+          <div class="field" id="exGroupWrap" style="display:none"><label>Group</label><select id="exGroup"></select></div>
           <div class="field" id="exBatchWrap" style="display:none"><label>Batches</label><div id="exBatchPick" class="checklist" style="max-height:170px"></div></div>
           <div class="field" id="exStudentsWrap" style="display:none;max-width:320px"><label>Pick students</label>
             <div id="exStudentPick" class="checklist" style="max-height:140px"></div></div>
@@ -664,6 +667,40 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <div id="txAccess" class="hidden" style="margin-top:10px"></div>
       </div>
       <div id="txAdminBox" style="margin-top:12px"></div>
+    </div>
+
+    <div id="atab-groups" class="atab hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">🏆 Groups — handpicked students (e.g. Toppers)</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Tick the students who belong to a group and press <b>Save members</b>. A test whose audience is the group
+          (<b>Who can take this exam? → A group</b> in Exams, Diagnostic Builder or Activate, or <code>"audience": {"mode":"group","group":"toppers"}</code>
+          in an uploaded test file) is seen <b>only</b> by its members, in a separate 🏆 section of their dashboard. Members keep seeing their normal batch tests.
+          Adding or removing a member takes effect on every group test at once.</p>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Group</label><select id="grSel"></select></div>
+          <button class="btn secondary" id="grNewBtn">+ New group</button>
+          <button class="btn secondary" id="grRenameBtn">Rename</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3 style="margin:0 0 8px">Members <span id="grCount" style="font-size:13px;color:var(--muted);font-weight:400"></span></h3>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field"><label>Search name / PS-ID</label><input id="grSearch" placeholder="type to filter"></div>
+          <div class="field"><label>Batch</label><select id="grBatch"></select></div>
+          <div class="field"><label>Exam type</label><select id="grType"><option value="">All</option><option value="medical">Medical</option><option value="engineering">Engineering</option></select></div>
+          <label style="font-size:13px;display:inline-flex;gap:6px;align-items:center;margin-bottom:8px"><input type="checkbox" id="grOnly"> Members only</label>
+        </div>
+        <div id="grList" class="checklist" style="max-height:360px"></div>
+        <div class="flexrow" style="margin-top:10px"><button class="btn" id="grSaveBtn">Save members</button></div>
+        <div id="grMsg"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3 style="margin:0 0 8px">Group tests &amp; leaderboard</h3>
+        <div id="grTests" style="margin-bottom:10px"></div>
+        <div class="flexrow"><button class="btn secondary" id="grLbBtn">Load group leaderboard</button><button class="btn secondary" id="grLbCsv">⬇ CSV</button></div>
+        <div id="grLb" style="margin-top:10px;overflow:auto"></div>
+      </div>
     </div>
 
     <div id="atab-topicreports" class="atab hidden">
@@ -785,7 +822,9 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
             <option value="program">A whole programme (every batch of it)</option>
             <option value="batch">Specific batch(es)</option>
             <option value="students">Specific students</option>
+            <option value="group">A group (e.g. Toppers)</option>
           </select></div>
+          <div class="field" id="dgGroupWrap" style="display:none"><label>Group</label><select id="dgGroup"></select></div>
           <div class="field" id="dgAudProgWrap" style="display:none"><label>Programme</label><select id="dgAudProgram">
             <option value="TYM">TYM</option><option value="OYM">OYM</option><option value="RM">RM</option></select></div>
           <div class="field" id="dgBatchWrap" style="display:none"><label>Batches</label><div id="dgBatchPick" class="checklist" style="max-height:170px"></div></div>
@@ -1270,7 +1309,9 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       <option value="all">All students of this exam type</option>
       <option value="batch">Specific batch(es)</option>
       <option value="students">Specific students</option>
+      <option value="group">A group (e.g. Toppers)</option>
     </select></div>
+    <div class="field" id="audGroupWrap" style="display:none;margin-bottom:10px"><label>Group</label><select id="audGroup"></select></div>
     <div class="field" id="audBatchWrap" style="display:none;margin-bottom:10px"><label>Batches</label><div id="audBatchPick" class="checklist" style="max-height:170px"></div></div>
     <div class="field" id="audStudentsWrap" style="display:none;max-width:100%;margin-bottom:10px"><label>Pick students</label>
       <div id="audStudentPick" class="checklist" style="max-height:180px"></div></div>
@@ -1463,6 +1504,17 @@ const PKG_KIND = { package: "📘 Study Package", booster: "🚀 Momentum Booste
 let PORTAL = { programPrefixes: { TYM: ["TR", "TW"], OYM: ["OR", "OW"], RM: ["RM"] } };
 async function loadPortal(){
   try { const sn = await getDoc(doc(db,"settings","portal")); if (sn.exists()) PORTAL = { ...PORTAL, ...sn.data() }; } catch(e){ /* rules not published: defaults */ }
+}
+/* ---- student groups (e.g. Toppers): handpicked students. settings/portal.groups lists them [{ id, name }]; a student's
+   users/{uid}.groups holds the ids they belong to. A test with audience { mode: "group", group: id } is seen only by members. ---- */
+const DEFAULT_GROUPS = [{ id: "toppers", name: "Toppers" }];
+const portalGroups = () => (Array.isArray(PORTAL.groups) && PORTAL.groups.length ? PORTAL.groups : DEFAULT_GROUPS);
+const groupName = id => portalGroups().find(g => g.id === id)?.name || id || "—";
+const inGroup = (s, id) => Array.isArray(s?.groups) && s.groups.includes(id);
+function fillGroupSelect(sel, cur){
+  if (!sel) return;
+  sel.innerHTML = portalGroups().map(g => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join("");
+  if (cur && portalGroups().some(g => g.id === cur)) sel.value = cur;
 }
 function programOf(batch){
   const b = String(batch || "").trim().toUpperCase();
@@ -1816,6 +1868,7 @@ function enterAdmin(){
   $("tabFaculty").classList.toggle("hidden", !isSuper());
   $("tabModelBank").classList.toggle("hidden", !isSuper());
   $("tabTopicReports").classList.toggle("hidden", !isSuper());   // Model Bank: admins only (students can be given view access)
+  $("tabGroups").classList.toggle("hidden", !isSuper());   // group membership lives on users/{uid}, which only super-admins may change
   $("tabAiSettings").classList.toggle("hidden", !isSuper());
   $("tabUsage").classList.toggle("hidden", !isSuper());
   lmStop();
@@ -1846,6 +1899,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="itemanalysis") initItemAnalysis();
     if (b.dataset.atab==="bulkimport") biFillSubjects();
     if (b.dataset.atab==="keypatch") initKeyPatch();
+    if (b.dataset.atab==="groups") grInit();
     if (b.dataset.atab==="diagnostic") initDiagnostic();
     if (b.dataset.atab==="assign") { try { dgLibRender(); } catch(e) { console.warn(e); } }
     if (b.dataset.atab==="custompractice") initCustomPractice();
@@ -1911,6 +1965,8 @@ function assignedStudents(exam){
     list = list.filter(s => set.has(s.uid));
   } else if (a && a.mode === "program" && a.program !== "ALL") {
     list = list.filter(s => programOf(s.batch) === a.program);
+  } else if (a && a.mode === "group") {
+    list = list.filter(s => inGroup(s, a.group));
   }
   return list;
 }
@@ -3289,6 +3345,47 @@ $("csvImportBtn").onclick = async () => {
 };
 
 /* ----- question upload ----- */
+// A test file { "exam": {...}, "questions": [...] } also creates the test (inactive) from its questions, in file order.
+// Checked before anything is written; returns { error } or the settings for the exams/{id} doc.
+function uploadExamCheck(E, qs){
+  if (!E || typeof E !== "object" || Array.isArray(E)) return { error: '"exam" must be an object' };
+  const title = String(E.title || "").trim();
+  if (!title) return { error: "exam.title is missing" };
+  if (E.diagnostic || E.studyPackage || (E.kind && E.kind !== "exam")) return { error: "only normal tests can be uploaded this way; build diagnostics / packages in the Diagnostic Builder from the uploaded questions" };
+  const types = [...new Set(qs.map(q => q.examType))];
+  if (types.length !== 1) return { error: `all questions of a test must have the same examType (found ${types.join(", ")})` };
+  const t = types[0];
+  if (E.examType && E.examType !== t) return { error: `exam.examType "${E.examType}" does not match the questions (${t})` };
+  const seen = new Set(), dup = qs.map(q => q.id).filter(id => seen.has(id) || !seen.add(id));
+  if (dup.length) return { error: `question id(s) used twice in the file: ${[...new Set(dup)].slice(0, 10).join(", ")}` };
+  const base = EXAM_CONFIG[t];
+  const durationMin = E.durationMin == null ? Math.round(base.durationSec / 60) : parseInt(E.durationMin, 10);
+  if (!(durationMin > 0)) return { error: "exam.durationMin must be a positive number of minutes" };
+  const num = v => typeof v === "number" && isFinite(v);
+  const mk = (sec) => {
+    const m = E.marks?.[sec]; if (m == null) return base.marks[sec];
+    if (!num(m.correct) || !num(m.wrong)) return null;
+    return { correct: m.correct, wrong: -Math.abs(m.wrong) };
+  };
+  const marks = { A: mk("A"), B: mk("B") };
+  if (!marks.A || !marks.B) return { error: 'exam.marks must look like {"A":{"correct":4,"wrong":-1},"B":{"correct":4,"wrong":0}}' };
+  const a = E.audience || { mode: "all" }, audience = { mode: a.mode || "all" };
+  if (audience.mode === "batch") {
+    audience.batches = (Array.isArray(a.batches) ? a.batches : []).map(x => String(x).trim()).filter(Boolean);
+    if (!audience.batches.length) return { error: "audience mode batch needs batches: [\"TR01\", …]" };
+  } else if (audience.mode === "group") {
+    const g = portalGroups().find(x => x.id === a.group || nrm(x.name) === nrm(a.group));
+    if (!g) return { error: `unknown group "${a.group}" (groups: ${portalGroups().map(x => x.id).join(", ")}; create it in the 🏆 Groups tab)` };
+    audience.group = g.id;
+  } else if (audience.mode === "program") {
+    if (![...PROGRAMS, "ALL"].includes(a.program)) return { error: `audience program must be one of ${PROGRAMS.join(", ")}, ALL` };
+    audience.program = a.program;
+  } else if (audience.mode !== "all") return { error: 'audience.mode must be "all", "batch", "group" or "program" (pick single students in the portal)' };
+  return { title, examType: t, durationMin, marks, audience,
+    shuffleOptions: !!E.shuffleOptions, keepOrder: E.keepOrder !== false,
+    proctorStrict: E.proctorStrict === true ? true : E.proctorStrict === false ? false : null,
+    ...(E.chapter ? { chapter: String(E.chapter).trim() } : {}), ...(E.subtopic ? { subtopic: String(E.subtopic).trim() } : {}) };
+}
 $("qUploadBtn").onclick = async () => {
   const f = $("qFile").files[0];
   const log = $("uploadLog"); log.classList.remove("hidden"); log.textContent = "";
@@ -3296,7 +3393,9 @@ $("qUploadBtn").onclick = async () => {
   if (!f) { say("Choose a JSON file first."); return; }
   let data;
   try { data = JSON.parse(await f.text()); } catch(e){ say("Invalid JSON: " + e.message); return; }
-  if (!Array.isArray(data)) { say("JSON root must be an array of questions."); return; }
+  let pack = null;
+  if (data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.questions)) { pack = data.exam ?? {}; data = data.questions; say("Test file: questions + a test (created inactive)."); }
+  if (!Array.isArray(data)) { say('JSON root must be an array of questions, or a test file { "exam": {…}, "questions": […] }.'); return; }
 
   // validate
   const valid = [], errors = [];
@@ -3312,15 +3411,18 @@ $("qUploadBtn").onclick = async () => {
     const hasImg = typeof q.image === "string" && q.image.length > 0;
     if (!q.text && !hasImg)                    return errors.push(`${where_}: needs "text" or "image"`);
     const optImgs = Array.isArray(q.optionImages) ? q.optionImages : null;
+    // in a test file the key may be left blank: the teacher marks it (Answer Key tab) before the test can be activated
+    const noKey = !!pack && String(q.correct_answer ?? "").trim() === "";
     if (section === "A") {
       const optsOk = Array.isArray(q.options) && q.options.length === 4;
       const optImgsOk = optImgs && optImgs.length === 4 && optImgs.every(x => typeof x === "string" && x);
       if (!optsOk && !optImgsOk) return errors.push(`${where_}: MCQ needs 4 "options" (text) or 4 "optionImages"`);
-      if (!validMcqKey(q.correct_answer)) return errors.push(`${where_}: correct_answer must be A/B/C/D, or several letters (e.g. "AC") when more than one option is correct`);
-      q.correct_answer = normKey(q.correct_answer);
+      if (!noKey && !validMcqKey(q.correct_answer)) return errors.push(`${where_}: correct_answer must be A/B/C/D, or several letters (e.g. "AC") when more than one option is correct`);
+      if (!noKey) q.correct_answer = normKey(q.correct_answer);
     } else {
-      if (q.correct_answer === undefined || isNaN(parseFloat(q.correct_answer))) return errors.push(`${where_}: numerical correct_answer must be a number string`);
+      if (!noKey && (q.correct_answer === undefined || isNaN(parseFloat(q.correct_answer)))) return errors.push(`${where_}: numerical correct_answer must be a number string`);
     }
+    if (noKey) { q.correct_answer = ""; q.keySrc = "ai-unsure"; q.aiKeyNote = "No key in the uploaded test file — set it in the Answer Key tab"; }
     const clean = { ...q, section,
                  text: q.text || "",
                  options: section==="A" ? (q.options || ["","","",""]) : [],
@@ -3333,6 +3435,15 @@ $("qUploadBtn").onclick = async () => {
   errors.forEach(e => say("ERROR  " + e));
   say(`Validated: ${valid.length} ok, ${errors.length} rejected.`);
   if (!valid.length) return;
+  let examPlan = null;
+  if (pack) {
+    if (errors.length) { say("Test file: nothing written. Fix the rejected rows first (the test must contain every question)."); return; }
+    examPlan = uploadExamCheck(pack, valid);
+    if (examPlan.error) { say("ERROR  exam: " + examPlan.error + ". Nothing written."); return; }
+    const blank = valid.filter(q => q.correct_answer === "").length;
+    say(`Test "${examPlan.title}": ${valid.length} questions, ${examPlan.durationMin} min, audience ${audienceLabel({ examType: examPlan.examType, audience: examPlan.audience })}${blank ? `, ${blank} without a key (mark them in Answer Key before activating)` : ""}.`);
+  }
+  const idMap = {};   // file id → bank id when the same picture is already in the bank under another id
   // shrink embedded images before they go into Firestore (they are exam download time)
   const withImgs = valid.filter(q => q.image || q.optionImages || q.solutionImage);
   if (withImgs.length) {
@@ -3367,6 +3478,8 @@ $("qUploadBtn").onclick = async () => {
       const q = valid[i];
       const ex = await getDoc(doc(db,"questions",q.id)).then(sn => sn.exists() ? { docId: sn.id, ...sn.data() } : null).catch(() => null);
       if (ex) {
+        // a test file without a key never wipes a key the bank already has
+        if (q.correct_answer === "" && hasKey(ex)) { q.correct_answer = ex.correct_answer; if (ex.keySrc) q.keySrc = ex.keySrc; else delete q.keySrc; if (ex.aiKeyNote) q.aiKeyNote = ex.aiKeyNote; else delete q.aiKeyNote; }
         if (sameContent(q, ex)) plan.same.push({ q });
         else if (keyTrust(ex) >= 3 && String(q.correct_answer) !== String(ex.correct_answer))
           plan.conflict.push({ q, why: `same id, key ${q.correct_answer} vs teacher-confirmed ${ex.correct_answer}` });
@@ -3375,6 +3488,7 @@ $("qUploadBtn").onclick = async () => {
         const copies = (q.imgHash || q.srcHash) ? (await findImageCopies(q.imgHash, q.srcHash)).filter(c => c.docId !== q.id) : [];
         if (copies.length) {
           const best = bestKeyedCopy(copies) || copies[0];
+          idMap[q.id] = best.docId || best.id;
           plan.dup.push({ q, why: `same picture as ${best.id || best.docId}${hasKey(best) ? ` (key ${best.correct_answer}${String(best.correct_answer) !== String(q.correct_answer) ? `, yours ${q.correct_answer}` : ""})` : ""}` });
         } else plan.new.push({ q });
       }
@@ -3388,11 +3502,12 @@ $("qUploadBtn").onclick = async () => {
       downloadCsv("import_report.csv", rows);
     }
     toWrite = [...plan.new.map(x => ({ q: x.q, mode: "new" })), ...plan.update.map(x => ({ q: x.q, mode: "update" }))];
-    if (!toWrite.length) { say("Nothing to write."); return; }
-    if (!await uiConfirm(`Write ${plan.new.length} new and update ${plan.update.length} existing question(s)? Skipped: ${plan.same.length} unchanged, ${plan.dup.length} duplicates, ${plan.conflict.length} conflicts.`)) { say("Cancelled — nothing written."); return; }
+    if (!toWrite.length && !examPlan) { say("Nothing to write."); return; }
+    if (!await uiConfirm(`Write ${plan.new.length} new and update ${plan.update.length} existing question(s)? Skipped: ${plan.same.length} unchanged, ${plan.dup.length} duplicates, ${plan.conflict.length} conflicts.` +
+        (examPlan ? `\n\nThen create the test "${examPlan.title}" (inactive; duplicates and conflicts use the copy already in the bank).` : ""))) { say("Cancelled — nothing written."); return; }
   }
   // batch write (Firestore limit 500 ops; image docs are big, so keep image batches small for the 10 MB request cap)
-  let written = 0;
+  let written = 0, failed = 0;
   const per = withImgs.length ? 25 : 450;
   for (let i = 0; i < toWrite.length; i += per) {
     const batch = writeBatch(db);
@@ -3401,12 +3516,25 @@ $("qUploadBtn").onclick = async () => {
         ? batch.set(doc(db, "questions", q.id), { ...q, updatedBy: currentUser.uid, updatedByName: currentUser.name, updatedAt: serverTimestamp() }, { merge: true })
         : batch.set(doc(db, "questions", q.id), { ...q, createdBy: currentUser.uid, createdByName: currentUser.name, createdAt: serverTimestamp() });
     try { await batch.commit(); }
-    catch(e) { say(`FAILED rows ${i + 1}–${Math.min(i + per, toWrite.length)}: ${e.code === "permission-denied" ? "an update touches a question owned by another teacher (admins can update any)" : e.message}`); continue; }
+    catch(e) { failed++; say(`FAILED rows ${i + 1}–${Math.min(i + per, toWrite.length)}: ${e.code === "permission-denied" ? "an update touches a question owned by another teacher (admins can update any)" : e.message}`); continue; }
     written += Math.min(per, toWrite.length - i);
     say(`Uploaded ${written}/${toWrite.length}...`);
   }
   say("Done. " + written + " questions written. Remember: Topics → Rebuild practice index.");
   allBankCache = null;
+  if (examPlan) {
+    if (failed) { say("Test NOT created because some questions failed to save. Fix the problem and upload the file again."); return; }
+    const { title, examType, durationMin, marks, ...rest } = examPlan;
+    const qs = valid.map(q => ({ id: idMap[q.id] || q.id, section: q.section }));
+    const maxMarks = qs.reduce((t, q) => t + (q.section === "B" ? marks.B : marks.A).correct, 0);
+    const subjects = [...new Set(valid.map(q => q.subject))].sort((a, b) => ALL_SUBJECTS.indexOf(a) - ALL_SUBJECTS.indexOf(b));
+    try {
+      await addDoc(collection(db,"exams"), { title, examType, questionIds: qs.map(q => q.id), subjects, durationMin, marks, maxMarks, ...rest,
+        startAt: null, endAt: null, isActive: false, uploadedFrom: f.name, createdAt: serverTimestamp(), createdBy: currentUser.uid, createdByName: currentUser.name });
+      say(`Test "${title}" created (inactive, max ${maxMarks}). Next: Exams → Preview it, mark any missing keys in Answer Key, then Activate.`);
+      loadExams();
+    } catch(e) { say("Test NOT created: " + e.message); }
+  }
 };
 
 /* ============================================================
@@ -3931,6 +4059,7 @@ function dgAudToggle(){
   $("dgAudProgWrap").style.display = !pkg && m === "program" ? "" : "none";
   $("dgBatchWrap").style.display = !pkg && m === "batch" ? "" : "none";
   $("dgStudentsWrap").style.display = !pkg && m === "students" ? "" : "none";
+  $("dgGroupWrap").style.display = !pkg && m === "group" ? "" : "none";
 }
 $("dgKind").onchange = () => {
   const k = $("dgKind").value;
@@ -3944,6 +4073,7 @@ function dgAudRender(a){
   $("dgAudience").value = a.mode || "all";
   if (a.mode === "program" && a.program && a.program !== "ALL") { $("dgAudProgram").value = a.program; $("dgProgram").value = a.program; }
   renderBatchPick($("dgBatchPick"), a.batches);
+  fillGroupSelect($("dgGroup"), a.group);
   const picked = new Set(a.studentUids || []);
   $("dgStudentPick").innerHTML = studentCache.map(s => `<label style="display:flex;gap:7px;align-items:center;font-weight:400;font-size:13px"><input type="checkbox" value="${s.uid}" ${picked.has(s.uid)?"checked":""}> ${esc(s.name)} <span style="color:var(--muted)">(${esc(s.examType)}${s.batch?", "+esc(s.batch):""})</span></label>`).join("") || `<span style="color:var(--muted);font-size:12px">No students.</span>`;
   dgAudToggle();
@@ -3956,6 +4086,7 @@ function dgReadAudience(){
   if (mode === "program") a.program = $("dgAudProgram").value;
   if (mode === "batch") { a.batches = readBatchPick($("dgBatchPick")); if (!a.batches.length) return { error: "Tick at least one batch (or choose another audience)." }; }
   else if (mode === "students") { a.studentUids = [...$("dgStudentPick").querySelectorAll("input:checked")].map(c => c.value); if (!a.studentUids.length) return { error: "Pick at least one student (or choose another audience)." }; }
+  else if (mode === "group") { a.group = $("dgGroup").value; if (!a.group) return { error: "Choose a group (or another audience)." }; }
   return a;
 }
 $("dgAudience").onchange = dgAudToggle;
@@ -5828,6 +5959,8 @@ function builderMarks(){
 $("exAudience").onchange = () => {
   $("exBatchWrap").style.display    = $("exAudience").value === "batch" ? "" : "none";
   $("exStudentsWrap").style.display = $("exAudience").value === "students" ? "" : "none";
+  $("exGroupWrap").style.display = $("exAudience").value === "group" ? "" : "none";
+  if ($("exAudience").value === "group" && !$("exGroup").options.length) fillGroupSelect($("exGroup"));
 };
 let exBankCache = []; // [{docId, subject, section, ...}]
 $("exLoadBankBtn").onclick = async () => {
@@ -5894,6 +6027,9 @@ $("exCreateBtn").onclick = async () => {
   } else if (mode === "students") {
     audience.studentUids = [...$("exStudentPick").querySelectorAll("input:checked")].map(c=>c.value);
     if (!audience.studentUids.length) { setMsg($("exMsg"),"Pick at least one student."); return; }
+  } else if (mode === "group") {
+    audience.group = $("exGroup").value;
+    if (!audience.group) { setMsg($("exMsg"),"Choose a group."); return; }
   }
   // schedule (optional)
   const startV = $("exStart").value, endV = $("exEnd").value;
@@ -5928,6 +6064,7 @@ function audienceLabel(e){
   if (a.mode==="batch") return "Batch: "+(a.batches||[]).join(", ");
   if (a.mode==="students") return (a.studentUids||[]).length+" students";
   if (a.mode==="program") return a.program === "ALL" ? "Everyone ("+e.examType+")" : "Programme: "+a.program+" (all its batches)";
+  if (a.mode==="group") return "🏆 Group: "+groupName(a.group);
   return "—";
 }
 
@@ -6030,6 +6167,7 @@ $("audMode").onchange = () => {
   const m = $("audMode").value;
   $("audBatchWrap").style.display = m==="batch" ? "" : "none";
   $("audStudentsWrap").style.display = m==="students" ? "" : "none";
+  $("audGroupWrap").style.display = m==="group" ? "" : "none";
 };
 $("audClose").onclick = () => { $("audBack").classList.add("hidden"); audTargetDocId = null; };
 function openAudienceModal(docId){
@@ -6042,6 +6180,8 @@ function openAudienceModal(docId){
   renderBatchPick($("audBatchPick"), a.batches);
   $("audBatchWrap").style.display = a.mode==="batch" ? "" : "none";
   $("audStudentsWrap").style.display = a.mode==="students" ? "" : "none";
+  $("audGroupWrap").style.display = a.mode==="group" ? "" : "none";
+  fillGroupSelect($("audGroup"), a.group);
   const picked = new Set(a.studentUids||[]);
   $("audStudentPick").innerHTML = studentCache
     .filter(s => s.examType === ex.examType)
@@ -6060,12 +6200,128 @@ $("audConfirm").onclick = async () => {
   } else if (mode === "students") {
     audience.studentUids = [...$("audStudentPick").querySelectorAll("input:checked")].map(c=>c.value);
     if (!audience.studentUids.length) { setMsg($("audMsg"),"Pick at least one student."); return; }
+  } else if (mode === "group") {
+    audience.group = $("audGroup").value;
+    if (!audience.group) { setMsg($("audMsg"),"Choose a group."); return; }
   }
   { const ex = examsCache.find(e => e.docId === audTargetDocId); if (ex && await blockIfKeysMissing(ex)) return; }
   await updateDoc(doc(db,"exams",audTargetDocId), { isActive: true, audience });
   $("audBack").classList.add("hidden");
   audTargetDocId = null;
   loadExams();
+};
+
+/* ----- 🏆 Groups: handpicked students (e.g. Toppers) ----- */
+const GR = { id: "", picked: new Set(), lb: null };
+function grInit(){
+  fillGroupSelect($("grSel"), GR.id);
+  GR.id = $("grSel").value;
+  const counts = {};
+  studentCache.forEach(st => { const b = (st.batch || "").trim(); if (b) counts[b] = (counts[b] || 0) + 1; });
+  const cur = $("grBatch").value;
+  $("grBatch").innerHTML = `<option value="">All batches</option>` + Object.keys(counts).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map(b => `<option value="${esc(b)}">${esc(b)} (${counts[b]})</option>`).join("");
+  $("grBatch").value = cur;
+  grLoadMembers();
+}
+function grLoadMembers(){
+  GR.picked = new Set(studentCache.filter(s => inGroup(s, GR.id)).map(s => s.uid));
+  GR.lb = null; $("grLb").innerHTML = ""; setMsg($("grMsg"), "");
+  grRenderList(); grRenderTests();
+}
+function grRenderList(){
+  const q = $("grSearch").value.trim().toLowerCase(), b = normBatch($("grBatch").value), t = $("grType").value, only = $("grOnly").checked;
+  const rows = studentCache.filter(s => isActiveStudent(s) || GR.picked.has(s.uid))
+    .filter(s => (!q || (s.name || "").toLowerCase().includes(q) || String(s.psid || "").includes(q)) && (!b || normBatch(s.batch) === b) && (!t || s.examType === t) && (!only || GR.picked.has(s.uid)));
+  $("grList").innerHTML = rows.map(s => `<label style="display:flex;gap:7px;align-items:center;font-weight:400;font-size:13px"><input type="checkbox" value="${s.uid}" ${GR.picked.has(s.uid) ? "checked" : ""}>
+    ${esc(s.name)} <span style="color:var(--muted)">(${esc(s.psid || "")} · ${esc(s.examType || "")}${s.batch ? ", " + esc(s.batch) : ""}${isActiveStudent(s) ? "" : ", deactivated"})</span></label>`).join("")
+    || `<span style="color:var(--muted);font-size:12px">No students match.</span>`;
+  $("grList").querySelectorAll("input").forEach(c => c.onchange = () => { c.checked ? GR.picked.add(c.value) : GR.picked.delete(c.value); grCount(); });
+  grCount();
+}
+function grCount(){
+  const was = studentCache.filter(s => inGroup(s, GR.id)).length;
+  const changed = studentCache.filter(s => inGroup(s, GR.id) !== GR.picked.has(s.uid)).length;
+  $("grCount").textContent = `${GR.picked.size} member(s)` + (changed ? ` · ${changed} unsaved change(s) (saved: ${was})` : "");
+}
+const grExams = id => examsCache.filter(e => e.audience?.mode === "group" && e.audience.group === id);
+function grRenderTests(){
+  const ex = grExams(GR.id);
+  $("grTests").innerHTML = ex.length ? `<table class="tbl"><thead><tr><th>Test</th><th>Type</th><th>Qs</th><th>Status</th></tr></thead><tbody>` +
+    ex.map(e => `<tr><td>${esc(e.title)}</td><td>${esc(e.examType)}${e.diagnostic ? " · diagnostic" : ""}</td><td>${e.questionIds?.length || 0}</td>
+      <td>${e.isActive ? '<span class="badge pos">ACTIVE</span>' : '<span class="badge zero">inactive</span>'}</td></tr>`).join("") + `</tbody></table>`
+    : `<span style="color:var(--muted);font-size:12.5px">No tests for this group yet. In Exams / Diagnostic Builder choose <b>Who can take this exam? → A group</b>, or upload a test file in Questions.</span>`;
+}
+$("grSel").onchange = () => { GR.id = $("grSel").value; grLoadMembers(); };
+$("grSearch").oninput = grRenderList; $("grBatch").onchange = grRenderList; $("grType").onchange = grRenderList; $("grOnly").onchange = grRenderList;
+async function grSaveGroups(list){
+  await setDoc(doc(db,"settings","portal"), { groups: list }, { merge: true });
+  PORTAL.groups = list;
+}
+$("grNewBtn").onclick = async () => {
+  const name = (await uiPrompt("Name of the new group (e.g. Olympiad):", "") || "").trim();
+  if (!name) return;
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "group";
+  if (portalGroups().some(g => g.id === id)) { uiAlert(`A group with the id "${id}" already exists.`); return; }
+  try { await grSaveGroups([...portalGroups(), { id, name }]); } catch(e) { uiAlert("Could not save the group: " + e.message); return; }
+  GR.id = id; grInit();
+};
+$("grRenameBtn").onclick = async () => {
+  const g = portalGroups().find(x => x.id === GR.id); if (!g) return;
+  const name = (await uiPrompt(`New name for "${g.name}" (its id "${g.id}" stays the same, so its tests keep working):`, g.name) || "").trim();
+  if (!name || name === g.name) return;
+  try { await grSaveGroups(portalGroups().map(x => x.id === g.id ? { ...x, name } : x)); } catch(e) { uiAlert("Could not rename: " + e.message); return; }
+  grInit();
+};
+$("grSaveBtn").onclick = async () => {
+  const id = GR.id; if (!id) return;
+  const changes = studentCache.filter(s => inGroup(s, id) !== GR.picked.has(s.uid));
+  if (!changes.length) { setMsg($("grMsg"), "Nothing to save.", true); return; }
+  // the group list must exist in settings/portal before tests use it (the default Toppers group is only implied until then)
+  if (!Array.isArray(PORTAL.groups) || !PORTAL.groups.some(g => g.id === id)) {
+    try { await grSaveGroups(portalGroups()); } catch(e) { setMsg($("grMsg"), "Could not save the group list: " + e.message); return; }
+  }
+  let ok = 0, fail = 0;
+  for (const s of changes) {
+    const groups = GR.picked.has(s.uid) ? [...new Set([...(s.groups || []), id])] : (s.groups || []).filter(x => x !== id);
+    try { await updateDoc(doc(db,"users",s.uid), { groups }); s.groups = groups; ok++; } catch(e) { fail++; console.warn(e); }
+  }
+  try { sessionStorage.setItem("stCache", JSON.stringify({ t: Date.now(), list: studentCache })); } catch(e) {}
+  setMsg($("grMsg"), `Saved ${ok} change(s)${fail ? `, ${fail} failed` : ""}. ${GR.picked.size} member(s) in ${groupName(id)}. Students see the change the next time they open their dashboard.`, !fail);
+  grCount();
+};
+$("grLbBtn").onclick = async () => {
+  const exams = grExams(GR.id);
+  if (!exams.length) { $("grLb").innerHTML = `<span style="color:var(--muted)">No tests for this group yet.</span>`; return; }
+  const atts = [];
+  const ids = exams.map(e => e.docId);
+  for (let i = 0; i < ids.length; i += 10) {   // "in" takes at most 10 values in this SDK
+    const qs = await getDocs(query(collection(db,"attempts"), where("examId","in",ids.slice(i, i + 10))));
+    qs.docs.forEach(d => { const a = d.data(); if (a.submitTime != null) atts.push(a); });
+  }
+  const members = studentCache.filter(s => GR.picked.has(s.uid) || inGroup(s, GR.id));
+  const rows = members.map(s => {
+    const per = {}; let got = 0, max = 0, n = 0;
+    exams.forEach(e => {
+      const a = atts.filter(x => x.examId === e.docId && x.studentUid === s.uid).sort((x, y) => (y.score ?? 0) - (x.score ?? 0))[0];
+      if (!a) return;
+      const m = examCfg(e).maxMarks || 0;
+      per[e.docId] = a.score; got += a.score || 0; max += m; n++;
+    });
+    return { s, per, got, max, n, pct: max ? 100 * got / max : null };
+  }).sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1) || b.n - a.n);
+  GR.lb = { exams, rows };
+  $("grLb").innerHTML = `<p style="font-size:12.5px;color:var(--muted);margin-bottom:6px">${members.length} member(s) · ${exams.length} test(s) · ranked by % of marks across the tests each one wrote.</p>
+    <table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Batch</th><th>Tests</th><th>Total</th><th>%</th>${exams.map(e => `<th title="${esc(e.title)}">${esc(e.title.slice(0, 18))}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map((r, i) => `<tr><td>${r.n ? i + 1 : "—"}</td><td>${esc(r.s.name)}</td><td>${esc(r.s.batch || "—")}</td><td>${r.n}/${exams.length}</td>
+      <td>${r.n ? `${r.got} / ${r.max}` : "—"}</td><td>${r.pct == null ? "—" : `<b>${r.pct.toFixed(1)}</b>`}</td>
+      ${exams.map(e => `<td>${r.per[e.docId] ?? '<span style="color:var(--muted)">absent</span>'}</td>`).join("")}</tr>`).join("") + `</tbody></table>`;
+};
+$("grLbCsv").onclick = () => {
+  if (!GR.lb) { uiAlert("Load the group leaderboard first."); return; }
+  const { exams, rows } = GR.lb;
+  downloadCsv(`group_${GR.id}_leaderboard.csv`, [["Rank","PS-ID","Name","Batch","Tests","Total","Max","Percent", ...exams.map(e => e.title)],
+    ...rows.map((r, i) => [r.n ? i + 1 : "", r.s.psid || "", r.s.name || "", r.s.batch || "", r.n, r.got, r.max, r.pct == null ? "" : r.pct.toFixed(1), ...exams.map(e => r.per[e.docId] ?? "absent")])]);
 };
 
 /* ----- reports ----- */
@@ -6308,6 +6564,7 @@ function examTargetsMe(e){
   if (a.mode === "batch")    return (a.batches||[]).map(x=>x.toLowerCase()).includes((currentUser.batch||"").toLowerCase());
   if (a.mode === "students") return (a.studentUids||[]).includes(currentUser.uid);
   if (a.mode === "program")  return a.program === "ALL" || programOf(currentUser.batch) === a.program;
+  if (a.mode === "group")    return inGroup(currentUser, a.group);
   return false;
 }
 let availableExams = [];
@@ -6329,8 +6586,11 @@ async function loadActiveExam(){
   });
   let html = "";
   // diagnostic tests: chapter → topic → tests (other tests stay a plain list)
-  const diag = availableExams.map((ex, i) => ({ ex, i })).filter(x => x.ex.diagnostic);
-  const others = availableExams.map((ex, i) => ({ ex, i })).filter(x => !x.ex.diagnostic);
+  // group tests (e.g. Toppers) get their own section first; the rest are split as before
+  const isGrp = ex => ex.audience?.mode === "group";
+  const grp = availableExams.map((ex, i) => ({ ex, i })).filter(x => isGrp(x.ex));
+  const diag = availableExams.map((ex, i) => ({ ex, i })).filter(x => x.ex.diagnostic && !isGrp(x.ex));
+  const others = availableExams.map((ex, i) => ({ ex, i })).filter(x => !x.ex.diagnostic && !isGrp(x.ex));
   const examCard = ({ ex, i }) => {
       const cfg = examCfg(ex), w = examWindow(ex);
       return `<div class="card" style="margin-bottom:10px">
@@ -6342,6 +6602,11 @@ async function loadActiveExam(){
         ${cfg.strict ? `<div style="font-size:12px;color:#a4271a;margin:-4px 0 8px">⚠ 3 warnings → auto-submit as malpractice</div>` : ""}
         <button class="btn green" data-startex="${i}" disabled title="Tick the honesty pledge first">Start Exam (Fullscreen)</button></div>`;
   };
+  for (const g of [...new Set(grp.map(x => x.ex.audience.group))]) {
+    html += `<div class="card" style="margin-bottom:12px;border:2px solid #d4a017"><h3 style="margin:0 0 8px;font-size:16px;color:#8a6500">🏆 ${esc(groupName(g))} tests</h3>
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Only for the ${esc(groupName(g))} group.</p>` +
+      grp.filter(x => x.ex.audience.group === g).map(examCard).join("") + `</div>`;
+  }
   if (diag.length) {
     const S = SDG, chOf = x => dgChapterOf(x.ex), subOf = x => String(x.ex.subtopic || "").trim() || "General";
     const chapters = [...new Set(diag.map(chOf))].sort((a, b) => a === "Uncategorised" ? 1 : b === "Uncategorised" ? -1 : a.localeCompare(b));
