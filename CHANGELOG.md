@@ -7,6 +7,13 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-18 — Optional import of unkeyed question-bank drafts
+
+- **Questions → Import unkeyed drafts:** an optional, unchecked checkbox allows plain question arrays with blank answer keys, so teachers can build a bank before selecting and solving tests. Other required question fields and nonblank key validation are unchanged.
+- Unkeyed bank drafts require **Safe import**. Re-importing a draft preserves an existing keyed question; new blank-key questions remain excluded from practice and cannot be activated in a test until keyed.
+- No exam is created by a plain-array draft import. The existing combined test-file upload works as before. No Firestore rule changes or database migration are required; no practice switch is changed.
+- After deploying: select both **Safe import** and **Import unkeyed drafts** when importing an unkeyed bank. The default upload still requires keys.
+
 ## 2026-10-18 — Toppers (handpicked groups) and one-file test upload for image-based papers
 
 - **Admin → 🏆 Groups (admins only):** handpick the students of a group. A **Toppers** group exists by default; add more
