@@ -128,7 +128,7 @@ the portal):
   - Fields: `title, examType, subjects, questionIds[], durationMin, marks, maxMarks, idealTimes{qid:sec},
     showIdealTime, keepOrder, shuffleOptions, isActive, startAt, endAt, audience, chapter, subtopic, createdBy`.
   - `audience.mode`: `all` | `batch` (+`batches`) | `students` (+`studentUids`) | `program` (+`program`:
-    `TYM|OYM|RM|ALL`).
+    `TYM|OYM|RM|ALL`) | `group` (+`group`: a group id such as `"toppers"`; only the group's members see the test).
   - `diagnostic: true` marks a diagnostic test. `chapter` + `subtopic` place it in the students' Chapter → Topic picker
     (use the NCERT chapter and the topic / model group exactly; tests without them show under "Other tests").
   - `level`: `Easy` | `Medium` | `Hard` (shown Easy / Moderate / Hard) or null = mixed. **Diagnostic tests of a topic
@@ -152,10 +152,12 @@ the portal):
 - **`bankIndex/{examType}__{subject}`:** every bank question `{i, t, d, s, mc, m, k: ok|ai|none|unsure|pending, dup}`,
   built with the practice index; feeds the Model Bank counts.
 - **`users/{uid}`** (you don't write these): `name, psid, examType, batch, class, role, active` (false =
-  deactivated).
+  deactivated), `groups` (ids of the handpicked groups the student is in, e.g. `["toppers"]`; set by Madhav in the
+  🏆 Groups tab).
 - `practiceAttempts`, `notebooks/{uid}`, `aiDrafts`, `aiSolutions`, `sessions`.
 - **`settings/*`:**
-  - `settings/portal`: practice switch and programme prefixes.
+  - `settings/portal`: practice switch, programme prefixes and `groups` (`[{id, name}]`; default
+    `[{"id":"toppers","name":"Toppers"}]`).
   - `settings/ai`: AI job settings, including `examScope` and `examIds`.
   - `settings/aiSecret`: the API key. Never read it, never ask for it.
 
@@ -268,6 +270,63 @@ Every row is validated; rejected rows are listed with the reason, and the rest a
   and its key ("♻ already in bank"). It does not create a duplicate.
 - An upload is written under the account that uploads it. Faculty can only edit their own questions later; admins
   can edit all.
+
+## 4c. Image-based test → a ready test file (questions + test in one upload)
+
+Madhav gives you the pages of a paper as images / PDF and asks for "the JSON test". Return **one test file**: an
+object with `exam` and `questions`. Upload is the same button (**Questions → choose file → Upload**). The portal
+validates every row **and** the `exam` block before writing anything; if any row is rejected, **nothing** is written.
+Then it writes the questions (Safe import as usual) and creates the test **inactive**, with the questions in file order.
+
+```json
+{
+  "exam": {
+    "title": "Toppers Test 01 — Laws of Motion",
+    "examType": "medical",
+    "durationMin": 60,
+    "marks": { "A": { "correct": 4, "wrong": -1 }, "B": { "correct": 4, "wrong": 0 } },
+    "audience": { "mode": "group", "group": "toppers" },
+    "shuffleOptions": false,
+    "keepOrder": true,
+    "chapter": "Laws of Motion"
+  },
+  "questions": [
+    { "id": "TOP01_PHY_001", "examType": "medical", "subject": "Physics", "topic": "Laws of Motion",
+      "difficulty": "Hard", "text": "A block of mass $2\\,kg$ …", "options": ["…", "…", "…", "…"],
+      "correct_answer": "" }
+  ]
+}
+```
+
+**`exam` fields:** `title` (required). Everything else is optional: `examType` (must match the questions; all
+questions of one test share one exam type), `durationMin` (default 180), `marks` (default: the exam type's scheme;
+`wrong` is always stored negative), `audience` (default `{"mode":"all"}`; also `batch` + `batches`, `group` + `group`
+id or name, `program` + `TYM|OYM|RM|ALL`; single students are picked in the portal, not in the file), `shuffleOptions`
+(default false), `keepOrder` (default **true** = paper order), `proctorStrict`, `chapter`, `subtopic`. Only normal
+(timed, proctored) tests can be uploaded this way, not diagnostics or study packages.
+
+**Answer keys in a test file:** Madhav marks the keys. Leave `"correct_answer": ""` unless the pages you were
+given contain the **official** key, and then copy that key digit by digit. **Don't solve questions to fill in keys**
+unless Madhav asks you to; if asked, use `keySrc: "ai"` as in §4. Questions without a key are stored as "no key
+yet". The test **cannot be activated** until Madhav sets every key (Answer Key tab → choose the test → paste
+`1-A 2-C …` → Apply). Re-uploading the same file never wipes a key that is already in the bank.
+
+**How to convert the images (quality rules):**
+1. Transcribe every question stem and all 4 options as **text + LaTeX** (§4 rules: doubled backslashes, `<br>`,
+   HTML `<table>` for tables). Keep the paper's numbering in the id (`…_001`, `…_002`, …) and the paper's order.
+2. Crop **only** diagrams, graphs, circuits and structures into `image` (or `optionImages` when the options are
+   pictures), as a base64 data URI, cropped tight and readable, each under about 900 KB. If you can't crop
+   reliably, use the whole question as the `image` and put the stem in `text` as well.
+3. Tag `subject` (strict NCERT split for NEET), `topic` (the NCERT chapter, spelled as in the bank), `difficulty`, and
+   `modelCode` / `model` when the chapter has a taxonomy.
+4. Self-check before you hand the file over: question count = the paper's count; no missing or duplicate numbers;
+   every MCQ has exactly 4 options; numericals have `"section": "B"`; nothing unreadable was guessed (if a part is
+   unreadable, say so in your report and use the cropped image for that question).
+5. In your `report`, list the file name, the count, the id range, which questions have images, and any doubtful
+   transcription.
+
+After the upload, Madhav opens **Exams → Preview**, marks the keys, and presses **Activate** (the audience from the
+file is pre-selected).
 
 ## 4b. Model Bank taxonomy format (one JSON per chapter; admin uploads it in the Model Bank tab)
 
@@ -720,5 +779,22 @@ Never put student names, PS-IDs or passwords in these files.
 - Deployed: portal, firestore.rules (published), `ai/password-reset.mjs`, `ai/reset.test.mjs` (9 tests), workflow. First real run: 25 requests, 25 done, 0 failed. Please do not rebuild this; issue #25 can be closed once Madhav confirms a student login.
 - Also new: AI Settings has an "Only the questions I choose" test picker; admin student list is cached 30 min per tab (saves reads); Usage tab shows reads/writes.
 - Rules for you: never put student names, PS-IDs or passwords in channel files, issues or workflow logs (the repo is public). Keep full-bank loads to once at the end of uploads.
+
+— Claude
+
+
+### C-014 · 2026-10-18 10:40 IST · report · Re: —
+**Subject:** Toppers groups and one-file image tests (branch `claude/sweet-volta-cfgz2k`)
+
+- **New: handpicked groups.** Admin → 🏆 Groups: Madhav ticks the students of a group (default group: `toppers`;
+  more can be added). A test with `audience: {"mode":"group","group":"toppers"}` is seen only by those students, in a
+  separate 🏆 section of their dashboard; they keep their normal batch tests. The tab also has a group leaderboard
+  across all the group's tests.
+- **New: test files.** Upload `{ "exam": {…}, "questions": […] }` in Questions → it writes the questions and creates
+  the test, inactive, in file order. **Keys may be left blank in a test file**; Madhav marks them. Full rules and the
+  conversion checklist for image-based papers are in **§4c**. Plain question arrays work exactly as before (keys still
+  required there).
+- What you must do differently: for image-based papers, deliver a §4c test file; leave keys blank unless the official
+  key is on the pages you were given; never put student names or PS-IDs in a file or in this channel.
 
 — Claude
