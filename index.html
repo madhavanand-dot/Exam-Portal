@@ -340,6 +340,18 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
 /* Consistent question typography; form controls retain the interface font. */
 #qText,#qOptions,.question-copy{font-family:'Times New Roman',Times,serif;font-size:18px;line-height:1.65}
 #qText :where(p,span,div,td,th,b,strong,em),#qOptions .opt,#qOptions .opt span,.question-copy :where(p,span,div,td,th,b,strong,em){font-family:inherit;font-size:inherit}
+/* Grouped admin navigation preserves all existing role-controlled tabs. */
+#view-admin > .wrap{display:grid;grid-template-columns:205px minmax(0,1fr);gap:18px;max-width:1600px}
+#view-admin .tabs{grid-column:1;grid-row:1;display:block;position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);overflow:auto}
+#view-admin .atab{grid-column:2;grid-row:1;min-width:0}
+.nav-group{border-bottom:1px solid var(--border);padding:5px 0}
+.nav-group:last-child{border:0}.nav-group summary{cursor:pointer;font-weight:700;padding:9px 5px;color:var(--blue)}
+.admin-nav-toggle{display:none}
+#view-admin .nav-group button{display:block;width:100%;text-align:left;margin:2px 0}
+.selection-dock{position:sticky;bottom:12px;z-index:15;background:#eaf3ff;border:1px solid #9bbce2;border-radius:10px;padding:10px 14px;display:flex;gap:12px;align-items:center;justify-content:space-between;box-shadow:0 3px 12px #0002;margin-top:10px}
+.selection-dock a{white-space:nowrap;font-weight:700}.bank-pager{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:10px 0;flex-wrap:wrap}
+#prText,#prOptions,.qexp > div{font-family:'Times New Roman',Times,serif;font-size:18px!important;line-height:1.65}
+@media(max-width:800px){#view-admin > .wrap{display:block}.admin-nav-toggle{display:block;margin-bottom:12px;width:100%;text-align:left}#view-admin .tabs{position:static;max-height:none;display:none;grid-template-columns:repeat(2,minmax(0,1fr))}#view-admin.nav-open .tabs{display:grid}.nav-group{min-width:0}.selection-dock{bottom:5px;font-size:13px}}
 </style>
 </head>
 <body>
@@ -395,6 +407,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
 <div id="view-admin" class="view hidden">
   <div class="topbar"><h1 id="dashTitle">Admin Dashboard</h1><span class="who" id="adminWho"></span><button type="button" class="btn secondary installAppBtn hidden">📲 Install app</button><button class="btn secondary" id="adminLogout">Logout</button></div>
   <div class="wrap">
+    <button class="btn secondary admin-nav-toggle" id="adminNavToggle" aria-expanded="false">Sections · Students</button>
     <div class="tabs">
       <button data-atab="students" class="active">Students</button>
       <button data-atab="faculty" id="tabFaculty">Faculty</button>
@@ -412,6 +425,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       <button data-atab="assign">Assign Tests</button>
       <button data-atab="groups" id="tabGroups">🏆 Groups</button>
       <button data-atab="custompractice">Custom Practice</button>
+      <button data-atab="practiceaccess">Practice Access</button>
       <button data-atab="reports">Reports</button>
       <button data-atab="leaderboard">Leaderboard</button>
       <button data-atab="itemanalysis">Item Analysis</button>
@@ -445,7 +459,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <div id="csvLog" class="hidden" style="max-height:200px;overflow:auto;font-size:12.5px;font-family:ui-monospace,monospace;background:#f7f9fb;border:1px solid var(--border);border-radius:4px;padding:8px;margin-top:8px;white-space:pre-wrap"></div>
       </div>
       <div class="flexrow" style="margin:10px 0">
-        <div class="field"><label>Filter by batch</label><select id="stFilterBatch"><option value="">All batches</option></select></div>
+        <div class="field"><label for="stSearch">Find student</label><input id="stSearch" type="search" placeholder="Name or PS-ID"></div><div class="field"><label>Filter by batch</label><select id="stFilterBatch"><option value="">All batches</option></select></div>
         <div class="field"><label>Status</label><select id="stFilterStatus"><option value="">All</option><option value="active">Active</option><option value="inactive">Deactivated</option></select></div>
         <button class="btn secondary hidden" id="stFilterBtn" style="align-self:flex-end">Filter</button>
         <button class="btn secondary" id="stBulkPwBtn" style="align-self:flex-end" title="Set every listed student's password to the default pattern, e.g. Ly@15456129">🔑 Reset passwords to default</button>
@@ -576,6 +590,17 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       <div id="kpWrap" style="margin-top:14px;overflow:auto;max-height:70vh"></div>
     </div>
 
+    <div id="atab-practiceaccess" class="atab hidden">
+      <div class="card"><h2 class="sec">Student Practice Access</h2>
+        <p>Uploading a bank does not release it for self-practice. Choose the banks students may practise below. Questions in assigned tests remain available independently.</p>
+        <div class="field"><label for="paType">Exam stream</label><select id="paType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
+        <div id="paBanks">Open this section to load uploaded banks.</div>
+        <button class="btn" id="paSave">Save approved banks</button><div id="paMsg"></div>
+        <div id="paSwitch"></div>
+        <p class="filter-note">No approved banks means no self-practice. After importing questions, rebuild the practice index in Chapters &amp; Topics to refresh bank counts. Unassigned banks are excluded.</p>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>Old papers as practice tests</h3><p>Create a timed test for exam simulation, or an untimed diagnostic for learning. Keep the paper's original order and use its source, year and paper number in the title. Review the answer key before assigning it. Assigning a paper does not open its whole source bank for self-practice.</p><button class="btn secondary" id="paBuild">Select questions for a test</button></div>
+    </div>
     <div id="atab-topics" class="atab hidden">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Chapter / Topic Manager</h2>
@@ -696,6 +721,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <div class="bank-filter-panel"><div class="bank-filter-grid">
             <div class="field"><label for="btFamily">Source family</label><select id="btFamily"><option value="">All source families</option></select></div>
             <div class="field"><label for="btVisual">Content</label><select id="btVisual"><option value="">All content</option><option value="text">Editable text / LaTeX</option><option value="diagram">Text with diagram / picture options</option><option value="image">Full question image</option><option value="unknown">Not indexed yet</option></select></div>
+            <div class="field"><label for="btModel">Question model</label><select id="btModel"><option value="">All models</option></select></div>
             <div class="field"><label for="btSearch">Find ID, model or chapter</label><input id="btSearch" type="search" placeholder="Question ID, model code, bank or chapter"></div>
             <div class="field"><label for="btTime">Ideal time</label><select id="btTime"><option value="">Any ideal time</option><option value="45">Up to 45 sec</option><option value="60">Up to 60 sec</option><option value="90">Up to 90 sec</option><option value="120">Up to 120 sec</option><option value="unset">Not assessed</option></select></div>
           </div><p class="filter-note">Choose a source family, then combine bank, chapter and question-format chips below. Choices within a row combine; different rows narrow the results. Unindexed content remains under “Not indexed yet” until the next index rebuild.</p></div>
@@ -711,7 +737,8 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <h3 style="margin:0 0 8px">2 · Pick questions <span id="btCount" style="font-size:13px;color:var(--muted);font-weight:400"></span></h3>
           <div id="btSummary"></div>
           <div class="flexrow" style="align-items:flex-end;margin:8px 0">
-            <button class="btn secondary" id="btAllBtn">☑ Add all shown</button>
+            <button class="btn secondary" id="btPageBtn">Add this page</button>
+            <button class="btn secondary" id="btAllBtn">Add all matching</button>
             <button class="btn hidden" id="btChapterDiagBtn">⚡ Whole chapter as a diagnostic</button>
             <div class="field"><label>Auto-pick how many</label><input id="btN" type="number" min="1" value="30" style="width:90px"></div>
             <div class="field"><label>Level mix</label><select id="btMix">
@@ -723,7 +750,8 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
             </select></div>
             <button class="btn secondary" id="btAutoBtn">🎲 Auto-pick</button>
           </div>
-          <div id="btList" style="max-height:440px;overflow:auto"></div>
+          <div id="btPager" class="bank-pager"></div><div id="btList" style="max-height:440px;overflow:auto"></div>
+          <div class="selection-dock"><strong id="btDockCount">No questions selected</strong><a href="#btPicked">Review selected questions →</a></div>
         </div>
         <div class="card" style="margin-top:12px">
           <h3 style="margin:0 0 8px">3 · Selected questions <span id="btPickCount" style="font-size:13px;color:var(--muted);font-weight:400"></span></h3>
@@ -2150,17 +2178,45 @@ function enterAdmin(){
   const firstTab = isSuper() ? "students" : "questions";
   document.querySelectorAll("[data-atab]").forEach(x=>x.classList.remove("active"));
   document.querySelector(`[data-atab="${firstTab}"]`).classList.add("active");
+  const firstGroup=document.querySelector(`[data-atab="${firstTab}"]`).closest("details");
+  if(firstGroup) firstGroup.open=true;
+  $("adminNavToggle").textContent="Sections · "+document.querySelector(`[data-atab="${firstTab}"]`).textContent.trim();
   document.querySelectorAll(".atab").forEach(x=>x.classList.add("hidden"));
   $("atab-"+firstTab).classList.remove("hidden");
   loadStudents(true); loadExams(); populateQbSubjects();   // students cached 30 min per tab to save reads (mutations reload fresh)
   if (isSuper()) loadStaff();
 }
 
+// Group existing controls; role visibility remains owned by showAdmin.
+const ADMIN_GROUPS = [
+  ["Question Library",["questions","bulkimport","keypatch","topics","modelbank"]],
+  ["Tests",["banktests","exams","diagnostic","assign","live"]],
+  ["Learning & Practice",["packages","custompractice","practiceaccess"]],
+  ["Students & Staff",["students","faculty","groups"]],
+  ["Results & Intervention",["reports","leaderboard","itemanalysis","attendance","progress","atrisk","topicreports"]],
+  ["Settings",["aisettings","usage"]]
+];
+const adminNav=document.querySelector("#view-admin .tabs");
+adminNav.setAttribute("aria-label","Admin sections");
+$("adminNavToggle").onclick=()=>{
+  const open=$("view-admin").classList.toggle("nav-open");
+  $("adminNavToggle").setAttribute("aria-expanded",String(open));
+};
+for(const [name,ids] of ADMIN_GROUPS){
+  const group=document.createElement("details"); group.className="nav-group"; group.open=matchMedia("(min-width:801px)").matches||ids.includes("students");
+  const heading=document.createElement("summary"); heading.textContent=name; group.append(heading);
+  ids.forEach(id=>group.append(document.querySelector(`[data-atab="${id}"]`)));
+  adminNav.append(group);
+}
 // admin tab switching
 for (const b of document.querySelectorAll("[data-atab]")) {
   b.onclick = () => {
     document.querySelectorAll("[data-atab]").forEach(x=>x.classList.remove("active"));
     b.classList.add("active");
+    if(b.closest("details")) b.closest("details").open=true;
+    $("view-admin").classList.remove("nav-open");
+    $("adminNavToggle").setAttribute("aria-expanded","false");
+    $("adminNavToggle").textContent="Sections · "+b.textContent.trim();
     document.querySelectorAll(".atab").forEach(x=>x.classList.add("hidden"));
     $("atab-"+b.dataset.atab).classList.remove("hidden");
     if (b.dataset.atab==="reports") setMsg($("rpMsg"),"Nothing is fetched until you press Apply (this saves database reads).",true);
@@ -2177,6 +2233,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     lmStop(); if (b.dataset.atab==="live") $("lmDot").innerHTML = "not listening — press ▶ Start (listening reads the attempts of active tests)";
     if (b.dataset.atab==="aisettings") { initAiSettings(); aiLiveStart(); } else aiLiveStop();
     if (b.dataset.atab==="topics") initTopics();
+    if (b.dataset.atab==="practiceaccess") initPracticeAccess();
     if (b.dataset.atab==="packages") initPackages();
     if (b.dataset.atab==="topicreports") trFillStudents();
     if (b.dataset.atab==="modelbank") txMount($("txAdminBox"), true);
@@ -2698,6 +2755,7 @@ async function openNotebook(box, uid, name, editable){
 async function renderMistakenModels(box, NB){
   if (!box || !NB) return;
   if (!(await practiceEnabled())) { $("myModelsWrap").classList.add("hidden"); return; }
+  const practiceRelease=await practicePolicy();
   const open = NB.list.filter(i => !i.cleared);
   if (!open.length) { box.innerHTML = `<div class="card"><p style="color:var(--muted)">No open mistakes — nothing to practise here yet.</p></div>`; return; }
   // one row per chapter + model + allowed level: each mistake brings its own difficulty ceiling (levelRule), so an
@@ -2720,7 +2778,7 @@ async function renderMistakenModels(box, NB){
     const entries = _tiCache[`${currentUser.examType}__${g.subject}`]?.q || [];
     const mine = new Set(g.items.map(i => i.id));
     const allMine = new Set(open.map(i => i.id));   // never suggest a question the student already got wrong
-    const same = entries.filter(e => !allMine.has(e.i) && !mine.has(e.i) && (e.t || "") === g.topic &&
+    const same = entries.filter(e => practiceBankAllowed(e,practiceRelease) && !allMine.has(e.i) && !mine.has(e.i) && (e.t || "") === g.topic &&
       (g.mc ? nrm(e.mc) === nrm(g.mc) : g.model ? (e.m || "") === g.model : true) && lvlIdx(e.d) <= g.R.max && !e.u)   // same model (code first); confirmed keys only
       // closest to the preferred level first, teacher-confirmed keys before AI-proposed ones
       .sort((a, b) => Math.abs(lvlIdx(a.d) - g.R.prefer) - Math.abs(lvlIdx(b.d) - g.R.prefer) || (a.u ? 1 : 0) - (b.u ? 1 : 0));
@@ -3110,18 +3168,20 @@ async function progressHtml(uid, name){
   let att = qs.docs.map(d=>d.data()).filter(a=>a.submitTime!=null);
   att.sort((a,b)=>(a.submitTime?.seconds||0)-(b.submitTime?.seconds||0));
   if (!att.length) return `<p style="color:var(--muted)">No completed tests yet for ${esc(name)}.</p>`;
-  // percentile per attempt vs same exam-type cohort
-  const pcts = [];
+  // Compare only submitted attempts of the same test; reuse each cohort once per panel.
+  const cohorts = new Map(), pcts = [];
   for (const a of att){
-    const cohortQ = await getDocs(query(collection(db,"attempts"), where("examType","==",a.examType)));
-    const scores = cohortQ.docs.map(d=>d.data()).filter(x=>x.submitTime).map(x=>x.score);
-    const below = scores.filter(x=>x<=a.score).length;
-    pcts.push(scores.length? (100*below/scores.length):100);
+    if(!cohorts.has(a.examId)){
+      const cohortQ=await getDocs(query(collection(db,"attempts"),where("examId","==",a.examId)));
+      cohorts.set(a.examId,cohortQ.docs.map(d=>d.data()).filter(x=>x.submitTime));
+    }
+    const cohort=cohorts.get(a.examId), below=cohort.filter(x=>Number(x.score)<=Number(a.score)).length;
+    pcts.push(cohort.length?100*below/cohort.length:100);
   }
   const labels = att.map(a=>a.examTitle||a.examId);
   const scorePct = att.map(a=>{ const m=attemptCfg(a).maxMarks||1; return 100*a.score/m; });
   const chart1 = lineChart(att.map((a,i)=>({x:i,y:scorePct[i]})), labels, "Score %", "var(--blue)");
-  const chart2 = lineChart(pcts.map((p,i)=>({x:i,y:p})), labels, "Percentile", "var(--green)");
+  const chart2 = lineChart(pcts.map((p,i)=>({x:i,y:p})), labels, "Percentile within each test", "var(--green)");
   // accuracy (of attempted), dead time and speed per test
   const outs = att.map(attemptOutcomes);
   const accs = outs.map(o => { const v = Object.values(o), c = v.filter(x => x === "correct").length, w = v.filter(x => x === "wrong").length; return c + w ? 100 * c / (c + w) : 0; });
@@ -3289,6 +3349,8 @@ function stFiltered(){
   const f = $("stFilterBatch")?.value || "", st = $("stFilterStatus")?.value || "";
   let list = !f ? studentCache : f === "__none" ? studentCache.filter(s => !(s.batch || "").trim()) : studentCache.filter(s => (s.batch || "").trim() === f);
   if (st) list = list.filter(s => st === "inactive" ? s.active === false : s.active !== false);
+  const search=$("stSearch").value.trim().toLowerCase();
+  if(search) list=list.filter(s=>[s.name,s.psid].join(" ").toLowerCase().includes(search));
   return list;
 }
 const isActiveStudent = s => s?.active !== false;
@@ -3386,6 +3448,7 @@ async function changeStudentPassword(s){
 if ($("stFilterBtn")) $("stFilterBtn").onclick = renderStudents;
 $("stFilterBatch").onchange = renderStudents;
 $("stFilterStatus").onchange = renderStudents;
+$("stSearch").oninput=renderStudents;
 function stRenderBulkBar(){
   const bar = $("stBulkBar"), head = $("stSelHead");
   if (!isSuper()) { bar.classList.add("hidden"); head.innerHTML = ""; return; }
@@ -5900,13 +5963,48 @@ function initTopics(){
   const cb = $("tmPracticeOn");
   cb.disabled = !isSuper();
   $("tmPracticeMsg").textContent = isSuper() ? "" : "(only an admin can change this)";
-  practiceEnabled().then(on => { cb.checked = on; });
+  practicePolicy().then(policy => { cb.checked = policy.enabled; });
 }
-// Practice mode on/off for every student: settings/portal.practiceEnabled (missing = on).
-async function practiceEnabled(){
-  try { const s = await getDoc(doc(db,"settings","portal")); return s.exists() ? s.data().practiceEnabled !== false : true; }
-  catch(e){ return true; }   // rules not published yet → behave as before
+// Approved configuration: global switch plus bank names scoped by exam stream.
+async function practicePolicy(){
+  try { const snap=await getDoc(doc(db,"settings","portal")), d=snap.exists()?snap.data():{};
+    return {enabled:d.practiceEnabled===true,banks:d.practiceBanks||{medical:[],engineering:[]}};
+  } catch(e){ return {enabled:false,banks:{medical:[],engineering:[]}}; }
 }
+function practiceBankAllowed(q,policy,type=currentUser?.examType){
+  const bank=bankForQuestion({ ...q, bank:q.bank || (typeof q.b==="string"?q.b:"") });
+  return !!bank && (policy.banks[type]||[]).some(b=>normBank(b)===normBank(bank));
+}
+async function practiceEnabled(){ const p=await practicePolicy(); return p.enabled && (p.banks[currentUser?.examType]||[]).length>0; }
+$("paSwitch").append($("tmPracticeOn").closest("label"));
+let practiceAccessSeq=0;
+async function initPracticeAccess(){
+  const seq=++practiceAccessSeq, type=$("paType").value;
+  $("paSave").disabled=true; $("paBanks").textContent="Loading uploaded banks…";
+  try{
+    const policy=await practicePolicy(), banks=new Map();
+    for(const subject of EXAM_CONFIG[type].subjects){
+      const snap=await getDoc(doc(db,"bankIndex",`${type}__${subject}`));
+      if(!snap.exists()) continue;
+      const d=snap.data(); (d.q||[]).forEach(q=>{const b=bankForQuestion({bank:q.b!=null?(d.banks||[])[q.b]:"",i:q.i}); if(b) banks.set(b,(banks.get(b)||0)+1);});
+    }
+    if(seq!==practiceAccessSeq) return;
+    const selected=policy.banks[type]||[]; selected.forEach(b=>{if(!banks.has(b)) banks.set(b,0);});
+    $("paBanks").innerHTML=[...banks].sort((a,b)=>a[0].localeCompare(b[0])).map(([bank,n])=>`<label style="display:flex;gap:8px;padding:8px 0"><input type="checkbox" data-pa-bank="${esc(bank)}" ${selected.includes(bank)?'checked':''} ${isSuper()?'':'disabled'}><span>${esc(bank)} · ${n} indexed questions${n?'':' (refresh index after upload)'}</span></label>`).join('')||'<p>No assigned banks are indexed for this stream yet.</p>';
+    $("tmPracticeOn").checked=policy.enabled; $("tmPracticeOn").disabled=!isSuper();
+    $("paSave").disabled=!isSuper();
+    setMsg($("paMsg"),`${selected.length} approved bank(s). Global practice is ${policy.enabled?'ON':'OFF'}.`,true);
+  }catch(e){if(seq===practiceAccessSeq) setMsg($("paMsg"),"Could not load practice access: "+e.message);}
+}
+$("paType").onchange=initPracticeAccess;
+$("paBuild").onclick=()=>document.querySelector('[data-atab="banktests"]').click();
+$("paSave").onclick=async()=>{
+  if(!isSuper()) return;
+  const type=$("paType").value,banks=[...$("paBanks").querySelectorAll('[data-pa-bank]:checked')].map(e=>e.dataset.paBank);
+  $("paSave").disabled=true;
+  try{await setDoc(doc(db,"settings","portal"),{practiceBanks:{[type]:banks},practiceSetBy:currentUser.name,practiceSetAt:serverTimestamp()},{merge:true});setMsg($("paMsg"),`Saved ${banks.length} approved bank(s). The global practice switch was not changed.`,true);}
+  catch(e){setMsg($("paMsg"),"Could not save: "+e.message);}finally{$("paSave").disabled=false;}
+};
 $("tmPracticeOn").onchange = async () => {
   const on = $("tmPracticeOn").checked;
   try {
@@ -6024,7 +6122,7 @@ $("tmIndexBtn").onclick = async () => {
       if (q.imgHash) { const k = `${q.examType}|${q.imgHash}`; if (pictureSeen.has(k)) { dupPic++; return; } pictureSeen.add(k); }
       const key = `${q.examType}__${q.subject}`;
       (buckets[key] = buckets[key] || []).push({
-        i: q.docId, t: (q.topic||"").trim(), d: q.difficulty || "Medium", s: q.section || "A",
+        i: q.docId, b: bankForQuestion(q), t: (q.topic||"").trim(), d: q.difficulty || "Medium", s: q.section || "A",
         ...(q.model ? { m: String(q.model).trim() } : {}), ...(q.modelCode ? { mc: String(q.modelCode).trim() } : {}),
         ...(q.aiGenerated ? { a: 1 } : {}),   // question model (name / code); AI-written
         ...(q.keySrc === "ai" ? { u: 1 } : {})   // key proposed by an AI, not yet confirmed by a teacher (ranked last in suggestions)
@@ -6599,6 +6697,8 @@ $("audConfirm").onclick = async () => {
    auto-pick by a level mix, then save a timed test or an untimed diagnostic (e.g. a whole chapter of one bank) and
    choose who takes it. Reads only the bankIndex docs (one per subject), never the whole bank.
    ============================================================ */
+let btPage = 0;
+const BT_PAGE_SIZE = 100;
 const BT = { type: "medical", rows: [], picked: [], loaded: false,
   f: { subjects: new Set(), banks: new Set(), chapters: new Set(), levels: new Set(), qtypes: new Set(), skills: new Set() }, chSearch: "" };
 const BT_MIX = { toppers: { Easy: 0, Medium: 0.4, Hard: 0.6 }, average: { Easy: 0.3, Medium: 0.5, Hard: 0.2 },
@@ -6641,10 +6741,11 @@ function btUsedCounts(){
 }
 // rows passing every filter except the one named in `skip` (so a chip group shows counts for its own choices)
 function btFiltered(skip){
-  const f = BT.f, used = $("btUnused").checked ? btUsedCounts() : null, family=$("btFamily").value, visual=$("btVisual").value, search=$("btSearch").value.trim().toLowerCase(), time=$("btTime").value;
+  const f = BT.f, used = $("btUnused").checked ? btUsedCounts() : null, family=$("btFamily").value, visual=$("btVisual").value, search=$("btSearch").value.trim().toLowerCase(), time=$("btTime").value, model=$("btModel").value;
   return BT.rows.filter(r =>
     (!family || bankFamily(r.bank)===family) &&
     (!visual || r.vf===visual) &&
+    (!model || JSON.stringify([r.mc,r.m])===model) &&
     (!search || [r.i,r.t,r.bank,r.mc,r.m].join(' ').toLowerCase().includes(search)) &&
     (!time || (time==='unset' ? !(r.it>0) : r.it>0 && r.it<=Number(time))) &&
     (skip === "subjects" || !f.subjects.size || f.subjects.has(r.sub)) &&
@@ -6664,6 +6765,11 @@ function btChips(name, items){
 }
 const btCount = (rows, keyOf) => { const m = {}; rows.forEach(r => [].concat(keyOf(r)).forEach(k => { m[k] = (m[k] || 0) + 1; })); return m; };
 function btRenderFilters(){
+  const chosenModel = $("btModel").value;
+  const models = new Map(BT.rows.filter(r=>(!BT.f.subjects.size||BT.f.subjects.has(r.sub))&&(!BT.f.chapters.size||BT.f.chapters.has(r.t))&&(!BT.f.banks.size||BT.f.banks.has(r.bank||BT_NOBANK))).filter(r=>r.mc||r.m).map(r=>[JSON.stringify([r.mc,r.m]),[r.mc,r.m].filter(Boolean).join(" · ")]));
+  $("btModel").innerHTML = '<option value="">All models</option>' + [...models].sort((a,b)=>a[1].localeCompare(b[1])).map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join("");
+  if(models.has(chosenModel)) $("btModel").value=chosenModel;
+
   const subs = btCount(btFiltered("subjects"), r => r.sub), banks = btCount(btFiltered("banks"), r => r.bank || BT_NOBANK),
         lv = btCount(btFiltered("levels"), r => r.d), qt = btCount(btFiltered("qtypes"), r => r.qt || (r.s === "B" ? "numerical" : "")),
         sk = btCount(btFiltered("skills"), r => r.sk), chs = btCount(btFiltered("chapters"), r => r.t);
@@ -6703,15 +6809,23 @@ function btRenderList(){
   const ch = [...BT.f.chapters];
   $("btChapterDiagBtn").classList.toggle("hidden", !(ch.length === 1 && rows.length));
   if (ch.length === 1) $("btChapterDiagBtn").textContent = `⚡ Whole chapter as a diagnostic — ${ch[0]}${BT.f.banks.size === 1 ? " · " + [...BT.f.banks][0] : ""} (${rows.length} Qs)`;
-  const LIM = 400;
+  const pages = Math.max(1,Math.ceil(rows.length/BT_PAGE_SIZE));
+  btPage = Math.min(btPage,pages-1);
+  const pageRows = rows.slice(btPage*BT_PAGE_SIZE,(btPage+1)*BT_PAGE_SIZE);
+  $("btAllBtn").textContent=`Add all matching (${rows.length})`;
+  $("btPageBtn").textContent=`Add this page (${pageRows.length})`;
+  $("btPageBtn").disabled=!pageRows.length; $("btAllBtn").disabled=!rows.length;
+  $("btPager").innerHTML=rows.length?`<span>Page ${btPage+1} of ${pages} · ${btPage*BT_PAGE_SIZE+1}–${Math.min((btPage+1)*BT_PAGE_SIZE,rows.length)} of ${rows.length}</span><div><button class="btn secondary" id="btPrevPage" ${btPage?'':'disabled'}>Previous</button> <button class="btn secondary" id="btNextPage" ${btPage+1<pages?'':'disabled'}>Next</button></div>`:'';
+  if($("btPrevPage")) $("btPrevPage").onclick=()=>{btPage--;btRenderList();};
+  if($("btNextPage")) $("btNextPage").onclick=()=>{btPage++;btRenderList();};
   $("btList").innerHTML = rows.length ? `<table class="tbl" style="font-size:12.5px"><thead><tr><th></th><th>Id</th><th>Data bank</th><th>Subject — Chapter</th><th>Model</th><th>Level</th><th>Type</th><th>Approach</th><th>Ideal</th><th>Used</th><th></th></tr></thead><tbody>` +
-    rows.slice(0, LIM).map(r => `<tr><td><input type="checkbox" data-btpick="${esc(r.i)}" ${pickedSet.has(r.i) ? "checked" : ""}></td>
+    pageRows.map(r => `<tr><td><input type="checkbox" data-btpick="${esc(r.i)}" ${pickedSet.has(r.i) ? "checked" : ""}></td>
       <td style="font-family:monospace;font-size:11.5px">${esc(r.i)}</td><td>${esc(r.bank || "—")}</td><td>${esc(r.sub)} — ${esc(r.t || "—")}</td>
       <td>${esc([r.mc, r.m].filter(Boolean).join(" · ") || "—")}</td><td>${esc(levelLabel(r.d))}</td>
       <td>${esc(r.qt ? QTYPES.find(x => x.k === r.qt)?.short || r.qt : r.s === "B" ? "NUM" : "—")}</td><td>${esc(r.sk.map(skillShort).join(", ") || "—")}</td>
       <td>${fmtSec(btIdeal(r))}</td><td>${used[r.i] ? used[r.i] + "×" : ""}</td>
       <td style="white-space:nowrap">${btKeyBadge(r.k)} <button class="btn secondary" style="padding:1px 7px;font-size:11.5px" data-btview="${esc(r.i)}">👁</button></td></tr>`).join("") +
-    `</tbody></table>${rows.length > LIM ? `<p style="font-size:12px;color:var(--muted)">Showing the first ${LIM} of ${rows.length} — narrow the filters, or use “Add all shown” / Auto-pick (they use every match).</p>` : ""}`
+    `</tbody></table>`
     : `<p style="font-size:13px;color:var(--muted)">No question matches these filters.</p>`;
   $("btList").querySelectorAll("[data-btpick]").forEach(c => c.onchange = () => {
     const r = BT.rows.find(x => x.i === c.dataset.btpick);
@@ -6723,6 +6837,7 @@ function btRenderList(){
 }
 function btRenderPicked(){
   const P = BT.picked, tot = P.reduce((t, r) => t + btIdeal(r), 0);
+  $("btDockCount").textContent=P.length ? `${P.length} selected · ${fmtSec(tot)} total ideal time` : "No questions selected";
   const by = (keyOf, labelOf) => Object.entries(btCount(P, keyOf)).map(([k, n]) => `${esc(labelOf(k))} ${n}`).join(" · ");
   $("btPickCount").textContent = P.length ? `— ${P.length} question(s), total ideal time ${fmtSec(tot)}` : "";
   $("btPicked").innerHTML = P.length ? `<p style="font-size:12.5px;margin:0 0 6px"><b>Levels:</b> ${by(r => r.d, levelLabel)} &nbsp;|&nbsp; <b>Approach:</b> ${by(r => r.sk.length ? r.sk : ["—"], k => k === "—" ? "untagged" : skillShort(k))}
@@ -6742,9 +6857,9 @@ function btRenderPicked(){
   const chs = [...new Set(P.map(r => r.t))];
   if (chs.length === 1 && !$("btChapter").dataset.touched) $("btChapter").value = chs[0];
 }
-function btRenderAll(){ btRenderFilters(); btRenderList(); btRenderPicked(); }
-["btFamily", "btVisual", "btTime", "btOkOnly", "btNoDup", "btUnused", "btTaggedOnly"].forEach(id => $(id).onchange = btRenderAll);
-$("btSearch").oninput=()=>{btRenderFilters();btRenderList();};
+function btRenderAll(){ btPage=0; btRenderFilters(); btRenderList(); btRenderPicked(); }
+["btFamily", "btVisual", "btTime", "btModel", "btOkOnly", "btNoDup", "btUnused", "btTaggedOnly"].forEach(id => $(id).onchange = btRenderAll);
+$("btSearch").oninput=()=>{btPage=0;btRenderFilters();btRenderList();};
 ["btDur", "btChapter"].forEach(id => $(id).addEventListener("input", () => { $(id).dataset.touched = "1"; }));
 $("btKind").onchange = () => {
   const diag = $("btKind").value === "diagnostic";
@@ -6754,10 +6869,15 @@ $("btKind").onchange = () => {
 };
 document.querySelectorAll("[data-btpreset]").forEach(b => b.onclick = () => {
   const p = b.dataset.btpreset;
-  if (p === "clear") { Object.values(BT.f).forEach(x => x.clear()); BT.chSearch = ""; ["btFamily","btVisual","btSearch","btTime"].forEach(id=>$(id).value=""); $("btMix").value = "any"; }
+  if (p === "clear") { Object.values(BT.f).forEach(x => x.clear()); BT.chSearch = ""; ["btFamily","btVisual","btSearch","btTime","btModel"].forEach(id=>$(id).value=""); $("btMix").value = "any"; }
   else { BT.f.levels = new Set(BT_PRESET_LEVELS[p]); $("btMix").value = p; }
   btRenderAll();
 });
+$("btPageBtn").onclick = () => {
+  const have=new Set(BT.picked.map(r=>r.i));
+  btFiltered().slice(btPage*BT_PAGE_SIZE,(btPage+1)*BT_PAGE_SIZE).forEach(r=>{if(!have.has(r.i)){BT.picked.push(r);have.add(r.i);}});
+  btRenderList();btRenderPicked();
+};
 $("btAllBtn").onclick = () => {
   const have = new Set(BT.picked.map(r => r.i));
   btFiltered().forEach(r => { if (!have.has(r.i)) BT.picked.push(r); });
@@ -7011,11 +7131,14 @@ $("grLbCsv").onclick = () => {
 /* ----- reports ----- */
 let reportCache = [];
 async function loadReports(){
-  const qs = await getDocs(collection(db,"attempts"));
-  let list = qs.docs.map(d=>({ docId:d.id, ...d.data() }));
   const su = $("rpStudent").value, ty = $("rpType").value,
         from = $("rpFrom").value ? new Date($("rpFrom").value) : null,
         to   = $("rpTo").value ? new Date($("rpTo").value + "T23:59:59") : null;
+  const scope=su?[where("studentUid","==",su)]:ty?[where("examType","==",ty)]:[
+    ...(from?[where("submitTime",">=",Timestamp.fromDate(from))]:[]),
+    ...(to?[where("submitTime","<=",Timestamp.fromDate(to))]:[])];
+  const qs=await getDocs(scope.length?query(collection(db,"attempts"),...scope):collection(db,"attempts"));
+  let list=qs.docs.map(d=>({docId:d.id,...d.data()}));
   // faculty: only attempts of exams they created
   const myExamIds = isSuper() ? null : new Set(examsCache.filter(e=>e.createdBy===currentUser.uid).map(e=>e.docId));
   list = list.filter(a =>
@@ -8292,7 +8415,8 @@ async function loadPracticeChapters(){
       box.innerHTML = `<div style="color:var(--muted);padding:6px">No practice questions indexed for ${esc(subject)} yet. Ask your faculty to rebuild the practice index.</div>`;
       $("prChapHint").textContent = ""; return;
     }
-    prEntries = (s.data().q || []).filter(e => e.t);   // untagged questions can't be offered by chapter
+    const policy=await practicePolicy();
+    prEntries = (s.data().q || []).filter(e => e.t && practiceBankAllowed(e,policy));   // untagged questions can't be offered by chapter
     renderPracticeChapters();
   } catch(e){
     box.innerHTML = `<div style="color:var(--muted);padding:6px">Could not load chapters: ${esc(e.message)}</div>`;
@@ -8370,7 +8494,12 @@ $("prStartBtn").onclick = async () => {
   finally { $("prStartBtn").disabled = false; }
 };
 // shared by chapter practice and "Retry my mistakes" (source "notebook": a correct retry clears the notebook entry)
-function startPracticeWith(questions, subject, topics, source){
+async function startPracticeWith(questions, subject, topics, source){
+  const policy=await practicePolicy();
+  if(!policy.enabled){uiAlert("Self-practice is currently disabled by your teacher.");return;}
+  const released=questions.filter(q=>practiceBankAllowed(q,policy));
+  if(released.length!==questions.length){uiAlert("This selection contains questions from a bank that is not approved for self-practice. Please choose a released bank.");return;}
+  if(!released.length) return;
   if (PR?.tick) clearInterval(PR.tick);
   {
     PR = {
