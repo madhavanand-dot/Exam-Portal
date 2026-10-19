@@ -216,7 +216,7 @@ details.qexp div{margin-top:6px;font-size:13px;line-height:1.5}
   body * { visibility:hidden; }
   #view-result, #view-result * { visibility:visible; }
   #view-result { position:absolute; left:0; top:0; width:100%; }
-  .topbar, #csvReportBtn, #pdfReportBtn, .subTabs, details.qexp summary { display:none!important; }
+  .topbar, #csvReportBtn, #pdfReportBtn, #paperPdfBtn, #paperKeyPdfBtn, .subTabs, details.qexp summary { display:none!important; }
   details.qexp[open] div, details.qexp div { display:block!important; }
 }
 .flexrow{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
@@ -1071,6 +1071,8 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <button class="btn" id="lmStart" style="padding:4px 10px">▶ Start</button>
           <button class="btn secondary" id="lmRefresh" style="padding:4px 10px">Refresh</button>
         </div>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="lmReattempts"> Allow students to reattempt completed tests and chapters</label>
+        <div id="lmReattemptsMsg" style="font-size:12.5px;color:var(--muted);margin-top:6px"></div>
         <div id="lmStrictMsg" style="font-size:12.5px;color:var(--muted);margin-top:6px"></div>
         <div id="lmStats" class="statRow" style="margin-top:10px"></div>
         <div style="font-size:12px;color:var(--muted)">📱 Note: tab-switch tracking can't see everything. On some phones Chrome can be used in <b>split screen, a floating
@@ -1631,7 +1633,7 @@ function examCfg(exam){
    so every batch of it — including batches added later — gets the same package. ---- */
 const PROGRAMS = ["TYM", "OYM", "RM"];
 const PKG_KIND = { package: "📘 Study Package", booster: "🚀 Momentum Booster" };
-let PORTAL = { programPrefixes: { TYM: ["TR", "TW"], OYM: ["OR", "OW"], RM: ["RM"] } };
+let PORTAL = { allowReattempts: false, programPrefixes: { TYM: ["TR", "TW"], OYM: ["OR", "OW"], RM: ["RM"] } };
 async function loadPortal(){
   try { const sn = await getDoc(doc(db,"settings","portal")); if (sn.exists()) PORTAL = { ...PORTAL, ...sn.data() }; } catch(e){ /* rules not published: defaults */ }
 }
@@ -5661,6 +5663,23 @@ function lmAlert(kind, text){
   if (kind === "violation" || kind === "malpractice" || kind === "quick") lmBeep();
 }
 // Portal-wide "3 warnings → auto-submit" switch (settings/portal.proctorStrict; tests can override it)
+function lmReattemptsRender(){
+  const on = PORTAL.allowReattempts === true;
+  $("lmReattempts").checked = on;
+  $("lmReattempts").disabled = !isSuper();
+  $("lmReattemptsMsg").textContent = on
+    ? "Reattempts enabled. Starting again replaces the student's previous result."
+    : "Reattempts disabled. Completed results are preserved; unfinished attempts can still be resumed.";
+}
+$("lmReattempts").onchange = async () => {
+  const on = $("lmReattempts").checked;
+  $("lmReattempts").disabled = true;
+  try {
+    await setDoc(doc(db,"settings","portal"), { allowReattempts: on }, { merge:true });
+    PORTAL.allowReattempts = on;
+  } catch(e) { uiAlert("Could not save reattempt setting: " + e.message); }
+  lmReattemptsRender();
+};
 function lmStrictRender(){
   const on = PORTAL.proctorStrict !== false;
   $("lmStrict").checked = on; $("lmStrict").disabled = !isSuper();
@@ -5676,6 +5695,8 @@ $("lmStrict").onchange = async () => {
   lmStrictRender();
 };
 async function initLive(){
+  await loadPortal();
+  lmReattemptsRender();
   lmStrictRender();
   lmStop();
   lmState = {}; lmSeeded = new Set(); lmFeed = [];
@@ -7378,6 +7399,12 @@ let availableExams = [];
 const SDG = { ch: "", sub: "" };   // student's place in the diagnostic chapter → topic picker
 async function loadActiveExam(){
   activeExam = null;
+  await loadPortal();
+  const completed = {};
+  if (PORTAL.allowReattempts !== true) {
+    const own = await getDocs(query(collection(db,"attempts"), where("studentUid","==",currentUser.uid)));
+    own.docs.forEach(d => { const a=d.data(); if(a.submitTime) completed[a.examId]={docId:d.id,...a}; });
+  }
   const qs = await getDocs(query(collection(db,"exams"),
     where("examType","==",currentUser.examType), where("isActive","==",true)));
   const allMine = qs.docs.map(d=>({ docId:d.id, ...d.data() })).filter(examTargetsMe);
@@ -7400,6 +7427,7 @@ async function loadActiveExam(){
   const others = availableExams.map((ex, i) => ({ ex, i })).filter(x => !x.ex.diagnostic && !isGrp(x.ex));
   const examCard = ({ ex, i }) => {
       const cfg = examCfg(ex), w = examWindow(ex);
+      if (completed[ex.docId]) return `<div class="card" style="margin-bottom:10px"><b>${esc(ex.title)}</b><p>✅ Completed — reattempts disabled.</p><button class="btn secondary" data-completed="${esc(ex.docId)}">View result</button></div>`;
       return `<div class="card" style="margin-bottom:10px">
         <p style="margin-bottom:8px">${ex.level ? `<span class="badge ${ex.level === "Easy" ? "pos" : ex.level === "Hard" ? "neg" : "zero"}" style="margin-right:6px">${esc(levelShort(ex.level))}</span>` : ""}<b>${esc(ex.title)}</b> &mdash; ${esc(EXAM_CONFIG[ex.examType]?.label || ex.examType || "")}<br>
         <span style="color:var(--muted);font-size:13px">${ex.questionIds.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${cfg.untimed ? `no time limit (about ${Math.round(cfg.durationSec/60)} min)` : `${Math.round(cfg.durationSec/60)} min`} &bull; Max ${cfg.maxMarks}${w.at?` &bull; closes ${fmtDate(new Date(w.at))}`:""}</span></p>
@@ -7452,6 +7480,7 @@ async function loadActiveExam(){
   $("activeExamInfo").querySelectorAll("[data-sdg]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdg; SDG.sub = ""; loadActiveExam(); });
   $("activeExamInfo").querySelectorAll("[data-sdgch]").forEach(b => b.onclick = () => { SDG.ch = b.dataset.sdgch; SDG.sub = ""; loadActiveExam(); });
   $("activeExamInfo").querySelectorAll("[data-sdgsub]").forEach(b => b.onclick = () => { SDG.sub = b.dataset.sdgsub; loadActiveExam(); });
+  $("activeExamInfo").querySelectorAll("[data-completed]").forEach(b => b.onclick = () => showResult(completed[b.dataset.completed]));
   $("activeExamInfo").querySelectorAll("[data-pledge]").forEach(c => c.onchange = () => {
     $("activeExamInfo").querySelector(`[data-startex="${c.dataset.pledge}"]`).disabled = !c.checked;
   });
@@ -7803,7 +7832,7 @@ async function renderStudentPackages(pkgs){
               : st === "doing" ? `◐ In progress — ${answered}/${n} answered` : `○ Not started`}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               ${st === "done" ? `<button class="btn secondary" style="padding:3px 10px" data-pkview="${a.docId}">View result</button>
-                 <button class="btn secondary" style="padding:3px 10px" data-pkgo="${e.docId}">Solve again</button>`
+                 ${PORTAL.allowReattempts === true ? `<button class="btn secondary" style="padding:3px 10px" data-pkgo="${e.docId}">Solve again</button>` : ""}`
                : `<button class="btn ${st === "doing" ? "green" : ""}" style="padding:3px 12px" data-pkgo="${e.docId}">${st === "doing" ? "Continue" : "Start"}</button>`}
             </div></div>`;
         }).join("")}</div>`).join("")}
@@ -7873,6 +7902,24 @@ const STATUS = { NV:"notVisited", NA:"notAnswered", AN:"answered", MA:"markedAns
 
 async function startExam(){
   if (!activeExam) return;
+  // Check the current server policy before loading questions or changing a saved attempt.
+  const attemptId = `${activeExam.docId}_${currentUser.uid}`;
+  const attemptRef = doc(db,"attempts",attemptId);
+  let prev;
+  try {
+    const [policy, saved] = await Promise.all([
+      getDoc(doc(db,"settings","portal")), getDoc(attemptRef)
+    ]);
+    PORTAL.allowReattempts = policy.exists() && policy.data().allowReattempts === true;
+    prev = saved;
+  } catch(e) {
+    uiAlert("Could not check whether this test can be started. Please reconnect and try again.");
+    return;
+  }
+  if (prev.exists() && prev.data().submitTime && PORTAL.allowReattempts !== true) {
+    uiAlert("You have already completed this test. Reattempts are disabled. Your result is available in Past Attempts.");
+    return;
+  }
   const cfg = examCfg(activeExam);
   if (cfg.proctored) try { await document.documentElement.requestFullscreen?.(); } catch(e){}  // must be in the click gesture
   const cacheKey = `exam_${activeExam.docId}_${currentUser.uid}`;
@@ -7910,9 +7957,6 @@ async function startExam(){
   if (!qlist.length) { uiAlert("Exam has no questions."); return; }
 
   // create attempt doc (id = examId_uid so refresh resumes same attempt)
-  const attemptId = `${activeExam.docId}_${currentUser.uid}`;
-  const attemptRef = doc(db,"attempts",attemptId);
-  const prev = await getDoc(attemptRef);
   let startTime = Date.now(), savedResponses = {}, savedTimes = {}, pledgedAt = Timestamp.now();
   if (prev.exists() && !prev.data().submitTime) {
     const p = prev.data();
@@ -7921,12 +7965,11 @@ async function startExam(){
     savedTimes = p.questionTimeSec || {};
     if (p.pledgedAt) pledgedAt = p.pledgedAt;
   } else if (prev.exists() && prev.data().submitTime) {
-    if (!await uiConfirm(cfg.proctored ? "You have already submitted this exam. Start a fresh attempt? (Previous result is kept in reports but will be overwritten on this attempt id.)"
+    if (!await uiConfirm(cfg.proctored ? "You have already submitted this exam. Start a fresh attempt? Your previous result will be replaced."
                                : "You have already completed this chapter. Solve it again from the start? (Your previous result will be replaced.)")) {
       return;
     }
     sessionStorage.removeItem(cacheKey);
-    await setDoc(attemptRef, {}, { merge:false });
   }
   if (!prev.exists() || prev.data().submitTime) {
     await setDoc(attemptRef, {
@@ -8758,13 +8801,17 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
   }).join("");
   const hdr = `<div class="hdr"><div class="t1">${esc(title)}</div><div class="t2">${esc(sub || "Question paper")}</div>
 <div class="mm">Max marks ${fmt(m.correct)} / ${fmt(m.wrong)}<span>${esc(attempt.studentName || "")}</span></div></div>`;
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']]},startup:{typeset:false}};<\/script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"><\/script>
 <style>
 @page{size:A4;margin:0}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
+#printTools{position:sticky;top:0;z-index:10;background:#fff;padding:12px;border-bottom:1px solid #ccc;font:14px Arial}
+#printTools button{padding:12px 18px;cursor:pointer}
+@media screen{body{background:#e8edf2}.page{background:white;margin:12px auto;box-shadow:0 1px 6px #aaa}#pages{overflow:auto}}
+@media print{#printTools{display:none!important}body{background:white}.page{margin:0;box-shadow:none}}
 body{font-family:Arial,Helvetica,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .page{position:relative;width:210mm;height:296.5mm;overflow:hidden;page-break-after:always;break-after:page}
 .page:last-child{page-break-after:auto;break-after:auto}
@@ -8784,6 +8831,7 @@ body{font-family:Arial,Helvetica,sans-serif;color:#111;-webkit-print-color-adjus
 .o{margin:.8mm 0 .8mm 3mm;font-size:9pt}
 .o.key{font-weight:700;color:#1b7a3b}.o.mine{color:#b03a2e}
 </style></head><body>
+<div id="printTools"><button id="savePdf" disabled>Print / Save as PDF</button> <span id="printStatus">Preparing questions, images and formulas…</span></div>
 <div id="pool">${blocks}</div><div id="pages"></div>
 <script>
 function layoutPaper(){
@@ -8791,7 +8839,10 @@ function layoutPaper(){
   var colH=256*3.7795, pages=[], page, ci;
   function newPage(){ page=document.createElement("div"); page.className="page"; page.innerHTML=HDR+'<div class="col c0"></div><div class="col c1"></div><div class="pn"></div>'; host.appendChild(page); ci=0; pages.push(page); }
   newPage();
+  // Shrink unusually tall image questions to fit a column instead of clipping them.
   qs.forEach(function(q){
+    var h=q.getBoundingClientRect().height;
+    if(h>colH) q.style.zoom=String((colH-8)/h);
     var col=page.children[1+ci]; col.appendChild(q);
     if (col.scrollHeight>colH+1 && col.children.length>1){
       col.removeChild(q);
@@ -8802,26 +8853,54 @@ function layoutPaper(){
   pages.forEach(function(pg,i){ pg.querySelector(".pn").textContent="Page "+(i+1); });
   pool.remove(); document.documentElement.setAttribute("data-ready","1");
 }
-window.addEventListener("load", async function(){
-  try{ var t0=Date.now(); while(!(window.MathJax&&MathJax.typesetPromise)&&Date.now()-t0<6000) await new Promise(function(r){setTimeout(r,150)}); if(window.MathJax&&MathJax.typesetPromise) await MathJax.typesetPromise(); }catch(e){}
-  await Promise.all([].slice.call(document.images).map(function(im){return im.complete?0:new Promise(function(r){im.onload=im.onerror=r})}));
-  layoutPaper();
-});
+var saveBtn=document.getElementById("savePdf"), statusText=document.getElementById("printStatus");
+saveBtn.onclick=function(){window.focus();window.print();};
+async function preparePaper(){
+  try{
+    var imgs=[].slice.call(document.images);
+    await Promise.all(imgs.map(function(im){
+      im.loading="eager";
+      return im.complete ? Promise.resolve() : new Promise(function(resolve,reject){
+        var timer=setTimeout(function(){reject(new Error("An image took too long to load."))},30000);
+        im.onload=function(){clearTimeout(timer);resolve()};
+        im.onerror=function(){clearTimeout(timer);reject(new Error("A question image could not load."))};
+      });
+    }));
+    if(imgs.some(function(im){return !im.naturalWidth})) throw new Error("A question image could not load.");
+    var t0=Date.now();
+    while(!(window.MathJax&&MathJax.typesetPromise)&&Date.now()-t0<10000)
+      await new Promise(function(r){setTimeout(r,150)});
+    if(window.MathJax&&MathJax.typesetPromise) await MathJax.typesetPromise();
+    else if(["$",String.fromCharCode(92)+"(",String.fromCharCode(92)+"["].some(function(mark){return document.getElementById("pool").textContent.includes(mark)}))
+      throw new Error("Formulas could not load. Check your connection and reload this page.");
+    if(document.fonts) await document.fonts.ready;
+    layoutPaper();
+    await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})});
+    saveBtn.disabled=false;
+    statusText.textContent="Ready. Tap Print / Save as PDF, then choose Save as PDF in your phone's print options.";
+  }catch(e){statusText.textContent=e.message+" Please reload this page to retry.";}
+}
+document.addEventListener("DOMContentLoaded",preparePaper);
+
 <\/script></body></html>`;
 }
-async function downloadPaperPdf(withKey){
+function downloadPaperPdf(withKey){
   const attempt = lastResultAttempt, detail = lastResultDetail;
   if (!attempt || !detail?.length) { uiAlert("Open a submitted result first."); return; }
+  // Open synchronously from the tap. Mobile printing needs a visible, full-size document.
   const html = buildPaperHtml(attempt, detail, attemptCfg(attempt), withKey);
-  const fr = document.createElement("iframe");
-  fr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
-  document.body.appendChild(fr);
-  fr.srcdoc = html;
-  const w0 = Date.now();
-  while (Date.now() - w0 < 30000 && fr.contentDocument?.documentElement?.getAttribute("data-ready") !== "1") await new Promise(r => setTimeout(r, 200));
-  const w = fr.contentWindow;
-  w.focus(); w.print();
-  setTimeout(() => fr.remove(), 60000);
+  const url = URL.createObjectURL(new Blob([html], { type:"text/html;charset=utf-8" }));
+  const win = window.open(url, "_blank");
+  if (!win) {
+    URL.revokeObjectURL(url);
+    uiAlert("Please allow pop-ups for this site, then tap Download test again.");
+    return;
+  }
+  win.opener = null;
+  // Keep the document available while the student previews, prints or cancels.
+  const cleanup = setInterval(() => {
+    if (win.closed) { clearInterval(cleanup); URL.revokeObjectURL(url); }
+  }, 5000);
 }
 
 async function showResult(attempt){

@@ -67,10 +67,16 @@ service cloud.firestore {
       allow read: if signedIn();
       // a student creates/updates only their own attempt
       allow create: if signedIn() && isActiveUser() &&
-        request.resource.data.studentUid == request.auth.uid;
+        request.resource.data.studentUid == request.auth.uid
+        && attemptId == request.resource.data.examId + "_" + request.auth.uid;
       allow update: if isStaff() ||
         (signedIn() && isActiveUser() && resource.data.studentUid == request.auth.uid
-                    && request.resource.data.studentUid == request.auth.uid);
+                    && request.resource.data.studentUid == request.auth.uid
+                    && request.resource.data.examId == resource.data.examId
+                    && (resource.data.get("submitTime", null) == null
+                        || (exists(/databases/$(database)/documents/settings/portal)
+                            && get(/databases/$(database)/documents/settings/portal).data.get("allowReattempts", false) == true)
+                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["reasons", "reasonsAt", "integrityNote"])));
       allow delete: if isStaff();
     }
 
