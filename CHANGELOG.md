@@ -7,6 +7,15 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-19 — Clearer portal workflows and controlled practice banks
+
+- Organised existing admin sections into six navigation groups. Added Practice Access under Learning & Practice; staff retain existing role restrictions. Mobile navigation uses collapsible groups.
+- Bank Tests now pages through every match in sets of 100, has a chapter-aware question-model selector, distinguishes Add this page from Add all matching, and keeps the selected count and total ideal time visible while choosing questions. Existing popup previews and saved selections are retained.
+- Added admin-approved practice banks per exam stream in the existing portal settings. Empty/missing policies release no bank. Chapter practice, model suggestions and mistake retry respect the policy; assigned tests remain independent. Saving the bank list does not enable practice. See PRACTICE_ACCESS.md.
+- Student search supports name and PS-ID. Reports scope reads by student, exam type or date when supplied. Progress percentiles compare only submitted attempts of the same test and reuse each cohort read within a panel.
+- Extended question typography to practice and disclosure previews. Added old-paper guidance using existing timed/untimed test paths; no papers or tests are imported or published automatically.
+- After deployment: reload the portal and rebuild the practice index once for bank provenance. Approved-bank lists were explicitly initialised empty and global practice remains off. No new collection or rules deployment is needed. This release does not migrate stored results or grading.
+
 
 ## 2026-10-19 — Consistent question typography
 
