@@ -216,7 +216,7 @@ details.qexp div{margin-top:6px;font-size:13px;line-height:1.5}
   body * { visibility:hidden; }
   #view-result, #view-result * { visibility:visible; }
   #view-result { position:absolute; left:0; top:0; width:100%; }
-  .topbar, #csvReportBtn, #pdfReportBtn, #paperPdfBtn, #paperKeyPdfBtn, .subTabs, details.qexp summary { display:none!important; }
+  .topbar, #csvReportBtn, #pdfReportBtn, #paperPdfBtn, #paperKeyPdfBtn, #paperPdfDownload, #paperPdfShare, .subTabs, details.qexp summary { display:none!important; }
   details.qexp[open] div, details.qexp div { display:block!important; }
 }
 .flexrow{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
@@ -8884,24 +8884,143 @@ document.addEventListener("DOMContentLoaded",preparePaper);
 
 <\/script></body></html>`;
 }
-function downloadPaperPdf(withKey){
+let paperPdfBusy = false, paperPdfUrl = null, pdfLibrariesPromise = null;
+function loadPdfLibraries(){
+  if (!pdfLibrariesPromise) pdfLibrariesPromise = Promise.all([
+    ["vendor/jspdf.umd.min.js", () => window.jspdf?.jsPDF],
+    ["vendor/html2canvas.min.js", () => window.html2canvas]
+  ].map(([src, ready]) => ready() ? Promise.resolve() : new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = () => ready() ? resolve() : reject(new Error("PDF library could not start."));
+    script.onerror = () => { script.remove(); reject(new Error("PDF tools could not load. Check your connection and try again.")); };
+    document.head.appendChild(script);
+  }))).catch(e => { pdfLibrariesPromise = null; throw e; });
+  return pdfLibrariesPromise;
+}
+async function downloadPaperPdf(withKey){
   const attempt = lastResultAttempt, detail = lastResultDetail;
   if (!attempt || !detail?.length) { uiAlert("Open a submitted result first."); return; }
-  // Open synchronously from the tap. Mobile printing needs a visible, full-size document.
-  const html = buildPaperHtml(attempt, detail, attemptCfg(attempt), withKey);
-  const url = URL.createObjectURL(new Blob([html], { type:"text/html;charset=utf-8" }));
-  const win = window.open(url, "_blank");
-  if (!win) {
-    URL.revokeObjectURL(url);
-    uiAlert("Please allow pop-ups for this site, then tap Download test again.");
-    return;
+  if (paperPdfBusy) return;
+  paperPdfBusy = true;
+  const buttons = [$("paperPdfBtn"), $("paperKeyPdfBtn")].filter(Boolean);
+  const labels = buttons.map(b => b.textContent);
+  const button = $(withKey ? "paperKeyPdfBtn" : "paperPdfBtn");
+  buttons.forEach(b => b.disabled = true);
+  let frame;
+  try {
+    await loadPdfLibraries();
+    button.textContent = "Preparing PDF…";
+    // A sized document gives images and formulas a stable layout. Capture one question
+    // at a time, so a long paper never creates a phone-sized, memory-heavy full-paper canvas.
+    frame = document.createElement("iframe");
+    frame.title = "Preparing downloadable test PDF";
+    frame.setAttribute("aria-hidden", "true");
+    frame.style.cssText = "position:fixed;left:-10000px;top:0;width:800px;height:1120px;border:0;pointer-events:none";
+    const loaded = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Questions took too long to load. Please try again.")), 60000);
+      frame.onload = () => { clearTimeout(timer); resolve(); };
+    });
+    frame.srcdoc = buildPaperHtml(attempt, detail, attemptCfg(attempt), withKey);
+    document.body.appendChild(frame);
+    await loaded;
+    const doc = frame.contentDocument;
+    const deadline = Date.now() + 60000;
+    while (doc.documentElement.dataset.ready !== "1") {
+      const msg = doc.getElementById("printStatus")?.textContent || "";
+      if (/retry|could not|too long/i.test(msg)) throw new Error(msg);
+      if (Date.now() > deadline) throw new Error("Questions could not finish loading. Please try again.");
+      await new Promise(r => setTimeout(r, 150));
+    }
+    const header = doc.querySelector(".hdr").cloneNode(true);
+    const questions = Array.from(doc.querySelectorAll("#pages .q"));
+    if (questions.length !== detail.length) throw new Error("Some questions are missing. Please reopen the result and retry.");
+    const stage = doc.createElement("div");
+    stage.style.cssText = "width:350px;background:white;color:#111";
+    doc.body.appendChild(stage);
+    header.style.cssText = "position:relative;width:718px;height:84px;left:auto;right:auto;top:auto";
+    stage.style.width = "718px";
+    stage.appendChild(header);
+    doc.getElementById("pages").remove();
+    doc.getElementById("printTools").remove();
+    const capture = async element => {
+      const bounds = element.getBoundingClientRect();
+      const scale = Math.min(1.75, 1800 / Math.max(bounds.height, bounds.width));
+      if (!(bounds.width > 0 && bounds.height > 0)) throw new Error("A question could not be rendered. Please try again.");
+      return window.html2canvas(element, { backgroundColor:"#ffffff", scale, useCORS:true,
+        logging:false, windowWidth:800, windowHeight:1120, scrollX:0, scrollY:0 });
+    };
+    const headCanvas = await capture(header);
+    const headerImage = headCanvas.toDataURL("image/png");
+    headCanvas.width = headCanvas.height = 1;
+    header.remove();
+    stage.style.width = "350px";
+    const pdf = new window.jspdf.jsPDF({ orientation:"portrait", unit:"mm", format:"a4", compress:true });
+    let page = 0, column = 0, y = 38;
+    const newPage = () => {
+      if (page++) pdf.addPage();
+      pdf.addImage(headerImage, "PNG", 10, 8, 190, 22);
+      pdf.setFontSize(9); pdf.setTextColor(90);
+      pdf.text("Page " + page, 190, 290);
+      column = 0; y = 38;
+    };
+    newPage();
+    for (let i = 0; i < questions.length; i++) {
+      button.textContent = `Making PDF… ${i + 1}/${questions.length}`;
+      const q = questions[i];
+      q.style.zoom = "1";
+      stage.appendChild(q);
+      const canvas = await capture(q);
+      let width = 90, height = canvas.height * width / canvas.width;
+      if (height > 242) { width *= 242 / height; height = 242; }
+      if (y + height > 282 && y > 38) {
+        if (column === 0) { column = 1; y = 38; } else newPage();
+      }
+      pdf.addImage(canvas, "PNG", column ? 110 : 10, y, width, height);
+      y += height + 3;
+      canvas.width = canvas.height = 1;
+      q.remove();
+      await new Promise(r => setTimeout(r, 0));
+    }
+    const fileName = (attempt.examTitle || "Test").replace(/[^a-z0-9 _-]/gi, "_").slice(0, 90)
+      + (withKey ? " - with answers" : " - questions") + ".pdf";
+    const blob = pdf.output("blob");
+    if (!blob.size) throw new Error("The PDF could not be created. Please retry.");
+    if (paperPdfUrl) URL.revokeObjectURL(paperPdfUrl);
+    paperPdfUrl = URL.createObjectURL(blob);
+    $("paperPdfDownload")?.remove();
+    $("paperPdfShare")?.remove();
+    const link = document.createElement("a");
+    link.id = "paperPdfDownload";
+    link.className = "btn green";
+    link.href = paperPdfUrl;
+    link.download = fileName;
+    link.textContent = "PDF ready — tap to download again";
+    link.style.cssText = "display:inline-block;margin:8px;text-decoration:none";
+    button.insertAdjacentElement("afterend", link);
+    const file = new File([blob], fileName, { type:"application/pdf" });
+    if (navigator.canShare?.({ files:[file] })) {
+      const save = document.createElement("button");
+      save.id = "paperPdfShare";
+      save.className = "btn secondary";
+      save.textContent = "Save PDF to Files / Share";
+      save.onclick = async () => {
+        try { await navigator.share({ files:[file], title:attempt.examTitle || "Test" }); }
+        catch(e) { if (e.name !== "AbortError") uiAlert("Use the PDF download link to save this file."); }
+      };
+      link.insertAdjacentElement("afterend", save);
+    }
+    link.click();
+  } catch(e) {
+    uiAlert("PDF download failed: " + e.message);
+  } finally {
+    frame?.remove();
+    buttons.forEach((b,i) => { b.disabled = false; b.textContent = labels[i]; });
+    paperPdfBusy = false;
   }
-  win.opener = null;
-  // Keep the document available while the student previews, prints or cancels.
-  const cleanup = setInterval(() => {
-    if (win.closed) { clearInterval(cleanup); URL.revokeObjectURL(url); }
-  }, 5000);
 }
+
+
 
 async function showResult(attempt){
   $("resultWho").textContent = attempt.studentName || currentUser.name;
