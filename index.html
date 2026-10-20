@@ -8777,6 +8777,11 @@ let lastResultDetail = null, lastResultAttempt = null;
 /* ----- download the submitted test as a question-paper PDF (two columns, navy header) ----- */
 function buildPaperHtml(attempt, detail, cfg, withKey){
   const title = attempt.examTitle || "Test";
+  // JSON serialization preserves TeX delimiter backslashes through both script layers.
+  const mathConfig = {
+    tex: { inlineMath:[["$","$"],["\\(","\\)"]], displayMath:[["$$","$$"],["\\[","\\]"]], processEscapes:true },
+    svg: { fontCache:"none" }, startup:{ typeset:false }
+  };
   const m = cfg.marks?.A || { correct: 4, wrong: -1 };
   const sub = (cfg.subjects || []).join(" · ");
   const fmt = n => (n > 0 ? "+" : "") + n;
@@ -8802,8 +8807,8 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
   const hdr = `<div class="hdr"><div class="t1">${esc(title)}</div><div class="t2">${esc(sub || "Question paper")}</div>
 <div class="mm">Max marks ${fmt(m.correct)} / ${fmt(m.wrong)}<span>${esc(attempt.studentName || "")}</span></div></div>`;
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
-<script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']]},startup:{typeset:false}};<\/script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"><\/script>
+<script>window.MathJax=${JSON.stringify(mathConfig)};<\/script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"><\/script>
 <style>
 @page{size:A4;margin:0}
 *{box-sizing:border-box}
@@ -8825,8 +8830,9 @@ body{font-family:Arial,Helvetica,sans-serif;color:#111;-webkit-print-color-adjus
 .pn{position:absolute;right:9mm;bottom:5mm;font-size:9pt;color:#666}
 #pool{position:absolute;left:-9999px;top:0;width:92.5mm}
 .q{padding:2mm 0 3mm;border-bottom:.3mm solid #ddd;margin-bottom:2.5mm;font-size:9.5pt;line-height:1.35}
-.qh{background:#eef1f7;border-left:1.2mm solid #c0392b;padding:.8mm 2mm;margin-bottom:1.5mm;font-weight:700;color:#1f3a5f;font-size:9.5pt}
-.qt{font-weight:600}
+.qh{display:flex;align-items:baseline;gap:2mm;flex-wrap:wrap;background:#eef1f7;border-left:1.2mm solid #c0392b;padding:.8mm 2mm;margin-bottom:1.5mm;font-weight:700;color:#1f3a5f;font-size:9.5pt}
+.qn{flex:none}.qt{font-weight:600;font-family:Arial,Helvetica,sans-serif;font-style:normal}
+.qb,.o{overflow-wrap:anywhere}.qb img.pdf-math,.o img.pdf-math{display:inline-block;margin:0;max-width:100%;border:0}
 .qb img,.o img{max-width:100%;height:auto;display:block;margin:1.5mm 0}
 .o{margin:.8mm 0 .8mm 3mm;font-size:9pt}
 .o.key{font-weight:700;color:#1b7a3b}.o.mine{color:#b03a2e}
@@ -8870,7 +8876,38 @@ async function preparePaper(){
     var t0=Date.now();
     while(!(window.MathJax&&MathJax.typesetPromise)&&Date.now()-t0<10000)
       await new Promise(function(r){setTimeout(r,150)});
-    if(window.MathJax&&MathJax.typesetPromise) await MathJax.typesetPromise();
+    if(window.MathJax&&MathJax.typesetPromise) {
+      await MathJax.startup.promise;
+      await MathJax.typesetPromise([document.getElementById("pool")]);
+      if(document.querySelector('mjx-merror,[data-mjx-error]')) throw new Error("A formula could not be rendered. Please ask your teacher to check its notation.");
+      // Raster capture cannot reliably reproduce MathJax's CHTML layout. Export
+      // self-contained SVG formula images, with explicit size and inline baseline.
+      var formulas=[].slice.call(document.querySelectorAll("mjx-container"));
+      await Promise.all(formulas.map(async function(container){
+        var svg=container.querySelector("svg");
+        if(!svg) throw new Error("A formula could not be rendered.");
+        var rect=svg.getBoundingClientRect();
+        if(!(rect.width>0&&rect.height>0)) throw new Error("A formula has no visible size.");
+        var copy=svg.cloneNode(true);
+        copy.setAttribute("xmlns","http://www.w3.org/2000/svg");
+        copy.setAttribute("width",String(rect.width));
+        copy.setAttribute("height",String(rect.height));
+        copy.style.color="#111";
+        var im=document.createElement("img");
+        im.className="pdf-math";
+        im.alt=container.getAttribute("aria-label")||"Formula";
+        im.style.width=rect.width+"px";
+        im.style.height=rect.height+"px";
+        im.style.verticalAlign=svg.style.verticalAlign||"baseline";
+        if(container.getAttribute("display")==="true"){
+          im.style.display="block";im.style.margin="6px auto";
+        }
+        var xml=new XMLSerializer().serializeToString(copy);
+        im.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(xml);
+        await new Promise(function(resolve,reject){im.onload=resolve;im.onerror=function(){reject(new Error("A formula image could not load."))};});
+        container.replaceWith(im);
+      }));
+    }
     else if(["$",String.fromCharCode(92)+"(",String.fromCharCode(92)+"["].some(function(mark){return document.getElementById("pool").textContent.includes(mark)}))
       throw new Error("Formulas could not load. Check your connection and reload this page.");
     if(document.fonts) await document.fonts.ready;
