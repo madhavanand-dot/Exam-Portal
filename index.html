@@ -8787,6 +8787,13 @@ async function loadPracticeHistory(){
 let lastResultDetail = null, lastResultAttempt = null;
 
 /* ----- download the submitted test as a question-paper PDF (two columns, navy header) ----- */
+// Close any tag a question leaves open (or drop a stray closing tag): one unbalanced <div> or <table>
+// would otherwise swallow the rest of the paper and break its page layout ("…contains the parent").
+function balancedHtml(html){
+  const t = document.createElement("template");
+  t.innerHTML = String(html ?? "");
+  return t.innerHTML;
+}
 function buildPaperHtml(attempt, detail, cfg, withKey){
   const title = attempt.examTitle || "Test";
   // JSON serialization preserves TeX delimiter backslashes through both script layers.
@@ -8805,7 +8812,7 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
       const textless = isImageOnlyOptions(q);
       opts = (q.options || []).map((o, k) => {
         const letter = "ABCD"[k];
-        const txt = String(o || "").replace(/^\s*[A-D][).]\s*/, "");
+        const txt = balancedHtml(String(o || "").replace(/^\s*[A-D][).]\s*/, ""));
         const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
         const isKey = withKey && keyHas(q, letter), isMine = withKey && d.answer != null && String(d.answer).toUpperCase().includes(letter);
         const cls = isKey ? "key" : (isMine ? "mine" : "");
@@ -8814,7 +8821,7 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
     } else if (withKey) opts = `<div class="o key">Answer: ${esc(q.correct_answer)}${d.answer != null ? ` &nbsp;(yours: ${esc(String(d.answer))})` : ""}</div>`;
     else opts = `<div class="o">Answer: ______________</div>`;
     return `<div class="q"><div class="qh"><span class="qn">Q${i + 1}.</span> ${tag ? `<span class="qt">[${esc(tag)}]</span>` : ""}</div>
-      <div class="qb">${q.text || ""}${imgHtml(q.image)}</div>${opts}</div>`;
+      <div class="qb">${balancedHtml(q.text)}${imgHtml(q.image)}</div>${opts}</div>`;
   }).join("");
   const hdr = `<div class="hdr"><div class="t1">${esc(title)}</div><div class="t2">${esc(sub || "Question paper")}</div>
 <div class="mm">Max marks ${fmt(m.correct)} / ${fmt(m.wrong)}<span>${esc(attempt.studentName || "")}</span></div></div>`;

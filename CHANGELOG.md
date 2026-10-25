@@ -7,6 +7,11 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-25 — Test PDF fix for questions with broken HTML
+
+- **Download test (PDF):** fixed "Failed to execute 'appendChild' on 'Node': The new child element contains the parent". A question whose text or option left an HTML tag open (e.g. an unclosed `<div>` or `<table>`) pulled the rest of the paper inside itself, so the page layout failed. Each question's text and options are now closed off on their own before the paper is built; the questions' content is unchanged.
+- After deployment: reload the portal (installed app: close and reopen it). No rules, index or data change.
+
 ## 2026-10-25 — Reports: Exam dropdown
 
 - **Admin → Reports:** the test filter is now an **Exam** dropdown listing tests as "title (type)", like the Leaderboard. It replaces the "Test (ID or name)" text box; choosing a test lists only its attempts with one direct query, combined with the student, type and date filters. The Exam column and CSV still show the test ID.
