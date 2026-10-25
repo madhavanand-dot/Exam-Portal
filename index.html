@@ -1199,13 +1199,14 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       <div class="flexrow" style="margin-bottom:12px">
         <div class="field"><label>Student</label><select id="rpStudent"><option value="">All</option></select></div>
         <div class="field"><label>Exam Type</label><select id="rpType"><option value="">All</option><option value="medical">Medical</option><option value="engineering">Engineering</option></select></div>
+        <div class="field"><label>Test (ID or name)</label><input id="rpExam" list="rpExamList" placeholder="All tests" autocomplete="off"><datalist id="rpExamList"></datalist></div>
         <div class="field"><label>From</label><input type="date" id="rpFrom"></div>
         <div class="field"><label>To</label><input type="date" id="rpTo"></div>
         <button class="btn secondary" id="rpLoadBtn">Apply</button>
         <button class="btn" id="rpCsvBtn">Export CSV</button>
         <button class="btn danger" id="rpDelAllBtn">Delete All Shown</button>
       </div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Tip: to clear one test's results, filter by that exam type/date, check the export looks right, then "Delete All Shown". Deletions are permanent.</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Tip: to clear one test's results, filter by that test (or exam type/date), check the export looks right, then "Delete All Shown". Deletions are permanent.</p>
       <div id="rpMsg"></div>
       <table class="tbl"><thead><tr><th>Started</th><th>Submitted</th><th>Student</th><th>Type</th><th>Exam</th><th>Score</th><th title="Time spent on the test screen">Time (min)</th><th>Wrong</th><th>Unanswered</th><th>Flag</th><th></th></tr></thead><tbody id="rpRows"></tbody></table>
     </div>
@@ -2221,6 +2222,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     $("adminNavToggle").textContent="Sections · "+b.textContent.trim();
     document.querySelectorAll(".atab").forEach(x=>x.classList.add("hidden"));
     $("atab-"+b.dataset.atab).classList.remove("hidden");
+    if (b.dataset.atab==="reports") rpFillExams();
     if (b.dataset.atab==="reports") setMsg($("rpMsg"),"Nothing is fetched until you press Apply (this saves database reads).",true);
     if (b.dataset.atab==="faculty") loadStaff();
     if (b.dataset.atab==="leaderboard") initLeaderboard();
@@ -7151,11 +7153,18 @@ $("grLbCsv").onclick = () => {
 
 /* ----- reports ----- */
 let reportCache = [];
+// Test filter: an exact test ID (or a picked suggestion) is queried directly; other text matches part of an ID or title.
+function rpFillExams(){
+  const exams = isSuper() ? examsCache : examsCache.filter(e=>e.createdBy===currentUser.uid);
+  $("rpExamList").innerHTML = exams.map(e=>`<option value="${esc(e.docId)}">${esc(e.title||"")} (${esc(e.examType||"")})</option>`).join("");
+}
 async function loadReports(){
+  const ex = $("rpExam").value.trim(), exLow = ex.toLowerCase(),
+        exId = ex && examsCache.some(e=>e.docId===ex) ? ex : "";
   const su = $("rpStudent").value, ty = $("rpType").value,
         from = $("rpFrom").value ? new Date($("rpFrom").value) : null,
         to   = $("rpTo").value ? new Date($("rpTo").value + "T23:59:59") : null;
-  const scope=su?[where("studentUid","==",su)]:ty?[where("examType","==",ty)]:[
+  const scope=su?[where("studentUid","==",su)]:exId?[where("examId","==",exId)]:ty?[where("examType","==",ty)]:[
     ...(from?[where("submitTime",">=",Timestamp.fromDate(from))]:[]),
     ...(to?[where("submitTime","<=",Timestamp.fromDate(to))]:[])];
   const qs=await getDocs(scope.length?query(collection(db,"attempts"),...scope):collection(db,"attempts"));
@@ -7165,6 +7174,7 @@ async function loadReports(){
   list = list.filter(a =>
     (!myExamIds || myExamIds.has(a.examId)) &&
     (!su || a.studentUid===su) && (!ty || a.examType===ty) &&
+    (!ex || (exId ? a.examId===exId : String(a.examId||"").toLowerCase().includes(exLow) || String(a.examTitle||"").toLowerCase().includes(exLow))) &&
     (!from || (a.submitTime?.toDate?.() ?? new Date(0)) >= from) &&
     (!to   || (a.submitTime?.toDate?.() ?? new Date(0)) <= to));
   list.sort((a,b)=>(b.submitTime?.seconds||0)-(a.submitTime?.seconds||0));
@@ -7172,7 +7182,7 @@ async function loadReports(){
   setMsg($("rpMsg"),"");
   $("rpRows").innerHTML = list.map(a => `
     <tr><td style="white-space:nowrap;font-size:12.5px">${fmtWhen(a.startTime)}</td><td style="white-space:nowrap;font-size:12.5px">${fmtWhen(a.submitTime)}<div style="font-size:11px;color:var(--muted)" title="Clock time from start to submit, including breaks">${fmtSpan(a.startTime, a.submitTime)} start→submit</div></td><td>${esc(a.studentName)}</td><td>${esc(a.examType)}</td>
-    <td><button class="btn secondary" style="padding:2px 9px" data-rpview="${a.docId}">${esc(a.examTitle||a.examId)}</button></td><td><b>${a.score}</b> / ${attemptCfg(a).maxMarks}</td>
+    <td><button class="btn secondary" style="padding:2px 9px" data-rpview="${a.docId}">${esc(a.examTitle||a.examId)}</button><div style="font-size:11px;color:var(--muted)">ID: ${esc(a.examId||"—")}</div></td><td><b>${a.score}</b> / ${attemptCfg(a).maxMarks}</td>
     <td>${Math.round((a.totalTimeSec||0)/60)}</td>
     <td>${a.wrongQuestions?.length||0}</td><td>${a.unansweredQuestions?.length||0}</td>
     <td>${a.malpractice?'<span class="badge neg">MALPRACTICE</span>':(a.warnings||Object.keys(a.quickAnswers||{}).length)?'<span class="badge zero">flagged</span>':'<span class="badge pos">clean</span>'}
@@ -7206,9 +7216,9 @@ $("rpDelAllBtn").onclick = async () => {
   loadReports();
 };
 $("rpCsvBtn").onclick = () => {
-  const rows = [["Started","Submitted","StartToSubmit","Student","ExamType","Exam","Score","MaxMarks","TotalTimeMin","Wrong","Unanswered","Malpractice"]];
+  const rows = [["Started","Submitted","StartToSubmit","Student","ExamType","Exam","TestID","Score","MaxMarks","TotalTimeMin","Wrong","Unanswered","Malpractice"]];
   for (const a of reportCache) rows.push([
-    fmtWhen(a.startTime), fmtWhen(a.submitTime), fmtSpan(a.startTime, a.submitTime), a.studentName, a.examType, a.examTitle||a.examId,
+    fmtWhen(a.startTime), fmtWhen(a.submitTime), fmtSpan(a.startTime, a.submitTime), a.studentName, a.examType, a.examTitle||a.examId, a.examId||"",
     a.score, attemptCfg(a).maxMarks, Math.round((a.totalTimeSec||0)/60),
     a.wrongQuestions?.length||0, a.unansweredQuestions?.length||0, a.malpractice?("yes: "+(a.malpracticeReason||"")):"no"]);
   downloadCsv("attempts_report.csv", rows);
@@ -8924,8 +8934,7 @@ document.addEventListener("DOMContentLoaded",preparePaper);
 let paperPdfBusy = false, paperPdfUrl = null, pdfLibrariesPromise = null;
 function loadPdfLibraries(){
   if (!pdfLibrariesPromise) pdfLibrariesPromise = Promise.all([
-    ["vendor/jspdf.umd.min.js", () => window.jspdf?.jsPDF],
-    ["vendor/html2canvas.min.js", () => window.html2canvas]
+    ["vendor/jspdf.umd.min.js", () => window.jspdf?.jsPDF]
   ].map(([src, ready]) => ready() ? Promise.resolve() : new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = src;
@@ -8969,6 +8978,16 @@ async function downloadPaperPdf(withKey){
       if (Date.now() > deadline) throw new Error("Questions could not finish loading. Please try again.");
       await new Promise(r => setTimeout(r, 150));
     }
+    // Run html2canvas in the frame's own window: capturing nodes of another window is
+    // fragile on some phone browsers (child-node errors, or a capture that never finishes).
+    const win = frame.contentWindow;
+    await new Promise((resolve, reject) => {
+      const script = doc.createElement("script");
+      script.src = new URL("vendor/html2canvas.min.js", location.href).href;
+      script.onload = () => win.html2canvas ? resolve() : reject(new Error("PDF library could not start."));
+      script.onerror = () => reject(new Error("PDF tools could not load. Check your connection and try again."));
+      doc.head.appendChild(script);
+    });
     const header = doc.querySelector(".hdr").cloneNode(true);
     const questions = Array.from(doc.querySelectorAll("#pages .q"));
     if (questions.length !== detail.length) throw new Error("Some questions are missing. Please reopen the result and retry.");
@@ -8980,16 +8999,22 @@ async function downloadPaperPdf(withKey){
     stage.appendChild(header);
     doc.getElementById("pages").remove();
     doc.getElementById("printTools").remove();
+    // Returns a PNG data URL (a canvas from the frame's window can fail jsPDF's canvas check).
     const capture = async element => {
       const bounds = element.getBoundingClientRect();
       const scale = Math.min(1.75, 1800 / Math.max(bounds.height, bounds.width));
       if (!(bounds.width > 0 && bounds.height > 0)) throw new Error("A question could not be rendered. Please try again.");
-      return window.html2canvas(element, { backgroundColor:"#ffffff", scale, useCORS:true,
-        logging:false, windowWidth:800, windowHeight:1120, scrollX:0, scrollY:0 });
+      let timer;
+      const canvas = await Promise.race([
+        win.html2canvas(element, { backgroundColor:"#ffffff", scale, useCORS:true,
+          logging:false, windowWidth:800, windowHeight:1120, scrollX:0, scrollY:0 }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("rendering took too long. Please try again.")), 30000); })
+      ]).finally(() => clearTimeout(timer));
+      const image = { url: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
+      canvas.width = canvas.height = 1;
+      return image;
     };
-    const headCanvas = await capture(header);
-    const headerImage = headCanvas.toDataURL("image/png");
-    headCanvas.width = headCanvas.height = 1;
+    const headerImage = (await capture(header)).url;
     header.remove();
     stage.style.width = "350px";
     const pdf = new window.jspdf.jsPDF({ orientation:"portrait", unit:"mm", format:"a4", compress:true });
@@ -9007,15 +9032,16 @@ async function downloadPaperPdf(withKey){
       const q = questions[i];
       q.style.zoom = "1";
       stage.appendChild(q);
-      const canvas = await capture(q);
-      let width = 90, height = canvas.height * width / canvas.width;
+      let image;
+      try { image = await capture(q); }
+      catch(e) { throw new Error(`Question ${i + 1}: ${e.message}`); }
+      let width = 90, height = image.height * width / image.width;
       if (height > 242) { width *= 242 / height; height = 242; }
       if (y + height > 282 && y > 38) {
         if (column === 0) { column = 1; y = 38; } else newPage();
       }
-      pdf.addImage(canvas, "PNG", column ? 110 : 10, y, width, height);
+      pdf.addImage(image.url, "PNG", column ? 110 : 10, y, width, height);
       y += height + 3;
-      canvas.width = canvas.height = 1;
       q.remove();
       await new Promise(r => setTimeout(r, 0));
     }

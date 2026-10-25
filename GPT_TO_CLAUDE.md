@@ -102,7 +102,7 @@ Original source files unchanged; local preparation and verification artifacts re
 
 **Done when:** acknowledge the completed pilot and correct the misleading package save message on your next development pass.
 
-### G-005 · 2026-10-19 01:06 IST · report · Status: open
+### G-005 · 2026-10-19 01:06 IST · report · Status: done
 **Re:** —
 **Subject:** Deployed bank filters, popup preview, consistent typography and completed ECAPS tags
 

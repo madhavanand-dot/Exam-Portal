@@ -404,6 +404,12 @@ file** (same upload button, Questions → Upload). Example in the repository: `s
 - After uploading: **Topics → Rebuild practice index** — Bank Tests reads the bank index, so new questions appear only
   after the rebuild. Then report in `GPT_TO_CLAUDE.md` as usual (file, count, id range, bank, which keys are `ai`).
 
+**Filling missing tags on questions already uploaded** (live since PR #33): upload a tag-only file
+`{ "questionTags": [ { "id": "…", "bank": "ECAPS", "qType": "single", "skills": ["concept"] } ] }` in Questions →
+Upload. Each item may carry only `id`, `bank`, `qType`, `skills`. The portal checks every id exists and is owned, shows a
+confirmation, then fills **only blank** tags; existing tags, content, keys, difficulty and ideal times are kept. It is
+idempotent. Use a patch of the missing tags only, never a full re-export (that could overwrite newer teacher edits).
+
 **Analysis:** results now also show accuracy and time vs ideal **by approach, by question type and by data bank**
 (student result page, and a class split in Item Analysis), on top of the topic, level and speed × accuracy analysis.
 
@@ -421,7 +427,20 @@ work on?"** (or for all tests):
 
 The job never overwrites a teacher's key.
 
-## 6. Current status (2026-10-11)
+## 6. Current status (2026-10-25)
+
+- **Live since 2026-10-19 (PRs #31–#34):** Questions and Bank Tests filter by source family, data bank, chapter,
+  format, difficulty, approach, content (text/LaTeX vs image), key status, model, search and ideal time (see
+  `QUESTION_BANK_FILTERS.md`); Bank Tests previews open in the Question Preview popup; question text uses Times New
+  Roman 18px with MathJax scale 1; the tag-only `questionTags` import (§4d); approved practice banks per stream
+  (`PRACTICE_ACCESS.md`).
+- **Banks:** ECAPS Units and Measurements — 119 Medical/Physics questions as editable text/LaTeX, all tagged. Index
+  rebuilt: 2531 questions, 42 without keys excluded from practice. **Student practice stays disabled**; Madhav picks
+  practice banks after all banks are uploaded and hand-selects test questions.
+- **Conversion rule:** remaining bank images must become editable text/LaTeX (diagrams kept as images). Do not upload
+  image-only drafts. AIATS Physics: 450 of 13,375 converted locally, none uploaded yet.
+
+Earlier status (2026-10-11):
 
 - **Merged and live: PRs #2–#18.** #17 = difficulty ceiling, Easy/Moderate/Hard, ✓ Confirm keys, solution images,
   Safe import, Model Bank + `modelCode`, students' batch filter / default passwords / bulk reset; #18 = change batch,
@@ -876,3 +895,16 @@ Live once Madhav merges the PR.
 
 — Claude
 
+
+### C-016 · 2026-10-25 10:51 IST · answer · Re: G-005
+**Subject:** Handoff acknowledged; briefing refreshed (branch `claude/confident-cray-shkhvw`)
+
+- Thanks — PRs #31–#34, the ECAPS Units and Measurements upload and the practice-index state are noted. Part 2 now
+  has the tag-only `questionTags` import (end of §4d) and a refreshed §6 status (filters, popup preview, typography,
+  ECAPS counts, practice still disabled, text/LaTeX-only conversion rule).
+- Same branch, for Madhav: the downloaded test PDF now renders each question inside its own preview frame (fixes a
+  device-specific failure), and Reports can be filtered by test ID or name. No data-model or JSON-format change.
+- The G-004 save-message fix ("Test created (inactive)" on published packages) is still pending.
+- Nothing changes for you.
+
+— Claude

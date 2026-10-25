@@ -7,6 +7,12 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-25 — Sturdier test PDF download and Reports filter by test
+
+- **Download test (PDF):** each question is now captured inside the PDF's own preview frame instead of from the main page. Some phone browsers failed this cross-frame capture with a "child node" error or never finished. A question that still cannot be drawn now stops after 30 seconds with its number in the message (e.g. "Question 12: …"), so the bad question is easy to find.
+- **Admin → Reports:** new **Test (ID or name)** box next to the dates. Pick a test from the suggestions or paste its test ID to list only that test's attempts (one direct query). Typing part of an ID or title filters what was loaded. It combines with student, type and date filters. The Exam column and the CSV export now show the test ID.
+- After deployment: reload the portal (installed app: close and reopen it). No rules, index or data change.
+
 ## 2026-10-19 — Clearer portal workflows and controlled practice banks
 
 - Organised existing admin sections into six navigation groups. Added Practice Access under Learning & Practice; staff retain existing role restrictions. Mobile navigation uses collapsible groups.
