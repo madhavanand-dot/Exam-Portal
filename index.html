@@ -1199,14 +1199,14 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       <div class="flexrow" style="margin-bottom:12px">
         <div class="field"><label>Student</label><select id="rpStudent"><option value="">All</option></select></div>
         <div class="field"><label>Exam Type</label><select id="rpType"><option value="">All</option><option value="medical">Medical</option><option value="engineering">Engineering</option></select></div>
-        <div class="field"><label>Test (ID or name)</label><input id="rpExam" list="rpExamList" placeholder="All tests" autocomplete="off"><datalist id="rpExamList"></datalist></div>
+        <div class="field"><label>Exam</label><select id="rpExam"><option value="">All</option></select></div>
         <div class="field"><label>From</label><input type="date" id="rpFrom"></div>
         <div class="field"><label>To</label><input type="date" id="rpTo"></div>
         <button class="btn secondary" id="rpLoadBtn">Apply</button>
         <button class="btn" id="rpCsvBtn">Export CSV</button>
         <button class="btn danger" id="rpDelAllBtn">Delete All Shown</button>
       </div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Tip: to clear one test's results, filter by that test (or exam type/date), check the export looks right, then "Delete All Shown". Deletions are permanent.</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Tip: to clear one test's results, pick it under Exam (or filter by exam type/date), check the export looks right, then "Delete All Shown". Deletions are permanent.</p>
       <div id="rpMsg"></div>
       <table class="tbl"><thead><tr><th>Started</th><th>Submitted</th><th>Student</th><th>Type</th><th>Exam</th><th>Score</th><th title="Time spent on the test screen">Time (min)</th><th>Wrong</th><th>Unanswered</th><th>Flag</th><th></th></tr></thead><tbody id="rpRows"></tbody></table>
     </div>
@@ -6579,6 +6579,7 @@ async function loadExams(){
   exams.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
   examsCache = exams;
   try { dgLibRender(); } catch(e) { console.warn(e); }
+  try { rpFillExams(); } catch(e) { console.warn(e); }
   // faculty only see/manage their own exams; super-admin sees all
   const visible = (isSuper() ? exams : exams.filter(e => e.createdBy === currentUser.uid)).filter(e => !e.diagnostic && !e.studyPackage);  // diagnostic tests live in the Assign Tests tab, packages in Study Packages
   const schedBadge = e => {
@@ -7153,14 +7154,15 @@ $("grLbCsv").onclick = () => {
 
 /* ----- reports ----- */
 let reportCache = [];
-// Test filter: an exact test ID (or a picked suggestion) is queried directly; other text matches part of an ID or title.
+// Exam filter, listed like the Leaderboard's; a chosen test is queried directly by its ID.
 function rpFillExams(){
   const exams = isSuper() ? examsCache : examsCache.filter(e=>e.createdBy===currentUser.uid);
-  $("rpExamList").innerHTML = exams.map(e=>`<option value="${esc(e.docId)}">${esc(e.title||"")} (${esc(e.examType||"")})</option>`).join("");
+  const sel = $("rpExam"), keep = sel.value;
+  sel.innerHTML = `<option value="">All</option>` + exams.map(e=>`<option value="${esc(e.docId)}">${esc(e.title)} (${esc(e.examType)})</option>`).join("");
+  sel.value = exams.some(e=>e.docId===keep) ? keep : "";
 }
 async function loadReports(){
-  const ex = $("rpExam").value.trim(), exLow = ex.toLowerCase(),
-        exId = ex && examsCache.some(e=>e.docId===ex) ? ex : "";
+  const exId = $("rpExam").value;
   const su = $("rpStudent").value, ty = $("rpType").value,
         from = $("rpFrom").value ? new Date($("rpFrom").value) : null,
         to   = $("rpTo").value ? new Date($("rpTo").value + "T23:59:59") : null;
@@ -7174,7 +7176,7 @@ async function loadReports(){
   list = list.filter(a =>
     (!myExamIds || myExamIds.has(a.examId)) &&
     (!su || a.studentUid===su) && (!ty || a.examType===ty) &&
-    (!ex || (exId ? a.examId===exId : String(a.examId||"").toLowerCase().includes(exLow) || String(a.examTitle||"").toLowerCase().includes(exLow))) &&
+    (!exId || a.examId===exId) &&
     (!from || (a.submitTime?.toDate?.() ?? new Date(0)) >= from) &&
     (!to   || (a.submitTime?.toDate?.() ?? new Date(0)) <= to));
   list.sort((a,b)=>(b.submitTime?.seconds||0)-(a.submitTime?.seconds||0));
@@ -8785,6 +8787,13 @@ async function loadPracticeHistory(){
 let lastResultDetail = null, lastResultAttempt = null;
 
 /* ----- download the submitted test as a question-paper PDF (two columns, navy header) ----- */
+// Close any tag a question leaves open (or drop a stray closing tag): one unbalanced <div> or <table>
+// would otherwise swallow the rest of the paper and break its page layout ("…contains the parent").
+function balancedHtml(html){
+  const t = document.createElement("template");
+  t.innerHTML = String(html ?? "");
+  return t.innerHTML;
+}
 function buildPaperHtml(attempt, detail, cfg, withKey){
   const title = attempt.examTitle || "Test";
   // JSON serialization preserves TeX delimiter backslashes through both script layers.
@@ -8803,7 +8812,7 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
       const textless = isImageOnlyOptions(q);
       opts = (q.options || []).map((o, k) => {
         const letter = "ABCD"[k];
-        const txt = String(o || "").replace(/^\s*[A-D][).]\s*/, "");
+        const txt = balancedHtml(String(o || "").replace(/^\s*[A-D][).]\s*/, ""));
         const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
         const isKey = withKey && keyHas(q, letter), isMine = withKey && d.answer != null && String(d.answer).toUpperCase().includes(letter);
         const cls = isKey ? "key" : (isMine ? "mine" : "");
@@ -8812,7 +8821,7 @@ function buildPaperHtml(attempt, detail, cfg, withKey){
     } else if (withKey) opts = `<div class="o key">Answer: ${esc(q.correct_answer)}${d.answer != null ? ` &nbsp;(yours: ${esc(String(d.answer))})` : ""}</div>`;
     else opts = `<div class="o">Answer: ______________</div>`;
     return `<div class="q"><div class="qh"><span class="qn">Q${i + 1}.</span> ${tag ? `<span class="qt">[${esc(tag)}]</span>` : ""}</div>
-      <div class="qb">${q.text || ""}${imgHtml(q.image)}</div>${opts}</div>`;
+      <div class="qb">${balancedHtml(q.text)}${imgHtml(q.image)}</div>${opts}</div>`;
   }).join("");
   const hdr = `<div class="hdr"><div class="t1">${esc(title)}</div><div class="t2">${esc(sub || "Question paper")}</div>
 <div class="mm">Max marks ${fmt(m.correct)} / ${fmt(m.wrong)}<span>${esc(attempt.studentName || "")}</span></div></div>`;

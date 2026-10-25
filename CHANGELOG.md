@@ -7,6 +7,16 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-25 — Test PDF fix for questions with broken HTML
+
+- **Download test (PDF):** fixed "Failed to execute 'appendChild' on 'Node': The new child element contains the parent". A question whose text or option left an HTML tag open (e.g. an unclosed `<div>` or `<table>`) pulled the rest of the paper inside itself, so the page layout failed. Each question's text and options are now closed off on their own before the paper is built; the questions' content is unchanged.
+- After deployment: reload the portal (installed app: close and reopen it). No rules, index or data change.
+
+## 2026-10-25 — Reports: Exam dropdown
+
+- **Admin → Reports:** the test filter is now an **Exam** dropdown listing tests as "title (type)", like the Leaderboard. It replaces the "Test (ID or name)" text box; choosing a test lists only its attempts with one direct query, combined with the student, type and date filters. The Exam column and CSV still show the test ID.
+- After deployment: reload the portal (installed app: close and reopen it). No rules, index or data change.
+
 ## 2026-10-25 — Sturdier test PDF download and Reports filter by test
 
 - **Download test (PDF):** each question is now captured inside the PDF's own preview frame instead of from the main page. Some phone browsers failed this cross-frame capture with a "child node" error or never finished. A question that still cannot be drawn now stops after 30 seconds with its number in the message (e.g. "Question 12: …"), so the bad question is easy to find.
