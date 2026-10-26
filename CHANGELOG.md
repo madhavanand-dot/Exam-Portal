@@ -7,6 +7,14 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-26 — Question and test previews while building; Diagnostic Builder loads by chapter
+
+- **Create Exam:** every question in the picker has a **👁** button that opens the full question (picture, options, correct answer, which tests use it) without ticking it. **👁 Preview test** next to Create Exam shows the ticked questions as the finished test, with answers marked, before you save (also while using **Change questions**). Leaving **Change questions** now resets duration, scoring and audience to the defaults.
+- **Diagnostic Builder → Add questions → From the question bank:** **Find questions** is now **Choose chapters**. It lists every subject's chapters from the bank index (the test's own chapter starts ticked) with a search box; **Show questions** downloads only the ticked chapters, grouped by chapter, with the Data bank and Format filters applied and questions already in the test left out. Each question has a **👁** preview, **Tick / untick all** selects a whole chapter, and **Add selected** no longer re-reads the bank. The "Filter topic contains" box is gone.
+- **Diagnostic Builder:** new **👁 Preview test** next to Save test shows the test as it stands, unsaved changes included.
+- **Preview** of a saved test (Exams list, Assign Diagnostic Tests) now reads its questions in groups of 30 instead of one request each.
+- After deployment: reload the portal. Chapters come from the bank index, so press **Rebuild practice index** after uploads. No rules or data change.
+
 ## 2026-10-26 — Create Exam chapter picker: two small fixes
 
 - A chapter whose bank index still lists a deleted question now shows as **loaded** (and stays ticked) once its questions are loaded. Before, it was left unticked, so pressing **Load selected chapters** again dropped that chapter's unticked questions from the list.

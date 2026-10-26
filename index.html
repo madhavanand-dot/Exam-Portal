@@ -677,6 +677,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <div id="exMsg"></div>
         <div id="exSelSummary" style="font-size:13px;color:var(--blue);font-weight:600;margin-top:10px"></div>
         <button class="btn green" id="exCreateBtn" style="margin-top:8px">Create Exam</button>
+        <button class="btn secondary" id="exPreviewBtn" style="margin-top:8px" title="See the ticked questions as the test, with answers, before saving">👁 Preview test</button>
         <button class="btn secondary hidden" id="exCancelEditBtn" style="margin-top:8px">Cancel editing</button>
       </div>
       <h2 class="sec">Exams</h2>
@@ -987,10 +988,11 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <div style="flex:1;min-width:280px">
             <div style="font-weight:600;font-size:13px;margin-bottom:6px">From the question bank</div>
             <div class="flexrow">
-              <div class="field"><label>Data bank</label><select id="dgSourceBank"><option value="">All data banks</option></select></div><div class="field"><label>Question format</label><select id="dgFormat"><option value="">All formats</option></select></div><div class="field"><label>Filter topic contains</label><input id="dgBankFilter" placeholder="(uses Topic above if blank)"></div>
-              <button class="btn secondary" id="dgBankLoadBtn">Find questions</button>
+              <div class="field"><label>Data bank</label><select id="dgSourceBank"><option value="">All data banks</option></select></div><div class="field"><label>Question format</label><select id="dgFormat"><option value="">All formats</option></select></div><button class="btn secondary" id="dgBankLoadBtn" title="Lists every subject's chapters; only the chapters you tick are loaded">Choose chapters</button>
             </div>
-            <div id="dgBankPick" class="checklist hidden" style="max-height:260px;margin-top:6px"></div>
+            <div id="dgBankChapters"></div>
+            <div id="dgBankPick" class="checklist hidden" style="max-height:320px;margin-top:6px"></div>
+            <button class="btn secondary hidden" id="dgBankAllBtn" style="margin-top:6px">Tick / untick all</button>
             <button class="btn secondary hidden" id="dgBankAddBtn" style="margin-top:6px">Add selected</button>
           </div>
         </div>
@@ -1010,6 +1012,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <div id="dgMsg"></div>
         <div class="flexrow" style="margin-top:10px">
           <button class="btn green" id="dgSaveBtn">Save test</button>
+          <button class="btn secondary" id="dgPreviewBtn" title="See the test as it stands, with answers (unsaved changes included)">👁 Preview test</button>
           <button class="btn secondary" id="dgRegradeBtn" title="Recompute scores of submitted attempts with the current key and question list">Re-grade submitted attempts</button>
           <button class="btn secondary" id="dgSplitBtn" title="Make one Easy, one Moderate and one Hard test from this test's questions (inactive — activate them one by one in Assign Tests)">✂ Split into Easy / Moderate / Hard tests</button>
           <button class="btn secondary" id="dgConfirmAllBtn" title="Mark every AI-proposed key in this test as checked by you (then Save test)">✓ Confirm all AI keys</button>
@@ -5391,29 +5394,90 @@ $("dgApplyKeyBtn").onclick = () => {
   setMsg($("dgMsg"), hit ? `Filled ${hit} of ${DG.rows.length} answers in row order — review the highlighted changes, then Save.` : "Could not read any answers from that key.", !!hit);
   dgRender();
 };
+// From the question bank, chapter-wise: "Choose chapters" lists every subject's chapters from the bank index; only the
+// ticked chapters' questions are downloaded. Data bank / format filters apply to them; questions already in the test are left out.
+const DGB = { type: null, chapters: {}, missing: [] };
+$("dgType").addEventListener("change", () => { DGB.type = null; dgBankList = []; $("dgBankChapters").innerHTML = ""; dgRenderBankPick(); });
 $("dgBankLoadBtn").onclick = async () => {
-  const filter = ($("dgBankFilter").value.trim() || $("dgTopic").value.trim()).toLowerCase();
-  $("dgBankPick").classList.remove("hidden");
-  $("dgBankPick").innerHTML = "Loading bank…";
+  const type = $("dgType").value, box = $("dgBankChapters");
+  $("dgBankLoadBtn").disabled = true;
+  box.innerHTML = "Reading chapters&hellip;";
+  try { Object.assign(DGB, { type }, await bankChapters(type)); dgRenderBankChapters(); }
+  catch(e) { box.innerHTML = `<div class="msg err">Could not read the bank index: ${esc(e.message)}</div>`; }
+  finally { $("dgBankLoadBtn").disabled = false; }
+};
+function dgRenderBankChapters(){
+  const box = $("dgBankChapters"), want = nrm($("dgChapter").value || $("dgTopic").value);   // the test's own chapter starts ticked
+  box.innerHTML = `<div class="flexrow" style="align-items:flex-end;margin:6px 0">
+      <div class="field"><label>Find chapter</label><input id="dgChSearch" placeholder="type to filter chapters"></div>
+      <button class="btn" id="dgChShow">Show questions</button></div>` +
+    Object.keys(DGB.chapters).map(sub => `<div style="font-weight:600;font-size:13px;margin:6px 0 2px">${esc(sub)}</div>
+      <div class="checklist" style="max-height:150px">` + DGB.chapters[sub].map((c,k) =>
+        `<label data-chname="${esc(c.t.toLowerCase())}"><input type="checkbox" data-dgchsub="${esc(sub)}" data-dgchk="${k}" ${want && nrm(c.t) === want ? "checked" : ""}>
+         <span>${esc(c.t)} <span style="color:var(--muted)">(${c.ids.length})</span></span></label>`).join("") + `</div>`).join("") +
+    (DGB.missing.length ? `<p style="font-size:12px;color:var(--muted);margin:6px 0 0">No bank index for ${DGB.missing.map(esc).join(", ")} — rebuild the practice index, or
+      ${DGB.missing.map(s => `<button class="btn secondary" style="padding:2px 8px;font-size:12px" data-dgall="${esc(s)}">Load all ${esc(s)}</button>`).join(" ")}</p>` : "");
+  $("dgChSearch").oninput = e => { const s = e.target.value.trim().toLowerCase();
+    box.querySelectorAll("[data-chname]").forEach(l => l.style.display = !s || l.dataset.chname.includes(s) ? "" : "none"); };
+  $("dgChShow").onclick = async () => {
+    const ids = [...box.querySelectorAll("[data-dgchk]:checked")].flatMap(c => DGB.chapters[c.dataset.dgchsub][+c.dataset.dgchk].ids);
+    if (!ids.length) { setMsg($("dgAddMsg"), "Tick at least one chapter."); return; }
+    await dgShowBankQuestions(() => fetchQuestionsByIds(ids, (n, all) => setMsg($("dgAddMsg"), `Loading questions ${n}/${all}…`, true)), $("dgChShow"));
+  };
+  box.querySelectorAll("[data-dgall]").forEach(b => b.onclick = () => dgShowBankQuestions(() => fetchQuestions(DGB.type, b.dataset.dgall), b));
+}
+async function dgShowBankQuestions(load, btn){
+  btn.disabled = true;
   try {
-    const list = await fetchQuestions($("dgType").value, $("dgSubject").value);
-    const have = new Set(DG.rows.map(r=>r.docId));
-    dgBankList = list.filter(q => !have.has(q.docId) && (!filter || (q.topic||"").toLowerCase().includes(filter)) &&
-      (!$("dgSourceBank").value || bankForQuestion(q)===$("dgSourceBank").value) && (!$("dgFormat").value || questionFormat(q)===$("dgFormat").value));
-    $("dgBankPick").innerHTML = dgBankList.length ? dgBankList.map((q,i) => `<label><input type="checkbox" value="${i}">
-      <span><b>${esc(q.id)}</b> <span style="color:var(--muted)">[${esc(q.topic||"no topic")} · ${esc(levelShort(q.difficulty))}]</span>${q.image?" 🖼":""} — ${esc(String(q.text||"(image question)").replace(/<[^>]*>/g,"").slice(0,90))}</span></label>`).join("")
-      : `<div style="padding:6px;color:var(--muted)">No${filter?` "${esc(filter)}"`:""} questions in ${esc($("dgSubject").value)} that aren't already in this test.</div>`;
-    $("dgBankAddBtn").classList.toggle("hidden", !dgBankList.length);
-  } catch(e){ $("dgBankPick").innerHTML = `<div style="color:var(--muted)">Could not load: ${esc(e.message)}</div>`; }
+    const have = new Set(DG.rows.map(r => r.docId)), bank = $("dgSourceBank").value, fmt = $("dgFormat").value;
+    const list = (await load()).filter(q => !have.has(q.docId) && (!bank || bankForQuestion(q) === bank) && (!fmt || questionFormat(q) === fmt));
+    dgBankList = list.sort((a,b) => (a.subject||"").localeCompare(b.subject||"") || (a.topic||"").localeCompare(b.topic||"") ||
+      (a.section||"A").localeCompare(b.section||"A") || String(a.id||"").localeCompare(String(b.id||""), undefined, { numeric: true }));
+    setMsg($("dgAddMsg"), `${dgBankList.length} question(s) not yet in this test` + (bank || fmt ? " (after the data bank / format filters)" : "") + ". Tick, preview with 👁, then Add selected.", true);
+  } catch(e) { setMsg($("dgAddMsg"), "Could not load: " + e.message); }
+  finally { btn.disabled = false; }
+  dgRenderBankPick();
+}
+function dgRenderBankPick(){
+  const box = $("dgBankPick"); let ch = null;
+  box.classList.toggle("hidden", !dgBankList.length);
+  box.innerHTML = dgBankList.map((q,i) => {
+    const head = `${q.subject} — ${q.topic || EX_NOCH}`;
+    return (head !== ch ? `<div style="padding:6px 4px 2px;font-weight:700;font-size:12.5px;color:var(--blue)">${esc(ch = head)}</div>` : "") +
+      `<label><input type="checkbox" value="${i}">
+      <span><b>${esc(q.id)}</b> <span style="color:var(--muted)">[${esc(levelShort(q.difficulty))}${(q.section||"A")==="B" ? " · numerical" : ""}]</span>${q.image?" 🖼":""} — ${esc(qSnippet(q, 90))}</span>${pvBtnHtml(`data-dgpv="${i}"`)}</label>`;
+  }).join("");
+  wirePreviewButtons(box, "data-dgpv", i => dgBankList[+i]);
+  $("dgBankAddBtn").classList.toggle("hidden", !dgBankList.length);
+  $("dgBankAllBtn").classList.toggle("hidden", !dgBankList.length);
+}
+$("dgBankAllBtn").onclick = () => {
+  const boxes = [...$("dgBankPick").querySelectorAll("input")], all = boxes.every(c => c.checked);
+  boxes.forEach(c => c.checked = !all);
 };
 $("dgBankAddBtn").onclick = () => {
-  const picked = [...$("dgBankPick").querySelectorAll("input:checked")].map(c => dgBankList[+c.value]);
+  const have = new Set(DG.rows.map(r => r.docId));
+  const picked = [...$("dgBankPick").querySelectorAll("input:checked")].map(c => dgBankList[+c.value]).filter(q => !have.has(q.docId));
   if (!picked.length) return;
   const ex = examsCache.find(e => e.docId === DG.examDocId);
   picked.forEach(q => DG.rows.push(dgRowFromQuestion(q, ex?.idealTimes)));
+  const added = new Set(picked.map(q => q.docId));
+  dgBankList = dgBankList.filter(q => !added.has(q.docId));
   setMsg($("dgAddMsg"), `Added ${picked.length} question(s) from the bank.`, true);
-  $("dgBankLoadBtn").click();
+  dgRenderBankPick();
   dgRender();
+};
+// the test as it stands (unsaved edits included), with the answers marked
+$("dgPreviewBtn").onclick = () => {
+  if (!DG.rows.length) { setMsg($("dgMsg"), "Add questions first."); return; }
+  const marks = dgMarks();
+  const qs = DG.rows.map(r => ({ ...(r.q || {}), docId: r.docId, id: r.q?.id || "", text: r.text, image: r.image, subject: r.subject,
+    section: r.section, topic: r.topic, correct_answer: r.correct_answer }));
+  showTestPreview({ title: $("dgTitle").value.trim() || "(untitled test)", examType: $("dgType").value, diagnostic: true,
+    subjects: [...new Set(DG.rows.map(r => r.subject))].sort((a,b) => ALL_SUBJECTS.indexOf(a)-ALL_SUBJECTS.indexOf(b)),
+    durationMin: Math.max(1, parseInt($("dgDuration").value) || 30), marks,
+    maxMarks: DG.rows.reduce((n,r) => n + (r.section==="B" ? marks.B : marks.A).correct, 0) }, qs,
+    DG.examDocId ? "Includes changes you have not saved yet." : "Not saved yet — this is how the test will look.");
 };
 $("dgSaveBtn").onclick = dgSave;
 $("dgRegradeBtn").onclick = async () => {
@@ -6352,27 +6416,33 @@ async function previewExam(docId){
   $("qpvBody").innerHTML = `<div style="color:var(--muted)">Loading ${ex.questionIds?.length||0} questions…</div>`;
   $("qpvBack").classList.remove("hidden");
   const cfg = examCfg(ex);
-  const snaps = await Promise.all((ex.questionIds||[]).map(qid => getDoc(doc(db,"questions",qid))));
-  const fetched = snaps.filter(s => s.exists()).map(s => ({ docId:s.id, ...s.data() }));
+  const fetched = await fetchQuestionsByIds(ex.questionIds || []);
   fetched.sort((a,b) => {
     const sa = cfg.subjects.indexOf(a.subject), sb = cfg.subjects.indexOf(b.subject);
     if (sa !== sb) return sa - sb;
     return String(a.id).localeCompare(String(b.id), undefined, { numeric:true });
   });
-  const order = "ABCD";
-  const body = fetched.map((q,i) => {
+  showTestPreview(ex, fetched);
+}
+// a test (saved, or still being built: `note` says so) as one scrolling page with the answers marked
+function showTestPreview(ex, qs, note){
+  const cfg = examCfg(ex), order = "ABCD";
+  const body = qs.map((q,i) => {
     const opts = (q.section||"A")==="A" ? (q.options||[]).map((o,k) => {
       const correct = keyHas(q, order[k]);
       const oimg = q.optionImages ? imgHtml(q.optionImages[k]) : "";
       return `<div class="opt ${correct?'sel':''}" style="cursor:default"><span><b>${optLabel(q,order[k])}</b> ${String(o).replace(/^\s*[A-D][).]\s*/,"")}${oimg}${correct?' &nbsp;✓':''}</span></div>`;
     }).join("") : `<div style="margin-top:6px"><b>Answer:</b> ${esc(q.correct_answer)}</div>`;
     return `<div style="border-top:1px solid #eee;padding:10px 0">
-      <div style="font-size:12px;color:var(--muted)"><b>Q${i+1}</b> &bull; ${esc(q.subject)} &bull; ${esc(q.id)} &bull; correct: <b>${esc(q.correct_answer)}</b></div>
+      <div style="font-size:12px;color:var(--muted)"><b>Q${i+1}</b> &bull; ${esc(q.subject)} &bull; ${esc(q.id || "new question")}${q.topic ? ` &bull; ${esc(q.topic)}` : ""} &bull; correct: <b>${esc(q.correct_answer || "— not set")}</b></div>
       <div style="font-size:15px;line-height:1.5;margin:6px 0">${q.text||""}${imgHtml(q.image)}</div>${opts}</div>`;
   }).join("");
   $("qpvBody").innerHTML =
     `<div style="font-size:13px;margin-bottom:6px"><b>${esc(ex.title)}</b><br>
-     <span style="color:var(--muted)">${fetched.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${cfg.untimed ? `no time limit (about ${Math.round(cfg.durationSec/60)} min)` : `${Math.round(cfg.durationSec/60)} min`} &bull; Max ${cfg.maxMarks}</span></div>` + body;
+     <span style="color:var(--muted)">${qs.length} questions &bull; ${cfg.subjects.join(", ")} &bull; ${cfg.untimed ? `no time limit (about ${Math.round(cfg.durationSec/60)} min)` : `${Math.round(cfg.durationSec/60)} min`} &bull; Max ${cfg.maxMarks}</span>` +
+     (note ? `<div class="msg ok" style="margin-top:6px">${esc(note)}</div>` : "") + `</div>` + (body || `<div style="color:var(--muted)">No questions.</div>`);
+  $("qpvBack").classList.remove("hidden");
+  $("qpvBody").parentElement.scrollTop = 0;
   typeset($("qpvBody"));
 }
 $("qbClearBtn").onclick = async () => {
@@ -6462,6 +6532,26 @@ async function fetchQuestionsByIds(ids, onProgress){
   }
   return out;
 }
+// every subject's chapters for an exam type, from the bank index (one small read per subject, never the bank itself):
+// { chapters: { subject: [{ t: chapter, ids: [docId] }] }, missing: [subjects with no index yet] }
+const EX_NOCH = "(no chapter)";
+async function bankChapters(type){
+  const chapters = {}, missing = [];
+  for (const sub of EXAM_CONFIG[type].subjects) {
+    const sn = await getDoc(doc(db,"bankIndex",`${type}__${sub}`));
+    if (!sn.exists() || !(sn.data().q || []).length) { missing.push(sub); continue; }
+    const m = {};
+    sn.data().q.forEach(e => { const k = e.t || EX_NOCH; (m[k] = m[k] || []).push(e.i); });
+    chapters[sub] = Object.keys(m).sort((a,b) => (a===EX_NOCH)-(b===EX_NOCH) || a.localeCompare(b)).map(k => ({ t: k, ids: m[k] }));
+  }
+  return { chapters, missing };
+}
+// 👁 button for a question row inside a <label>: opens the question without ticking the row
+const pvBtnHtml = attr => `<button type="button" class="btn secondary" style="padding:0 7px;font-size:12px;flex:none;margin-left:auto" ${attr} title="Preview this question">👁</button>`;
+function wirePreviewButtons(box, attr, getQ){
+  box.querySelectorAll(`[${attr}]`).forEach(b => b.onclick = e => { e.preventDefault(); e.stopPropagation(); const q = getQ(b.getAttribute(attr)); if (q) previewQuestion(q); });
+}
+const qSnippet = (q, n) => String(q.text || "").replace(/<[^>]*>/g, "").slice(0, n) || "(image question)";
 // resolve the marks scheme chosen in the builder
 function builderMarks(){
   const t = $("exType").value, base = EXAM_CONFIG[t];
@@ -6483,7 +6573,6 @@ $("exAudience").onchange = () => {
 // subject's chapters with counts; "Load selected chapters" then fetches just those questions by id. A subject with no
 // index yet can still be loaded whole.
 const EXB = { type: null, chapters: {}, missing: [], loaded: new Map(), gone: new Set() };   // chapters: { subject: [{ t, ids }] }; loaded: docId → question; gone: indexed ids no longer in the bank
-const EX_NOCH = "(no chapter)";
 let exBankCache = []; // [{docId, subject, section, ...}]
 $("exType").addEventListener("change", () => {
   EXB.type = null; EXB.chapters = {}; EXB.missing = []; EXB.loaded.clear(); EXB.gone.clear(); exBankCache = [];
@@ -6491,18 +6580,11 @@ $("exType").addEventListener("change", () => {
 });
 $("exLoadBankBtn").onclick = async () => {
   setMsg($("exMsg"),"");
-  const t = $("exType").value, cfg = EXAM_CONFIG[t];
+  const t = $("exType").value;
   $("exLoadBankBtn").disabled = true;
   $("exChapters").innerHTML = "Reading chapters&hellip;";
   try {
-    const chapters = {}, missing = [];
-    for (const sub of cfg.subjects) {
-      const sn = await getDoc(doc(db,"bankIndex",`${t}__${sub}`));
-      if (!sn.exists() || !(sn.data().q || []).length) { missing.push(sub); continue; }
-      const m = {};
-      sn.data().q.forEach(e => { const k = e.t || EX_NOCH; (m[k] = m[k] || []).push(e.i); });
-      chapters[sub] = Object.keys(m).sort((a,b) => (a===EX_NOCH)-(b===EX_NOCH) || a.localeCompare(b)).map(k => ({ t: k, ids: m[k] }));
-    }
+    const { chapters, missing } = await bankChapters(t);
     if (EXB.type !== t) { EXB.loaded.clear(); EXB.gone.clear(); exBankCache = []; $("exPicker").innerHTML = ""; }
     Object.assign(EXB, { type: t, chapters, missing });
     exRenderChapters();
@@ -6581,7 +6663,7 @@ function exRenderPicker(preselect){
       <div class="checklist" data-sub="${sub}">` +
       list.map(q => (q._ch !== ch ? `<div style="padding:6px 4px 2px;font-weight:700;font-size:12.5px;color:var(--blue)">${esc(ch = q._ch)}</div>` : "") +
         `<label><input type="checkbox" value="${q.docId}" data-sec="${q.section}" data-csub="${sub}" ${was.has(q.docId)?"checked":""}>
-        <span><b>[${esc(q.section)}] ${esc(q.id)}</b>${q.image?" 🖼":""} &mdash; ${esc((q.text||"(image question)").slice(0,100))}</span></label>`).join("")
+        <span><b>[${esc(q.section)}] ${esc(q.id)}</b>${q.image?" 🖼":""} &mdash; ${esc(qSnippet(q, 100))}</span>${pvBtnHtml(`data-expv="${q.docId}"`)}</label>`).join("")
       + `</div>`);
   }
   $("exPicker").innerHTML = html.join("") || `<div style="color:var(--muted);font-size:13px">No chapters loaded yet.</div>`;
@@ -6593,6 +6675,7 @@ function exRenderPicker(preselect){
     $("exSelSummary").textContent = `Selected: ${checked.length} questions • Max marks: ${mx}`;
   };
   $("exPicker").querySelectorAll("input").forEach(c => c.onchange = recount);
+  wirePreviewButtons($("exPicker"), "data-expv", id => EXB.loaded.get(id));
   $("exPicker").querySelectorAll("[data-seln]").forEach(b => b.onclick = async () => {
     const n = parseInt(await uiPrompt(`How many Section-${b.dataset.sec} questions from ${b.dataset.seln}?`, "20"));
     if (!n || n<1) return;
@@ -6611,6 +6694,22 @@ function exRenderPicker(preselect){
 }
 // Edit mode: an existing exam reopened in this form to change its questions (and settings); null = creating a new one
 let exEditId = null;
+// the ticked questions in saved order: editing keeps the exam's old order and appends new ones
+function exOrderedIds(){
+  const pick = [...$("exPicker").querySelectorAll("input:checked")].map(c => c.value);
+  const old = exEditId ? (examsCache.find(e => e.docId === exEditId)?.questionIds || []) : [];
+  const pickSet = new Set(pick);
+  return [...old.filter(id => pickSet.has(id)), ...pick.filter(id => !old.includes(id))];
+}
+$("exPreviewBtn").onclick = () => {
+  const ids = exOrderedIds();
+  if (!ids.length) { setMsg($("exMsg"), "Tick some questions to preview the test."); return; }
+  const qs = ids.map(id => EXB.loaded.get(id)).filter(Boolean), marks = builderMarks();
+  showTestPreview({ title: $("exTitle").value.trim() || "(untitled test)", examType: EXB.type || $("exType").value,
+    subjects: [...new Set(qs.map(q => q.subject))].sort((a,b) => ALL_SUBJECTS.indexOf(a)-ALL_SUBJECTS.indexOf(b)),
+    durationMin: Math.max(1, parseInt($("exDuration").value) || 180), marks,
+    maxMarks: qs.reduce((n,q) => n + ((q.section||"A")==="B" ? marks.B : marks.A).correct, 0) }, qs, "Not saved yet — this is how the test will look.");
+};
 const exLocalInput = ts => { const ms = ts?.toMillis ? ts.toMillis() : ts?.seconds ? ts.seconds*1000 : null;
   if (!ms) return ""; const d = new Date(ms - new Date(ms).getTimezoneOffset()*60000); return d.toISOString().slice(0,16); };
 function exSetEditMode(ex){
@@ -6659,6 +6758,11 @@ async function exOpenForEdit(docId){
   } catch(e) { setMsg($("exMsg"), "Could not load the exam's questions: " + e.message); }
 }
 function exResetForm(){
+  if (exEditId) {   // leaving edit mode: back to the defaults, not the edited exam's settings
+    $("exDuration").value = 180; $("exScoring").value = "preset"; $("exScoring").onchange();
+    $("exShuffleOpt").checked = false; $("exStrict").value = ""; $("exAudience").value = "all"; $("exAudience").onchange();
+    renderBatchPick($("exBatchPick")); $("exStudentPick").querySelectorAll("input").forEach(c => c.checked = false);
+  }
   exSetEditMode(null);
   $("exTitle").value = $("exStart").value = $("exEnd").value = "";
   EXB.loaded.clear(); EXB.gone.clear(); exBankCache = [];
@@ -6704,8 +6808,7 @@ $("exCreateBtn").onclick = async () => {
     const ex = examsCache.find(e => e.docId === exEditId);
     if (!ex) { setMsg($("exMsg"),"That exam no longer exists."); exResetForm(); return; }
     // kept questions stay in their old order; new ones go after them
-    const pick = checked.map(c => c.value), pickSet = new Set(pick), old = ex.questionIds || [];
-    const questionIds = [...old.filter(id => pickSet.has(id)), ...pick.filter(id => !old.includes(id))];
+    const old = ex.questionIds || [], questionIds = exOrderedIds(), pickSet = new Set(questionIds);
     const added = questionIds.filter(id => !old.includes(id)).length, removed = old.filter(id => !pickSet.has(id)).length;
     let submitted = 0;
     if (added || removed) {
