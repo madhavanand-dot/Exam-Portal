@@ -12,6 +12,7 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 - **Exams → Create Exam** and **Diagnostic Builder → From the question bank:** **Question type** is now a tick-several list (SCQ, MCQ+, NUM, INT, A-R, STMT, MATCH, COMP), and there is a new **Level** list (Easy / Moderate / Hard). Nothing ticked = all. Chapter counts follow them at once ("7 of 75") and only matching questions are downloaded and shown.
 - Changing a filter instantly hides the loaded questions that no longer match (questions you ticked always stay) and lines up the rest of the ticked chapters for **Load next / Show next**.
 - Every question row now shows its type and level, e.g. `[A-R · Easy]`.
+- **Preview by clicking the question:** in Create Exam and the Diagnostic Builder, clicking a question's text opens it in full; only the checkbox ticks it. The separate 👁 buttons are gone. In **Bank Tests**, click the question id.
 - Questions with no question type recorded are left out while a type is ticked; untick all types to see them.
 - After deployment: reload the portal. Uses the bank index — **Rebuild practice index** once if types or levels look missing. No rules or data change.
 

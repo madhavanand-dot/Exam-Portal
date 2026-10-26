@@ -226,6 +226,8 @@ h2.sec{font-size:18px;color:var(--blue);margin:18px 0 10px}
 .checklist label{display:flex;gap:8px;padding:5px 4px;font-size:13px;border-bottom:1px solid #eef1f4;align-items:flex-start;cursor:pointer}
 .checklist input[type=checkbox],.msel input[type=checkbox]{width:auto;flex:none;margin:2px 0 0;padding:0}
 .checklist label{font-weight:400;text-align:left}
+.checklist .qpv{cursor:zoom-in;flex:1}
+.checklist .qpv:hover{color:var(--blue);text-decoration:underline}
 .msel>details>summary{list-style:none;cursor:pointer;padding:9px 10px;border:1px solid var(--border);border-radius:4px;background:#fff;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .msel>details>summary::-webkit-details-marker{display:none}
 .msel>details>summary::after{content:"\25BE";color:#667}
@@ -5482,7 +5484,7 @@ async function dgShowMore(){
     dgBankList.push(...got);
     const gone = page.length - got.length;
     setMsg($("dgAddMsg"), `${dgBankList.length} question(s) shown` + (DGB.queue.length ? `, ${DGB.queue.length} more in the ticked chapters` : "") +
-      ". Tick, preview with 👁, then Add selected." + (gone ? ` ${gone} indexed question(s) no longer exist — rebuild the practice index.` : ""), true);
+      ". Click a question to preview it; tick the boxes, then Add selected." + (gone ? ` ${gone} indexed question(s) no longer exist — rebuild the practice index.` : ""), true);
   } catch(e) { DGB.queue.unshift(...page); setMsg($("dgAddMsg"), "Could not load: " + e.message); }
   finally { btns.forEach(b => b.disabled = false); }
   dgRenderBankPick();
@@ -5495,7 +5497,7 @@ function dgRenderBankPick(){
   box.classList.toggle("hidden", !dgBankList.length);
   box.innerHTML = [...groups].map(([head, items]) => `<div style="padding:6px 4px 2px;font-weight:700;font-size:12.5px;color:var(--blue)">${esc(head)}</div>` +
     items.map(([q,i]) => `<label><input type="checkbox" value="${i}">
-      <span><b>${esc(q.id)}</b> <span style="color:var(--muted)">[${esc([fmtShort(q), levelShort(q.difficulty)].filter(Boolean).join(" · "))}]</span>${q.image?" 🖼":""} — ${esc(qSnippet(q, 90))}</span>${pvBtnHtml(`data-dgpv="${i}"`)}</label>`).join("")).join("");
+      <span class="qpv" data-dgpv="${i}" title="Click to preview"><b>${esc(q.id)}</b> <span style="color:var(--muted)">[${esc([fmtShort(q), levelShort(q.difficulty)].filter(Boolean).join(" · "))}]</span>${q.image?" 🖼":""} — ${esc(qSnippet(q, 90))}</span></label>`).join("")).join("");
   wirePreviewButtons(box, "data-dgpv", i => dgBankList[+i]);
   $("dgBankAddBtn").classList.toggle("hidden", !dgBankList.length);
   $("dgBankAllBtn").classList.toggle("hidden", !dgBankList.length);
@@ -6629,8 +6631,8 @@ const LVL_OPTS = LEVELS.map(x => ({ v: x.key, label: x.label }));
 const fmtShort = q => QTYPES.find(x => x.k === questionFormat(q))?.short || "";
 const bankFilterOptions = (banks, cur) => `<option value="">All data banks</option>` +
   [...banks, BT_NOBANK].map(b => `<option value="${esc(b)}" ${cur === b ? "selected" : ""}>${esc(b)}</option>`).join("");
-// 👁 button for a question row inside a <label>: opens the question without ticking the row
-const pvBtnHtml = attr => `<button type="button" class="btn secondary" style="padding:0 7px;font-size:12px;flex:none;margin-left:auto" ${attr} title="Preview this question">👁</button>`;
+// question rows in the bank pickers: the checkbox ticks the question, clicking its text opens the full question
+// (preventDefault stops the surrounding <label> from ticking it)
 function wirePreviewButtons(box, attr, getQ){
   box.querySelectorAll(`[${attr}]`).forEach(b => b.onclick = e => { e.preventDefault(); e.stopPropagation(); const q = getQ(b.getAttribute(attr)); if (q) previewQuestion(q); });
 }
@@ -6778,7 +6780,7 @@ function exRenderPicker(preselect){
       <div class="checklist" data-sub="${sub}">` +
       list.map(q => (q._ch !== ch ? `<div style="padding:6px 4px 2px;font-weight:700;font-size:12.5px;color:var(--blue)">${esc(ch = q._ch)}</div>` : "") +
         `<label><input type="checkbox" value="${q.docId}" data-sec="${q.section}" data-csub="${sub}" ${was.has(q.docId)?"checked":""}>
-        <span><b>[${esc(q.section)}] ${esc(q.id)}</b> <span style="color:var(--muted)">[${esc([fmtShort(q), levelShort(q.difficulty)].filter(Boolean).join(" · "))}]</span>${q.image?" 🖼":""} &mdash; ${esc(qSnippet(q, 100))}</span>${pvBtnHtml(`data-expv="${q.docId}"`)}</label>`).join("")
+        <span class="qpv" data-expv="${q.docId}" title="Click to preview"><b>[${esc(q.section)}] ${esc(q.id)}</b> <span style="color:var(--muted)">[${esc([fmtShort(q), levelShort(q.difficulty)].filter(Boolean).join(" · "))}]</span>${q.image?" 🖼":""} &mdash; ${esc(qSnippet(q, 100))}</span></label>`).join("")
       + `</div>`);
   }
   $("exPicker").innerHTML = html.join("") || `<div style="color:var(--muted);font-size:13px">${EXB.loaded.size ? "No loaded question matches the filters — use Load next below, or change the filters." : "No chapters loaded yet."}</div>`;
@@ -7245,11 +7247,11 @@ function btRenderList(){
   if($("btNextPage")) $("btNextPage").onclick=()=>{btPage++;btRenderList();};
   $("btList").innerHTML = rows.length ? `<table class="tbl" style="font-size:12.5px"><thead><tr><th></th><th>Id</th><th>Data bank</th><th>Subject — Chapter</th><th>Model</th><th>Level</th><th>Type</th><th>Approach</th><th>Ideal</th><th>Used</th><th></th></tr></thead><tbody>` +
     pageRows.map(r => `<tr><td><input type="checkbox" data-btpick="${esc(r.i)}" ${pickedSet.has(r.i) ? "checked" : ""}></td>
-      <td style="font-family:monospace;font-size:11.5px">${esc(r.i)}</td><td>${esc(r.bank || "—")}</td><td>${esc(r.sub)} — ${esc(r.t || "—")}</td>
+      <td style="font-family:monospace;font-size:11.5px;cursor:zoom-in;color:var(--blue);text-decoration:underline" data-btview="${esc(r.i)}" title="Click to preview">${esc(r.i)}</td><td>${esc(r.bank || "—")}</td><td>${esc(r.sub)} — ${esc(r.t || "—")}</td>
       <td>${esc([r.mc, r.m].filter(Boolean).join(" · ") || "—")}</td><td>${esc(levelLabel(r.d))}</td>
       <td>${esc(r.qt ? QTYPES.find(x => x.k === r.qt)?.short || r.qt : r.s === "B" ? "NUM" : "—")}</td><td>${esc(r.sk.map(skillShort).join(", ") || "—")}</td>
       <td>${fmtSec(btIdeal(r))}</td><td>${used[r.i] ? used[r.i] + "×" : ""}</td>
-      <td style="white-space:nowrap">${btKeyBadge(r.k)} <button class="btn secondary" style="padding:1px 7px;font-size:11.5px" data-btview="${esc(r.i)}">👁</button></td></tr>`).join("") +
+      <td style="white-space:nowrap">${btKeyBadge(r.k)}</td></tr>`).join("") +
     `</tbody></table>`
     : `<p style="font-size:13px;color:var(--muted)">No question matches these filters.</p>`;
   $("btList").querySelectorAll("[data-btpick]").forEach(c => c.onchange = () => {
