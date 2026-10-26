@@ -652,7 +652,6 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px;margin-top:6px"><input type="checkbox" id="exShuffleOpt"> Shuffle option order per student</label></div>
           <div class="field"><label title="Warnings on screen and auto-submit as malpractice after 3. Off = switches are only recorded silently.">3 warnings → auto-submit</label><select id="exStrict">
             <option value="">Portal setting</option><option value="on">On</option><option value="off">Off — track silently</option></select></div>
-          <button class="btn secondary" id="exLoadBankBtn" title="Lists each subject's chapters; only the chapters you tick are loaded">Choose chapters</button>
         </div>
         <div class="flexrow" style="margin-bottom:10px">
           <div class="field"><label>Who can take this exam?</label><select id="exAudience">
@@ -670,6 +669,12 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <div class="field"><label>Opens at (optional)</label><input id="exStart" type="datetime-local"></div>
           <div class="field"><label>Closes at (optional)</label><input id="exEnd" type="datetime-local"></div>
           <div class="field" style="align-self:flex-end"><span style="font-size:12px;color:var(--muted)">Leave blank to keep open whenever the exam is Active. Within the window, only students in the chosen audience/batch see it.</span></div>
+        </div>
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px">From the question bank</div>
+        <div class="flexrow" style="margin-bottom:6px;align-items:flex-end">
+          <div class="field"><label>Data bank</label><select id="exBankF"><option value="">All data banks</option></select></div>
+          <div class="field"><label>Question format</label><select id="exFmtF"><option value="">All formats</option></select></div>
+          <button class="btn secondary" id="exLoadBankBtn" title="Lists each subject's chapters; only the chapters you tick are loaded">Choose chapters</button>
         </div>
         <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Press <b>Choose chapters</b>, tick the chapters you need (optionally pick a data bank) and load them — only those questions are downloaded, 50 at a time. Then tick any questions you want — any subjects, any count. The "First N" buttons help auto-pick. Marks are computed from your selection.</p>
         <div id="exChapters" style="margin-bottom:10px"></div>
@@ -6637,17 +6642,19 @@ $("exLoadBankBtn").onclick = async () => {
     const idx = await bankChapters(t);
     if (EXB.type !== t) exResetBank();
     Object.assign(EXB, { type: t }, idx);
+    $("exBankF").innerHTML = bankFilterOptions(EXB.banks, EXB.f.bank);
+    EXB.f.bank = $("exBankF").value;
     exRenderChapters();
   } catch(e) { $("exChapters").innerHTML = ""; setMsg($("exMsg"), "Could not read the bank index: " + e.message); }
   finally { $("exLoadBankBtn").disabled = false; }
 };
+$("exBankF").onchange = () => { EXB.f.bank = $("exBankF").value; if (EXB.type) exRenderChapters(); };
+$("exFmtF").onchange = () => { EXB.f.fmt = $("exFmtF").value; if (EXB.type) exRenderChapters(); };
 function exRenderChapters(){
   const subs = Object.keys(EXB.chapters), filtered = EXB.f.bank || EXB.f.fmt;
   $("exChapters").innerHTML = `
     <div class="flexrow" style="align-items:flex-end;margin-bottom:6px">
       <div class="field"><label>Find chapter</label><input id="exChSearch" placeholder="type to filter chapters"></div>
-      <div class="field"><label>Data bank</label><select id="exBankF">${bankFilterOptions(EXB.banks, EXB.f.bank)}</select></div>
-      <div class="field"><label>Question format</label><select id="exFmtF"><option value="">All formats</option>${QTYPES.map(x => `<option value="${x.k}" ${EXB.f.fmt===x.k?"selected":""}>${esc(x.label)}</option>`).join("")}</select></div>
       <button class="btn" id="exChLoad">Load selected chapters</button>
       <span id="exChCount" style="font-size:12.5px;color:var(--muted);align-self:center"></span>
     </div>` +
@@ -6669,8 +6676,6 @@ function exRenderChapters(){
   count();
   $("exChSearch")?.addEventListener("input", e => { const s = e.target.value.trim().toLowerCase();
     $("exChapters").querySelectorAll("[data-chname]").forEach(l => l.style.display = !s || l.dataset.chname.includes(s) ? "" : "none"); });
-  $("exBankF") && ($("exBankF").onchange = () => { EXB.f.bank = $("exBankF").value; exRenderChapters(); });
-  $("exFmtF") && ($("exFmtF").onchange = () => { EXB.f.fmt = $("exFmtF").value; exRenderChapters(); });
   $("exChLoad")?.addEventListener("click", exLoadChapters);
   $("exChapters").querySelectorAll("[data-exall]").forEach(b => b.onclick = async () => {
     b.disabled = true;
@@ -9925,6 +9930,8 @@ $('qbReset').onclick=()=>{document.querySelectorAll('#qbFilterPanel input,#qbFil
 qbCatalog();
 $("dgSourceBank").innerHTML='<option value="">All data banks</option>'+DATA_BANKS.map(x=>`<option>${esc(x)}</option>`).join('');
 $("dgFormat").innerHTML='<option value="">All formats</option>'+QTYPES.map(x=>`<option value="${x.k}">${esc(x.label)}</option>`).join('');
+$("exBankF").innerHTML=bankFilterOptions(DATA_BANKS, "");
+$("exFmtF").innerHTML=$("dgFormat").innerHTML;
 /* warn before leaving mid-exam */
 window.addEventListener("beforeunload", e => {
   if (EX && !EX.submitted) { e.preventDefault(); e.returnValue = ""; }

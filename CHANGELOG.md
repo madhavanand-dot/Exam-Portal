@@ -7,6 +7,12 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-27 — Exams: data bank filter up front; app picks up new versions at once
+
+- **Exams → Create Exam:** a **From the question bank** row with **Data bank**, **Question format** and **Choose chapters**, like the Diagnostic Builder. You can pick the data bank before choosing chapters; chapter counts follow it. After the chapters are read, the Data bank list shows only the banks that actually have questions for that exam type.
+- **Installed app / browser:** the portal now checks for a new version every time it opens instead of reusing a copy up to 10 minutes old, so a merged change shows on the next reload.
+- After deployment: reload the portal once (installed app: close and reopen it). No rules or data change.
+
 ## 2026-10-26 — Tests load 50 questions at a time; data bank filter in Create Exam
 
 - **Create Exam:** after **Choose chapters**, new **Data bank** (ECAPS, AIATS PAPERS, …, or "no data bank") and **Question format** filters. They work on the bank index, so chapter counts update at once ("38 of 75") and nothing is downloaded until you load. **Load selected chapters** now loads the first **50** matching questions; **Load next 50** under the list loads more. Ticked questions always stay; reloading with other chapters or filters drops only unticked questions that no longer match. New pages are added at the end of each chapter.
