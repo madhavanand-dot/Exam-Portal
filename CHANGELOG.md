@@ -9,7 +9,7 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ## 2026-10-26 — Create Exam chapter picker: two small fixes
 
-- A chapter whose bank index still lists a deleted question now shows as **loaded** (and stays ticked) once its questions are loaded; before, it never did, so loading again could add it back by mistake.
+- A chapter whose bank index still lists a deleted question now shows as **loaded** (and stays ticked) once its questions are loaded. Before, it was left unticked, so pressing **Load selected chapters** again dropped that chapter's unticked questions from the list.
 - **Change questions** now keeps its "N question(s) of this exam are ticked below…" message visible instead of blanking it while the chapter list loads.
 - After deployment: reload the portal. No rules, index or data change.
 
