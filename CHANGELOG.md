@@ -7,6 +7,12 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-26 — Tests load 50 questions at a time; data bank filter in Create Exam
+
+- **Create Exam:** after **Choose chapters**, new **Data bank** (ECAPS, AIATS PAPERS, …, or "no data bank") and **Question format** filters. They work on the bank index, so chapter counts update at once ("38 of 75") and nothing is downloaded until you load. **Load selected chapters** now loads the first **50** matching questions; **Load next 50** under the list loads more. Ticked questions always stay; reloading with other chapters or filters drops only unticked questions that no longer match. New pages are added at the end of each chapter.
+- **Diagnostic Builder → From the question bank:** **Show questions** also loads 50 at a time (**Show next 50**). The Data bank list now shows the banks actually in the index, and the Data bank / Format filters are applied before downloading (chapter counts update when you change them).
+- After deployment: reload the portal. No rules or data change.
+
 ## 2026-10-26 — Question and test previews while building; Diagnostic Builder loads by chapter
 
 - **Create Exam:** every question in the picker has a **👁** button that opens the full question (picture, options, correct answer, which tests use it) without ticking it. **👁 Preview test** next to Create Exam shows the ticked questions as the finished test, with answers marked, before you save (also while using **Change questions**). Leaving **Change questions** now resets duration, scoring and audience to the defaults.
