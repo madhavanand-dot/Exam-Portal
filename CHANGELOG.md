@@ -7,6 +7,26 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-26 — Tests load 50 questions at a time; data bank filter in Create Exam
+
+- **Create Exam:** after **Choose chapters**, new **Data bank** (ECAPS, AIATS PAPERS, …, or "no data bank") and **Question format** filters. They work on the bank index, so chapter counts update at once ("38 of 75") and nothing is downloaded until you load. **Load selected chapters** now loads the first **50** matching questions; **Load next 50** under the list loads more. Ticked questions always stay; reloading with other chapters or filters drops only unticked questions that no longer match. New pages are added at the end of each chapter.
+- **Diagnostic Builder → From the question bank:** **Show questions** also loads 50 at a time (**Show next 50**). The Data bank list now shows the banks actually in the index, and the Data bank / Format filters are applied before downloading (chapter counts update when you change them).
+- After deployment: reload the portal. No rules or data change.
+
+## 2026-10-26 — Question and test previews while building; Diagnostic Builder loads by chapter
+
+- **Create Exam:** every question in the picker has a **👁** button that opens the full question (picture, options, correct answer, which tests use it) without ticking it. **👁 Preview test** next to Create Exam shows the ticked questions as the finished test, with answers marked, before you save (also while using **Change questions**). Leaving **Change questions** now resets duration, scoring and audience to the defaults.
+- **Diagnostic Builder → Add questions → From the question bank:** **Find questions** is now **Choose chapters**. It lists every subject's chapters from the bank index (the test's own chapter starts ticked) with a search box; **Show questions** downloads only the ticked chapters, grouped by chapter, with the Data bank and Format filters applied and questions already in the test left out. Each question has a **👁** preview, **Tick / untick all** selects a whole chapter, and **Add selected** no longer re-reads the bank. The "Filter topic contains" box is gone.
+- **Diagnostic Builder:** new **👁 Preview test** next to Save test shows the test as it stands, unsaved changes included.
+- **Preview** of a saved test (Exams list, Assign Diagnostic Tests) now reads its questions in groups of 30 instead of one request each.
+- After deployment: reload the portal. Chapters come from the bank index, so press **Rebuild practice index** after uploads. No rules or data change.
+
+## 2026-10-26 — Create Exam chapter picker: two small fixes
+
+- A chapter whose bank index still lists a deleted question now shows as **loaded** (and stays ticked) once its questions are loaded. Before, it was left unticked, so pressing **Load selected chapters** again dropped that chapter's unticked questions from the list.
+- **Change questions** now keeps its "N question(s) of this exam are ticked below…" message visible instead of blanking it while the chapter list loads.
+- After deployment: reload the portal. No rules, index or data change.
+
 ## 2026-10-26 — Create Exam: chapter-wise bank loading and editing an exam's questions
 
 - **Admin → Exams → Create Exam:** **Load Bank** is now **Choose chapters**. It reads only the small bank index (one document per subject) and lists every subject's chapters with question counts and a search box. Tick the chapters you need and press **Load selected chapters** — only those questions are downloaded, grouped by chapter. Loading more chapters keeps the questions you have already ticked; unticking a chapter and loading again drops its unticked questions. A subject with no bank index yet shows a **Load all &lt;subject&gt;** button instead.
