@@ -634,7 +634,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
 
     <div id="atab-exams" class="atab hidden">
       <div class="card">
-        <h2 class="sec" style="margin-top:0">Create Exam</h2>
+        <h2 class="sec" style="margin-top:0" id="exHead">Create Exam</h2>
         <div class="flexrow" style="margin-bottom:10px">
           <div class="field"><label>Title</label><input id="exTitle" placeholder="e.g. Custom Test 04"></div>
           <div class="field"><label>Exam Type</label><select id="exType"><option value="medical">Medical (NEET)</option><option value="engineering">Engineering (JEE)</option></select></div>
@@ -652,7 +652,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
             <label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px;margin-top:6px"><input type="checkbox" id="exShuffleOpt"> Shuffle option order per student</label></div>
           <div class="field"><label title="Warnings on screen and auto-submit as malpractice after 3. Off = switches are only recorded silently.">3 warnings → auto-submit</label><select id="exStrict">
             <option value="">Portal setting</option><option value="on">On</option><option value="off">Off — track silently</option></select></div>
-          <button class="btn secondary" id="exLoadBankBtn">Load Bank</button>
+          <button class="btn secondary" id="exLoadBankBtn" title="Lists each subject's chapters; only the chapters you tick are loaded">Choose chapters</button>
         </div>
         <div class="flexrow" style="margin-bottom:10px">
           <div class="field"><label>Who can take this exam?</label><select id="exAudience">
@@ -671,11 +671,13 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
           <div class="field"><label>Closes at (optional)</label><input id="exEnd" type="datetime-local"></div>
           <div class="field" style="align-self:flex-end"><span style="font-size:12px;color:var(--muted)">Leave blank to keep open whenever the exam is Active. Within the window, only students in the chosen audience/batch see it.</span></div>
         </div>
-        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Tick any questions you want — any subjects, any count. The "Select first N" buttons help auto-pick. Marks are computed from your selection.</p>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Press <b>Choose chapters</b>, tick the chapters you need and load them — only those questions are downloaded. Then tick any questions you want — any subjects, any count. The "First N" buttons help auto-pick. Marks are computed from your selection.</p>
+        <div id="exChapters" style="margin-bottom:10px"></div>
         <div id="exPicker"></div>
         <div id="exMsg"></div>
         <div id="exSelSummary" style="font-size:13px;color:var(--blue);font-weight:600;margin-top:10px"></div>
         <button class="btn green" id="exCreateBtn" style="margin-top:8px">Create Exam</button>
+        <button class="btn secondary hidden" id="exCancelEditBtn" style="margin-top:8px">Cancel editing</button>
       </div>
       <h2 class="sec">Exams</h2>
       <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Qs</th><th>Audience</th><th>Status</th><th>Created By</th><th></th></tr></thead><tbody id="examRows"></tbody></table>
@@ -1504,7 +1506,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc as _getDoc, setDoc as _setDoc, updateDoc as _updateDoc, deleteDoc as _deleteDoc, addDoc as _addDoc, getDocs as _getDocs,
-  collection, query, where, orderBy, limit, writeBatch as _writeBatch, serverTimestamp, Timestamp, onSnapshot as _onSnapshot, deleteField
+  collection, query, where, documentId, orderBy, limit, writeBatch as _writeBatch, serverTimestamp, Timestamp, onSnapshot as _onSnapshot, deleteField
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // PASTE FIREBASE CONFIG HERE
@@ -6449,6 +6451,17 @@ $("qbStripImgBtn").onclick = async () => {
 $("exScoring").onchange = () => {
   $("exCustomMarks").style.display = $("exScoring").value === "custom" ? "" : "none";
 };
+// fetch questions by document id, 30 per query (Firestore "in" limit), a few queries at a time
+async function fetchQuestionsByIds(ids, onProgress){
+  const out = [], chunks = [];
+  for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i+30));
+  for (let i = 0; i < chunks.length; i += 8) {
+    const snaps = await Promise.all(chunks.slice(i, i+8).map(c => getDocs(query(collection(db,"questions"), where(documentId(),"in",c)))));
+    snaps.forEach(sn => sn.docs.forEach(d => out.push({ docId: d.id, ...d.data() })));
+    onProgress?.(Math.min(ids.length, (i+8)*30), ids.length);
+  }
+  return out;
+}
 // resolve the marks scheme chosen in the builder
 function builderMarks(){
   const t = $("exType").value, base = EXAM_CONFIG[t];
@@ -6466,27 +6479,111 @@ $("exAudience").onchange = () => {
   $("exGroupWrap").style.display = $("exAudience").value === "group" ? "" : "none";
   if ($("exAudience").value === "group" && !$("exGroup").options.length) fillGroupSelect($("exGroup"));
 };
+// Load the bank chapter-wise: "Choose chapters" reads only the small bankIndex docs (one per subject) to list each
+// subject's chapters with counts; "Load selected chapters" then fetches just those questions by id. A subject with no
+// index yet can still be loaded whole.
+const EXB = { type: null, chapters: {}, missing: [], loaded: new Map() };   // chapters: { subject: [{ t, ids }] }; loaded: docId → question
+const EX_NOCH = "(no chapter)";
 let exBankCache = []; // [{docId, subject, section, ...}]
+$("exType").addEventListener("change", () => {
+  EXB.type = null; EXB.chapters = {}; EXB.missing = []; EXB.loaded.clear(); exBankCache = [];
+  $("exChapters").innerHTML = $("exPicker").innerHTML = $("exSelSummary").textContent = "";
+});
 $("exLoadBankBtn").onclick = async () => {
   setMsg($("exMsg"),"");
   const t = $("exType").value, cfg = EXAM_CONFIG[t];
-  $("exPicker").innerHTML = "Loading bank&hellip;";
-  exBankCache = [];
+  $("exLoadBankBtn").disabled = true;
+  $("exChapters").innerHTML = "Reading chapters&hellip;";
+  try {
+    const chapters = {}, missing = [];
+    for (const sub of cfg.subjects) {
+      const sn = await getDoc(doc(db,"bankIndex",`${t}__${sub}`));
+      if (!sn.exists() || !(sn.data().q || []).length) { missing.push(sub); continue; }
+      const m = {};
+      sn.data().q.forEach(e => { const k = e.t || EX_NOCH; (m[k] = m[k] || []).push(e.i); });
+      chapters[sub] = Object.keys(m).sort((a,b) => (a===EX_NOCH)-(b===EX_NOCH) || a.localeCompare(b)).map(k => ({ t: k, ids: m[k] }));
+    }
+    if (EXB.type !== t) { EXB.loaded.clear(); exBankCache = []; $("exPicker").innerHTML = ""; }
+    Object.assign(EXB, { type: t, chapters, missing });
+    exRenderChapters();
+  } catch(e) { $("exChapters").innerHTML = ""; setMsg($("exMsg"), "Could not read the bank index: " + e.message); }
+  finally { $("exLoadBankBtn").disabled = false; }
+};
+function exRenderChapters(){
+  const subs = Object.keys(EXB.chapters);
+  $("exChapters").innerHTML = `
+    <div class="flexrow" style="align-items:flex-end;margin-bottom:6px">
+      <div class="field"><label>Find chapter</label><input id="exChSearch" placeholder="type to filter chapters"></div>
+      <button class="btn" id="exChLoad">Load selected chapters</button>
+      <span id="exChCount" style="font-size:12.5px;color:var(--muted);align-self:center"></span>
+    </div>` +
+    subs.map(sub => `<h3 style="margin:8px 0 4px;font-size:14px">${esc(sub)}
+        <small style="font-weight:400;color:var(--muted)">(${EXB.chapters[sub].length} chapters, ${EXB.chapters[sub].reduce((n,c)=>n+c.ids.length,0)} questions)</small></h3>
+      <div class="checklist" style="max-height:180px">` +
+      EXB.chapters[sub].map((c,k) => { const n = c.ids.filter(id => EXB.loaded.has(id)).length, all = n === c.ids.length;
+        return `<label data-chname="${esc(c.t.toLowerCase())}"><input type="checkbox" data-chsub="${esc(sub)}" data-chk="${k}" ${all?"checked":""}>
+        <span>${esc(c.t)} <span style="color:var(--muted)">(${c.ids.length})</span>${all?' <span class="badge pos">loaded</span>':n?` <span class="badge zero">${n} loaded</span>`:""}</span></label>`; }).join("") +
+      `</div>`).join("") +
+    (EXB.missing.length ? `<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0">No bank index for ${EXB.missing.map(esc).join(", ")} — rebuild the practice index (Chapters &amp; Topics), or load the whole subject:
+      ${EXB.missing.map(s => `<button class="btn secondary" style="padding:3px 10px;font-size:12px" data-exall="${esc(s)}">Load all ${esc(s)}</button>`).join(" ")}</p>` : "") +
+    `<p style="font-size:12px;color:var(--muted);margin:6px 0 0">Chapters come from the bank index; questions uploaded after its last rebuild appear once you rebuild it.</p>`;
+  if (!subs.length && !EXB.missing.length) $("exChapters").innerHTML = "No subjects.";
+  const count = () => { const n = [...$("exChapters").querySelectorAll("[data-chk]:checked")]
+      .reduce((s,c) => s + EXB.chapters[c.dataset.chsub][+c.dataset.chk].ids.length, 0);
+    $("exChCount") && ($("exChCount").textContent = n ? `${n} question(s) in the ticked chapters` : ""); };
+  $("exChapters").querySelectorAll("[data-chk]").forEach(c => c.onchange = count);
+  count();
+  $("exChSearch")?.addEventListener("input", e => { const s = e.target.value.trim().toLowerCase();
+    $("exChapters").querySelectorAll("[data-chname]").forEach(l => l.style.display = !s || l.dataset.chname.includes(s) ? "" : "none"); });
+  $("exChLoad")?.addEventListener("click", exLoadChapters);
+  $("exChapters").querySelectorAll("[data-exall]").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { (await fetchQuestions(EXB.type, b.dataset.exall)).forEach(q => EXB.loaded.set(q.docId, { ...q, _ch: (q.topic||"").trim() || EX_NOCH })); exRenderPicker(); }
+    catch(e) { setMsg($("exMsg"), "Could not load " + b.dataset.exall + ": " + e.message); }
+    finally { b.disabled = false; }
+  });
+}
+async function exLoadChapters(){
+  const picks = [...$("exChapters").querySelectorAll("[data-chk]:checked")].map(c => ({ sub: c.dataset.chsub, ...EXB.chapters[c.dataset.chsub][+c.dataset.chk] }));
+  if (!picks.length) { setMsg($("exMsg"), "Tick at least one chapter."); return; }
+  // unticking a loaded chapter drops its questions from the list
+  const keep = new Set(picks.map(p => `${p.sub}|${p.t}`));
+  const ticked = new Set([...$("exPicker").querySelectorAll("input:checked")].map(c => c.value));
+  for (const [id, q] of EXB.loaded) if (!ticked.has(id) && !EXB.missing.includes(q.subject) && !keep.has(`${q.subject}|${q._ch}`)) EXB.loaded.delete(id);
+  const want = picks.flatMap(p => p.ids.filter(id => !EXB.loaded.has(id)).map(id => ({ id, sub: p.sub, ch: p.t })));
+  $("exChLoad").disabled = true;
+  try {
+    const byId = new Map(want.map(w => [w.id, w]));
+    (await fetchQuestionsByIds(want.map(w => w.id), (n, all) => setMsg($("exMsg"), `Loading questions ${n}/${all}…`, true)))
+      .forEach(q => { const w = byId.get(q.docId); EXB.loaded.set(q.docId, { ...q, subject: w.sub, _ch: w.ch }); });
+    const gone = want.filter(w => !EXB.loaded.has(w.id)).length;
+    setMsg($("exMsg"), `${EXB.loaded.size} question(s) loaded from ${picks.length} chapter(s).` + (gone ? ` ${gone} indexed question(s) no longer exist — rebuild the practice index.` : ""), true);
+  } catch(e) { setMsg($("exMsg"), "Could not load the chapters: " + e.message); }
+  finally { $("exChLoad").disabled = false; }
+  exRenderChapters();
+  exRenderPicker();
+}
+function exRenderPicker(preselect){
+  const t = EXB.type, cfg = EXAM_CONFIG[t];
+  const was = preselect || new Set([...$("exPicker").querySelectorAll("input:checked")].map(c => c.value));
+  exBankCache = [...EXB.loaded.values()];
   const html = [];
   for (const sub of cfg.subjects) {
-    const list = await fetchQuestions(t, sub);
-    exBankCache.push(...list);
-    html.push(`<h2 class="sec">${sub} <small style="font-weight:400;color:var(--muted)">(${list.length} in bank)</small>
+    const list = exBankCache.filter(q => q.subject === sub)
+      .sort((a,b) => a._ch.localeCompare(b._ch) || (a.section||"A").localeCompare(b.section||"A") || (a.id||"").localeCompare(b.id||""));
+    if (!list.length) continue;
+    let ch = null;
+    html.push(`<h2 class="sec">${sub} <small style="font-weight:400;color:var(--muted)">(${list.length} loaded)</small>
       <button class="btn secondary" style="padding:3px 10px;font-size:12px" data-seln="${sub}" data-sec="A">First N Sec-A…</button>
       ${list.some(q=>q.section==="B")?`<button class="btn secondary" style="padding:3px 10px;font-size:12px" data-seln="${sub}" data-sec="B">First N Sec-B…</button>`:""}
       <button class="btn secondary" style="padding:3px 10px;font-size:12px" data-clrsub="${sub}">Clear</button></h2>
       <div class="checklist" data-sub="${sub}">` +
-      (list.length ? list.map(q => `<label><input type="checkbox" value="${q.docId}" data-sec="${q.section}" data-csub="${sub}">
+      list.map(q => (q._ch !== ch ? `<div style="padding:6px 4px 2px;font-weight:700;font-size:12.5px;color:var(--blue)">${esc(ch = q._ch)}</div>` : "") +
+        `<label><input type="checkbox" value="${q.docId}" data-sec="${q.section}" data-csub="${sub}" ${was.has(q.docId)?"checked":""}>
         <span><b>[${esc(q.section)}] ${esc(q.id)}</b>${q.image?" 🖼":""} &mdash; ${esc((q.text||"(image question)").slice(0,100))}</span></label>`).join("")
-        : `<div style="padding:6px;color:var(--muted)">No questions for ${sub}.</div>`)
       + `</div>`);
   }
-  $("exPicker").innerHTML = html.join("") || "No subjects.";
+  $("exPicker").innerHTML = html.join("") || `<div style="color:var(--muted);font-size:13px">No chapters loaded yet.</div>`;
   const recount = () => {
     const checked = [...$("exPicker").querySelectorAll("input:checked")];
     const m = builderMarks();
@@ -6510,12 +6607,69 @@ $("exLoadBankBtn").onclick = async () => {
     recount();
   });
   recount();
-};
+}
+// Edit mode: an existing exam reopened in this form to change its questions (and settings); null = creating a new one
+let exEditId = null;
+const exLocalInput = ts => { const ms = ts?.toMillis ? ts.toMillis() : ts?.seconds ? ts.seconds*1000 : null;
+  if (!ms) return ""; const d = new Date(ms - new Date(ms).getTimezoneOffset()*60000); return d.toISOString().slice(0,16); };
+function exSetEditMode(ex){
+  exEditId = ex ? ex.docId : null;
+  $("exHead").textContent = ex ? `Edit Exam — ${ex.title}` : "Create Exam";
+  $("exCreateBtn").textContent = ex ? "Save changes" : "Create Exam";
+  $("exCancelEditBtn").classList.toggle("hidden", !ex);
+  $("exType").disabled = !!ex;   // questions belong to one exam type
+}
+async function exOpenForEdit(docId){
+  const ex = examsCache.find(e => e.docId === docId);
+  if (!ex) { uiAlert("That exam no longer exists."); return; }
+  document.querySelector('[data-atab="exams"]')?.click();
+  $("exType").value = ex.examType;
+  $("exType").dispatchEvent(new Event("change"));
+  exSetEditMode(ex);
+  $("exTitle").value = ex.title || "";
+  $("exDuration").value = ex.durationMin || 180;
+  const base = EXAM_CONFIG[ex.examType].marks, m = ex.marks || base;
+  $("exScoring").value = JSON.stringify(m) === JSON.stringify(base) ? "preset"
+    : m.A?.correct === 4 && !m.A?.wrong && m.B?.correct === 4 && !m.B?.wrong ? "neg0" : "custom";
+  $("exMkA").value = m.A?.correct ?? 4; $("exMkW").value = Math.abs(m.A?.wrong ?? 1);
+  $("exScoring").onchange();
+  $("exShuffleOpt").checked = !!ex.shuffleOptions;
+  $("exStrict").value = ex.proctorStrict === true ? "on" : ex.proctorStrict === false ? "off" : "";
+  const a = ex.audience || { mode: "all" };
+  $("exAudience").value = ["all","batch","students","group"].includes(a.mode) ? a.mode : "all";
+  $("exAudience").onchange();
+  renderBatchPick($("exBatchPick"), a.batches);
+  if (a.mode === "group") fillGroupSelect($("exGroup"), a.group);
+  const uids = new Set(a.studentUids || []);
+  $("exStudentPick").querySelectorAll("input").forEach(c => c.checked = uids.has(c.value));
+  $("exStart").value = exLocalInput(ex.startAt); $("exEnd").value = exLocalInput(ex.endAt);
+  $("exHead").scrollIntoView({ behavior: "smooth", block: "start" });
+  setMsg($("exMsg"), "Loading this exam's questions…", true);
+  try {
+    const ids = ex.questionIds || [];
+    const qs = await fetchQuestionsByIds(ids);
+    EXB.type = ex.examType; EXB.loaded.clear();
+    qs.forEach(q => EXB.loaded.set(q.docId, { ...q, _ch: (q.topic||"").trim() || EX_NOCH }));
+    exRenderPicker(new Set(ids));
+    const gone = ids.length - qs.length;
+    setMsg($("exMsg"), `${qs.length} question(s) of this exam are ticked below. Untick to remove; press Choose chapters to add more, then Save changes.` +
+      (gone ? ` ${gone} question(s) no longer exist in the bank and will be dropped on save.` : ""), true);
+    $("exLoadBankBtn").click();
+  } catch(e) { setMsg($("exMsg"), "Could not load the exam's questions: " + e.message); }
+}
+function exResetForm(){
+  exSetEditMode(null);
+  $("exTitle").value = $("exStart").value = $("exEnd").value = "";
+  EXB.loaded.clear(); exBankCache = [];
+  $("exPicker").innerHTML = $("exSelSummary").textContent = "";
+  if (EXB.type) exRenderChapters();
+}
+$("exCancelEditBtn").onclick = () => { exResetForm(); setMsg($("exMsg"), "Editing cancelled — nothing was changed.", true); };
 $("exCreateBtn").onclick = async () => {
   const title = $("exTitle").value.trim(), t = $("exType").value;
   if (!title) { setMsg($("exMsg"),"Enter a title."); return; }
   const checked = [...$("exPicker").querySelectorAll("input:checked")];
-  if (!checked.length) { setMsg($("exMsg"),"Load the bank and select at least one question."); return; }
+  if (!checked.length) { setMsg($("exMsg"),"Choose chapters, load them and select at least one question."); return; }
   const duration = Math.max(1, parseInt($("exDuration").value)||180);
   const marks = builderMarks();
   const subjects = [...new Set(checked.map(c=>c.dataset.csub))]
@@ -6540,12 +6694,37 @@ $("exCreateBtn").onclick = async () => {
   const startAt = startV ? Timestamp.fromDate(new Date(startV)) : null;
   const endAt   = endV   ? Timestamp.fromDate(new Date(endV))   : null;
   if (startAt && endAt && endAt.toMillis() <= startAt.toMillis()) { setMsg($("exMsg"),"Close time must be after open time."); return; }
-  await addDoc(collection(db,"exams"), {
-    title, examType: t, questionIds: checked.map(c=>c.value),
-    subjects, durationMin: duration, marks, maxMarks, audience,
-    startAt, endAt,
+  const settings = {
+    title, durationMin: duration, marks, maxMarks, audience, startAt, endAt,
     shuffleOptions: $("exShuffleOpt").checked,
-    proctorStrict: $("exStrict").value === "on" ? true : $("exStrict").value === "off" ? false : null,
+    proctorStrict: $("exStrict").value === "on" ? true : $("exStrict").value === "off" ? false : null
+  };
+  if (exEditId) {
+    const ex = examsCache.find(e => e.docId === exEditId);
+    if (!ex) { setMsg($("exMsg"),"That exam no longer exists."); exResetForm(); return; }
+    // kept questions stay in their old order; new ones go after them
+    const pick = checked.map(c => c.value), pickSet = new Set(pick), old = ex.questionIds || [];
+    const questionIds = [...old.filter(id => pickSet.has(id)), ...pick.filter(id => !old.includes(id))];
+    const added = questionIds.filter(id => !old.includes(id)).length, removed = old.filter(id => !pickSet.has(id)).length;
+    let submitted = 0;
+    if (added || removed) {
+      try { submitted = (await getDocs(query(collection(db,"attempts"), where("examId","==",exEditId)))).docs.filter(d => d.data().submitTime != null).length; } catch(e) {}
+      if (submitted && !await uiConfirm(`${submitted} student(s) already submitted "${ex.title}".\n\nTheir attempts will be re-graded: removed questions stop counting, and questions they never saw are not held against them.\n\nSave the changes?`)) return;
+    }
+    $("exCreateBtn").disabled = true;
+    try {
+      await updateDoc(doc(db,"exams",exEditId), { ...settings, questionIds, subjects, updatedAt: serverTimestamp() });
+      let note = "";
+      if (submitted) { const r = await regradeExam({ ...ex, ...settings, questionIds, subjects }); note = ` Re-graded ${r.total} attempt(s); ${r.changed} score(s) changed.`; }
+      exResetForm();
+      setMsg($("exMsg"), `Saved "${title}": ${questionIds.length} questions (${added} added, ${removed} removed), max ${maxMarks}.` + note, true);
+      loadExams();
+    } catch(e) { setMsg($("exMsg"), "Save failed: " + e.message); }
+    finally { $("exCreateBtn").disabled = false; }
+    return;
+  }
+  await addDoc(collection(db,"exams"), {
+    ...settings, examType: t, questionIds: checked.map(c=>c.value), subjects,
     isActive: false, createdAt: serverTimestamp(),
     createdBy: currentUser.uid, createdByName: currentUser.name
   });
@@ -6595,12 +6774,14 @@ async function loadExams(){
     <td>${e.isActive?'<span class="badge pos">ACTIVE</span>':'<span class="badge zero">inactive</span>'}</td>
     <td style="font-size:12px">${esc(e.createdByName||"—")}</td>
     <td><button class="btn secondary" style="padding:3px 10px" data-prevex="${e.docId}">Preview</button>${ownsItem(e)?`
-      <button class="btn secondary" style="padding:3px 10px" data-editex="${e.docId}" title="Change key, add/remove questions, ideal times">Edit</button>
+      <button class="btn secondary" style="padding:3px 10px" data-exqs="${e.docId}" title="Add or remove questions (chapter-wise), change title, timing, scoring">Change questions</button>
+      <button class="btn secondary" style="padding:3px 10px" data-editex="${e.docId}" title="Change keys, question text, ideal times in the Diagnostic Builder">Edit keys</button>
       <button class="btn ${e.isActive?'secondary':'green'}" style="padding:3px 10px" data-toggle="${e.docId}" data-act="${e.isActive?0:1}">${e.isActive?'Deactivate':'Activate'}</button>
       <button class="btn danger" style="padding:3px 10px" data-delex="${e.docId}">Delete</button>`
       :`<span style="color:var(--muted);font-size:11px">read-only</span>`}
     </td></tr>`).join("") || `<tr><td colspan="7">No exams yet.</td></tr>`;
   $("examRows").querySelectorAll("[data-prevex]").forEach(b => b.onclick = () => previewExam(b.dataset.prevex));
+  $("examRows").querySelectorAll("[data-exqs]").forEach(b => b.onclick = () => exOpenForEdit(b.dataset.exqs));
   $("examRows").querySelectorAll("[data-editex]").forEach(b => b.onclick = () => {
     document.querySelector('[data-atab="diagnostic"]').click();
     $("dgExisting").value = b.dataset.editex;

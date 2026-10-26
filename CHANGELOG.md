@@ -7,6 +7,12 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-26 — Create Exam: chapter-wise bank loading and editing an exam's questions
+
+- **Admin → Exams → Create Exam:** **Load Bank** is now **Choose chapters**. It reads only the small bank index (one document per subject) and lists every subject's chapters with question counts and a search box. Tick the chapters you need and press **Load selected chapters** — only those questions are downloaded, grouped by chapter. Loading more chapters keeps the questions you have already ticked; unticking a chapter and loading again drops its unticked questions. A subject with no bank index yet shows a **Load all &lt;subject&gt;** button instead.
+- **Change questions** (new button in the Exams list): reopens an existing exam in the Create Exam form with its questions ticked and its title, duration, scoring, options, audience and window filled in. Untick questions to remove them, choose chapters to add more, then **Save changes** (or **Cancel editing**). Kept questions stay in their old order and new ones go at the end. If students have already submitted, you are asked first and their attempts are re-graded (removed questions stop counting; questions they never saw are not held against them). The old **Edit** button is now **Edit keys** (Diagnostic Builder: keys, question text, ideal times).
+- After deployment: reload the portal (installed app: close and reopen it). Chapters come from the bank index, so after uploading new questions press **Rebuild practice index** (Chapters &amp; Topics) to see them here. No rules or data change.
+
 ## 2026-10-25 — Test PDF fix for questions with broken HTML
 
 - **Download test (PDF):** fixed "Failed to execute 'appendChild' on 'Node': The new child element contains the parent". A question whose text or option left an HTML tag open (e.g. an unclosed `<div>` or `<table>`) pulled the rest of the paper inside itself, so the page layout failed. Each question's text and options are now closed off on their own before the paper is built; the questions' content is unchanged.
