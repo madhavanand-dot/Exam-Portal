@@ -7,6 +7,13 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-27 — Read every question in full while picking; chapter list folds away
+
+- **Exams → Create Exam** and **Diagnostic Builder → From the question bank:** the loaded questions are now shown in full — question text with formulas, picture, and all four options (two per row) with the correct one marked, plus type, level and key. Click anywhere on a question to tick it (it turns blue); clicking a picture only enlarges it. No more one-line snippets or separate preview.
+- Once questions are loaded, the chapter list folds into one line ("Chapters: Ray Optics, Gravitation — click to change"); click it to change chapters.
+- In the Diagnostic Builder the question list now uses the full width of the card.
+- After deployment: reload the portal. No rules or data change.
+
 ## 2026-10-27 — Pick several question types and levels when building tests
 
 - **Exams → Create Exam** and **Diagnostic Builder → From the question bank:** **Question type** is now a tick-several list (SCQ, MCQ+, NUM, INT, A-R, STMT, MATCH, COMP), and there is a new **Level** list (Easy / Moderate / Hard). Nothing ticked = all. Chapter counts follow them at once ("7 of 75") and only matching questions are downloaded and shown.
