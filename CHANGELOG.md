@@ -7,6 +7,12 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-26 — Create Exam chapter picker: two small fixes
+
+- A chapter whose bank index still lists a deleted question now shows as **loaded** (and stays ticked) once its questions are loaded; before, it never did, so loading again could add it back by mistake.
+- **Change questions** now keeps its "N question(s) of this exam are ticked below…" message visible instead of blanking it while the chapter list loads.
+- After deployment: reload the portal. No rules, index or data change.
+
 ## 2026-10-26 — Create Exam: chapter-wise bank loading and editing an exam's questions
 
 - **Admin → Exams → Create Exam:** **Load Bank** is now **Choose chapters**. It reads only the small bank index (one document per subject) and lists every subject's chapters with question counts and a search box. Tick the chapters you need and press **Load selected chapters** — only those questions are downloaded, grouped by chapter. Loading more chapters keeps the questions you have already ticked; unticking a chapter and loading again drops its unticked questions. A subject with no bank index yet shows a **Load all &lt;subject&gt;** button instead.

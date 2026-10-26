@@ -6482,11 +6482,11 @@ $("exAudience").onchange = () => {
 // Load the bank chapter-wise: "Choose chapters" reads only the small bankIndex docs (one per subject) to list each
 // subject's chapters with counts; "Load selected chapters" then fetches just those questions by id. A subject with no
 // index yet can still be loaded whole.
-const EXB = { type: null, chapters: {}, missing: [], loaded: new Map() };   // chapters: { subject: [{ t, ids }] }; loaded: docId → question
+const EXB = { type: null, chapters: {}, missing: [], loaded: new Map(), gone: new Set() };   // chapters: { subject: [{ t, ids }] }; loaded: docId → question; gone: indexed ids no longer in the bank
 const EX_NOCH = "(no chapter)";
 let exBankCache = []; // [{docId, subject, section, ...}]
 $("exType").addEventListener("change", () => {
-  EXB.type = null; EXB.chapters = {}; EXB.missing = []; EXB.loaded.clear(); exBankCache = [];
+  EXB.type = null; EXB.chapters = {}; EXB.missing = []; EXB.loaded.clear(); EXB.gone.clear(); exBankCache = [];
   $("exChapters").innerHTML = $("exPicker").innerHTML = $("exSelSummary").textContent = "";
 });
 $("exLoadBankBtn").onclick = async () => {
@@ -6503,7 +6503,7 @@ $("exLoadBankBtn").onclick = async () => {
       sn.data().q.forEach(e => { const k = e.t || EX_NOCH; (m[k] = m[k] || []).push(e.i); });
       chapters[sub] = Object.keys(m).sort((a,b) => (a===EX_NOCH)-(b===EX_NOCH) || a.localeCompare(b)).map(k => ({ t: k, ids: m[k] }));
     }
-    if (EXB.type !== t) { EXB.loaded.clear(); exBankCache = []; $("exPicker").innerHTML = ""; }
+    if (EXB.type !== t) { EXB.loaded.clear(); EXB.gone.clear(); exBankCache = []; $("exPicker").innerHTML = ""; }
     Object.assign(EXB, { type: t, chapters, missing });
     exRenderChapters();
   } catch(e) { $("exChapters").innerHTML = ""; setMsg($("exMsg"), "Could not read the bank index: " + e.message); }
@@ -6520,7 +6520,7 @@ function exRenderChapters(){
     subs.map(sub => `<h3 style="margin:8px 0 4px;font-size:14px">${esc(sub)}
         <small style="font-weight:400;color:var(--muted)">(${EXB.chapters[sub].length} chapters, ${EXB.chapters[sub].reduce((n,c)=>n+c.ids.length,0)} questions)</small></h3>
       <div class="checklist" style="max-height:180px">` +
-      EXB.chapters[sub].map((c,k) => { const n = c.ids.filter(id => EXB.loaded.has(id)).length, all = n === c.ids.length;
+      EXB.chapters[sub].map((c,k) => { const n = c.ids.filter(id => EXB.loaded.has(id)).length, all = n === c.ids.filter(id => !EXB.gone.has(id)).length;
         return `<label data-chname="${esc(c.t.toLowerCase())}"><input type="checkbox" data-chsub="${esc(sub)}" data-chk="${k}" ${all?"checked":""}>
         <span>${esc(c.t)} <span style="color:var(--muted)">(${c.ids.length})</span>${all?' <span class="badge pos">loaded</span>':n?` <span class="badge zero">${n} loaded</span>`:""}</span></label>`; }).join("") +
       `</div>`).join("") +
@@ -6550,13 +6550,14 @@ async function exLoadChapters(){
   const keep = new Set(picks.map(p => `${p.sub}|${p.t}`));
   const ticked = new Set([...$("exPicker").querySelectorAll("input:checked")].map(c => c.value));
   for (const [id, q] of EXB.loaded) if (!ticked.has(id) && !EXB.missing.includes(q.subject) && !keep.has(`${q.subject}|${q._ch}`)) EXB.loaded.delete(id);
-  const want = picks.flatMap(p => p.ids.filter(id => !EXB.loaded.has(id)).map(id => ({ id, sub: p.sub, ch: p.t })));
+  const want = picks.flatMap(p => p.ids.filter(id => !EXB.loaded.has(id) && !EXB.gone.has(id)).map(id => ({ id, sub: p.sub, ch: p.t })));
   $("exChLoad").disabled = true;
   try {
     const byId = new Map(want.map(w => [w.id, w]));
     (await fetchQuestionsByIds(want.map(w => w.id), (n, all) => setMsg($("exMsg"), `Loading questions ${n}/${all}…`, true)))
       .forEach(q => { const w = byId.get(q.docId); EXB.loaded.set(q.docId, { ...q, subject: w.sub, _ch: w.ch }); });
     const gone = want.filter(w => !EXB.loaded.has(w.id)).length;
+    want.forEach(w => { if (!EXB.loaded.has(w.id)) EXB.gone.add(w.id); });
     setMsg($("exMsg"), `${EXB.loaded.size} question(s) loaded from ${picks.length} chapter(s).` + (gone ? ` ${gone} indexed question(s) no longer exist — rebuild the practice index.` : ""), true);
   } catch(e) { setMsg($("exMsg"), "Could not load the chapters: " + e.message); }
   finally { $("exChLoad").disabled = false; }
@@ -6648,19 +6649,19 @@ async function exOpenForEdit(docId){
   try {
     const ids = ex.questionIds || [];
     const qs = await fetchQuestionsByIds(ids);
-    EXB.type = ex.examType; EXB.loaded.clear();
+    EXB.type = ex.examType; EXB.loaded.clear(); EXB.gone.clear();
     qs.forEach(q => EXB.loaded.set(q.docId, { ...q, _ch: (q.topic||"").trim() || EX_NOCH }));
     exRenderPicker(new Set(ids));
+    await $("exLoadBankBtn").onclick();   // list chapters so more can be added (clears the message line, so it runs first)
     const gone = ids.length - qs.length;
     setMsg($("exMsg"), `${qs.length} question(s) of this exam are ticked below. Untick to remove; press Choose chapters to add more, then Save changes.` +
       (gone ? ` ${gone} question(s) no longer exist in the bank and will be dropped on save.` : ""), true);
-    $("exLoadBankBtn").click();
   } catch(e) { setMsg($("exMsg"), "Could not load the exam's questions: " + e.message); }
 }
 function exResetForm(){
   exSetEditMode(null);
   $("exTitle").value = $("exStart").value = $("exEnd").value = "";
-  EXB.loaded.clear(); exBankCache = [];
+  EXB.loaded.clear(); EXB.gone.clear(); exBankCache = [];
   $("exPicker").innerHTML = $("exSelSummary").textContent = "";
   if (EXB.type) exRenderChapters();
 }
