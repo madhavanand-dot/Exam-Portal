@@ -7,6 +7,14 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-27 — Pick several question types and levels when building tests
+
+- **Exams → Create Exam** and **Diagnostic Builder → From the question bank:** **Question type** is now a tick-several list (SCQ, MCQ+, NUM, INT, A-R, STMT, MATCH, COMP), and there is a new **Level** list (Easy / Moderate / Hard). Nothing ticked = all. Chapter counts follow them at once ("7 of 75") and only matching questions are downloaded and shown.
+- Changing a filter instantly hides the loaded questions that no longer match (questions you ticked always stay) and lines up the rest of the ticked chapters for **Load next / Show next**.
+- Every question row now shows its type and level, e.g. `[A-R · Easy]`.
+- Questions with no question type recorded are left out while a type is ticked; untick all types to see them.
+- After deployment: reload the portal. Uses the bank index — **Rebuild practice index** once if types or levels look missing. No rules or data change.
+
 ## 2026-10-27 — Exams: data bank filter up front; app picks up new versions at once
 
 - **Exams → Create Exam:** a **From the question bank** row with **Data bank**, **Question format** and **Choose chapters**, like the Diagnostic Builder. You can pick the data bank before choosing chapters; chapter counts follow it. After the chapters are read, the Data bank list shows only the banks that actually have questions for that exam type.
