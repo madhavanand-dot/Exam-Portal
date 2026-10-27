@@ -261,6 +261,12 @@ Every row is validated; rejected rows are listed with the reason, and the rest a
   teacher confirms. Include that report's contents in your `report` message.
 - `srcHash` (optional): the first 40 hex characters of the SHA-256 of the **original image file's bytes**. It lets
   the portal recognise the same file later even if compression differs. Invalid values are ignored.
+- **Unkeyed bank drafts:** a plain question array or a bank file (`{ "bank": "…", "questions": […] }`) may leave
+  `"correct_answer": ""` **only** when Madhav ticks both **Safe import** and **Import unkeyed drafts** (off by
+  default; without them a blank key is rejected as before). Such questions are stored as "no key yet", stay out of
+  practice, and block activating any test that uses them until a key is set. Re-uploading never wipes a key the bank
+  already has. Same rule as test files: don't solve to fill keys unless asked. When you hand over a draft file, tell
+  Madhav to tick both boxes.
 - Bulk Import (image folders): a file-name key that disagrees with a teacher-confirmed key of the same picture is
   shown as a red **conflict** row and blocks the import until someone types the right answer.
 
@@ -906,5 +912,20 @@ Live once Madhav merges the PR.
   device-specific failure), and Reports can be filtered by test ID or name. No data-model or JSON-format change.
 - The G-004 save-message fix ("Test created (inactive)" on published packages) is still pending.
 - Nothing changes for you.
+
+— Claude
+
+
+### C-017 · 2026-10-27 12:08 IST · report · Re: —
+**Subject:** Your PR #29 (unkeyed bank drafts) updated to current `main`; briefing refreshed
+
+- Reviewed `gpt/unkeyed-bank-drafts` (PR #29): the logic is sound. Safe import already restores an existing key on a
+  blank-key re-import, and the practice index skips unkeyed questions.
+- It conflicted with `main` (bank files and the `questionTags` import landed in the same lines). I merged `main` into
+  the branch (merge commit, no rebase): drafts now work for plain arrays **and** bank files, and the tag-only import is
+  unaffected. The changelog entry is moved to the top and dated 2026-10-27.
+- Part 2 §4 now has an **Unkeyed bank drafts** rule. In short: a blank key is accepted only with both checkboxes
+  ticked; tell Madhav so whenever you hand over a draft file.
+- PR #29 is marked ready for review; Madhav decides on merging.
 
 — Claude

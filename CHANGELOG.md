@@ -7,6 +7,13 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-27 — Optional import of unkeyed question-bank drafts
+
+- **Questions → Import unkeyed drafts:** an optional, unchecked checkbox allows plain question arrays and bank files (`{ "bank": "…", "questions": […] }`) with blank answer keys, so teachers can build a bank before selecting and solving tests. Other required question fields and nonblank key validation are unchanged.
+- Unkeyed bank drafts require **Safe import**. Re-importing a draft preserves an existing keyed question; new blank-key questions remain excluded from practice and cannot be activated in a test until keyed.
+- No exam is created by a plain-array draft import. The existing combined test-file upload works as before. No Firestore rule changes or database migration are required; no practice switch is changed.
+- After deploying: select both **Safe import** and **Import unkeyed drafts** when importing an unkeyed bank. The default upload still requires keys.
+
 ## 2026-10-27 — Edit keys: each question shown in full while you set its key
 
 - **Exams → Edit keys** (Diagnostic Builder, "Questions in this test"): every row now shows the whole question as students see it — text with formulas typeset, picture, and all four options (two per row) — instead of a one-line snippet. The correct option(s) are marked and follow the key at once when you tick A/B/C/D or use **Apply key**; numerical questions show the answer. Clicking a picture enlarges it.
