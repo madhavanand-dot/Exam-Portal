@@ -151,6 +151,12 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 .opt.sel{border-color:var(--blue);background:var(--blue-light);box-shadow:0 0 0 1px var(--blue)}
 .opt input{margin-top:3px}
 .dgKey{display:flex;gap:2px;white-space:nowrap}.dgKey label{display:inline-flex;align-items:center;gap:1px;font-weight:700;font-size:13px;border:1px solid var(--border);border-radius:4px;padding:1px 4px;cursor:pointer}
+/* Diagnostic Builder rows: the question as students see it, with the current key marked */
+.dgq .qcard-t{font-size:13.5px;line-height:1.45;margin:0 0 4px}
+.dgq .qopts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
+.dgq .opt{padding:3px 7px;margin:0;font-size:12.5px;cursor:default}
+.dgq .opt:hover{background:transparent}.dgq .opt.sel:hover{background:var(--blue-light)}
+.dgq .qimg{max-height:160px;margin:2px 0}.dgq .opt .qimg{max-height:70px}
 .dgKey label small{font-weight:400;color:var(--muted);font-size:10px}.dgKey input{margin:0 2px 0 0;width:auto}
 .multiNote{font-size:13px;color:#7a4d00;background:#fff4dc;border:1px solid #f0d49a;border-radius:6px;padding:7px 11px;margin-bottom:9px}
 #numInputWrap input{width:220px;padding:10px;border:1px solid var(--border);border-radius:5px;font-size:16px}
@@ -5007,6 +5013,7 @@ function dgRender(){
         `<label><input type="checkbox" data-dgkey="${L}" ${normKey(r.correct_answer).includes(L)?"checked":""}>${L}<small>/${k+1}</small></label>`).join("")}</div>` +
       (isMultiKey(r.correct_answer) ? `<div style="font-size:11px;color:#7a4d00;font-weight:600">☑ multiple correct</div>` : "")
     : `<input data-dgf="correct_answer" value="${esc(r.correct_answer)}" style="width:70px;text-align:center;font-weight:700" placeholder="number">`;
+  const dgScroll = $("dgWrap").scrollTop;
   $("dgWrap").innerHTML = `<table class="tbl"><thead><tr>
       <th>#</th><th>Question</th><th>Subject</th><th title="Model = the question type / pattern inside the topic (e.g. 'Pulley — two blocks'). Students see their mistakes grouped by it.">Topic / Model</th><th>Level</th><th>Sec</th><th>Answer</th><th>Ideal time (sec)</th><th>Order</th><th></th>
     </tr></thead><tbody>` + rows.map((r,i) => {
@@ -5015,13 +5022,12 @@ function dgRender(){
       const changed = !r.isNew && r.correct_answer !== r.origAnswer;
       const bg = missing ? "background:#fdecea" : (changed || r.ai?.verdict === "disputed") ? "background:#fff6e0" : "";
       const others = r.isNew ? 0 : examsCache.filter(e => e.docId !== DG.examDocId && (e.questionIds||[]).includes(r.docId)).length;
-      const preview = r.image
-        ? `<img src="${r.image}" data-dgzoom="${i}" style="max-width:200px;max-height:110px;border:1px solid var(--border);border-radius:4px;cursor:zoom-in">`
-        : r.ai ? dgAiPreview(r)
-        : `<span style="font-size:12.5px">${esc(String(r.text||"").replace(/<[^>]*>/g,"").slice(0,110))}</span>`;
+      // full question (text, picture, options) with the key as currently edited, so a key change shows at once
+      const preview = r.ai ? dgAiPreview(r)
+        : `<div class="dgq">${questionBodyHtml({ ...(r.q || {}), text: r.text, image: r.image, section: r.section, correct_answer: r.correct_answer })}</div>`;
       return `<tr data-dg="${i}" style="${bg}">
         <td><b>${i+1}</b></td>
-        <td style="max-width:460px">${preview}${r.ai ? "" : `<div><button class="btn secondary" style="padding:1px 7px;font-size:11.5px;margin-top:3px" data-dgimg="${i}" title="Swap in a new picture for this question; key, topic and times stay as they are">🖼 ${r.image?"Replace image":"Add image"}</button>${r.imgChanged?` <span class="badge zero">new image — not saved yet</span>`:""}</div>`}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||(r.ai?"AI draft":""))} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
+        <td style="min-width:300px;max-width:460px">${preview}${r.ai ? "" : `<div><button class="btn secondary" style="padding:1px 7px;font-size:11.5px;margin-top:3px" data-dgimg="${i}" title="Swap in a new picture for this question; key, topic and times stay as they are">🖼 ${r.image?"Replace image":"Add image"}</button>${r.imgChanged?` <span class="badge zero">new image — not saved yet</span>`:""}</div>`}<div style="font-size:11px;color:var(--muted);margin-top:3px">${r.isNew?`<span class="badge pos">new</span> ${esc(r.file||(r.ai?"AI draft":""))} ${r.kb?`· ${r.kb} KB`:""}`:esc(r.q?.id||r.docId)}${others?` · <span title="The key lives on the question, so a key change here applies to those tests too">also in ${others} other test(s)</span>`:""}</div></td>
         <td style="font-size:12.5px">${esc(r.subject)}</td>
         <td><input data-dgf="topic" value="${esc(r.topic)}" list="dgTopicList" style="width:150px">
             <input data-dgf="model" value="${esc(r.modelCode ? `${r.modelCode} · ${r.model||""}` : (r.model||""))}" list="dgModelList" placeholder="question model (optional)" title="Pick from the chapter's Model Bank list (code · name) or type a name" style="width:150px;margin-top:3px;font-size:12px">
@@ -5102,10 +5108,9 @@ function dgRender(){
     dgRender();
   });
   $("dgWrap").querySelectorAll("[data-dgrm]").forEach(b => b.onclick = () => { DG.rows.splice(+b.dataset.dgrm, 1); dgRender(); });
-  $("dgWrap").querySelectorAll("[data-dgzoom]").forEach(im => im.onclick = () => {
-    $("lightboxImg").src = im.src; $("lightbox").classList.remove("hidden");
-  });
-  if (DG.rows.some(r => r.ai)) typeset($("dgWrap"));
+  // pictures open in the lightbox through the shared .qimg click handler
+  $("dgWrap").scrollTop = dgScroll;   // re-rendering after a key tick must not jump back to the top
+  if (window.MathJax?.typesetPromise) MathJax.typesetPromise([$("dgWrap")]).then(() => { $("dgWrap").scrollTop = dgScroll; }).catch(()=>{});
   $("dgMode").textContent = DG.aiDraftId ? `— 🤖 AI practice for ${DG.studentName} (review, then Save)` : $("dgMode").textContent;
 }
 function dgValidate(){
