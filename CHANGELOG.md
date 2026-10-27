@@ -7,6 +7,12 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-27 — Edit keys: each question shown in full while you set its key
+
+- **Exams → Edit keys** (Diagnostic Builder, "Questions in this test"): every row now shows the whole question as students see it — text with formulas typeset, picture, and all four options (two per row) — instead of a one-line snippet. The correct option(s) are marked and follow the key at once when you tick A/B/C/D or use **Apply key**; numerical questions show the answer. Clicking a picture enlarges it.
+- Ticking a key no longer scrolls the table back to the top.
+- After deployment: reload the portal. No rules or data change.
+
 ## 2026-10-27 — Read every question in full while picking; chapter list folds away
 
 - **Exams → Create Exam** and **Diagnostic Builder → From the question bank:** the loaded questions are now shown in full — question text with formulas, picture, and all four options (two per row) with the correct one marked, plus type, level and key. Click anywhere on a question to tick it (it turns blue); clicking a picture only enlarges it. No more one-line snippets or separate preview.
