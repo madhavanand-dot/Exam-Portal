@@ -7,12 +7,144 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
-## 2026-10-18 — Optional import of unkeyed question-bank drafts
+## 2026-10-27 — Optional import of unkeyed question-bank drafts
 
-- **Questions → Import unkeyed drafts:** an optional, unchecked checkbox allows plain question arrays with blank answer keys, so teachers can build a bank before selecting and solving tests. Other required question fields and nonblank key validation are unchanged.
+- **Questions → Import unkeyed drafts:** an optional, unchecked checkbox allows plain question arrays and bank files (`{ "bank": "…", "questions": […] }`) with blank answer keys, so teachers can build a bank before selecting and solving tests. Other required question fields and nonblank key validation are unchanged.
 - Unkeyed bank drafts require **Safe import**. Re-importing a draft preserves an existing keyed question; new blank-key questions remain excluded from practice and cannot be activated in a test until keyed.
 - No exam is created by a plain-array draft import. The existing combined test-file upload works as before. No Firestore rule changes or database migration are required; no practice switch is changed.
 - After deploying: select both **Safe import** and **Import unkeyed drafts** when importing an unkeyed bank. The default upload still requires keys.
+
+## 2026-10-27 — Edit keys: each question shown in full while you set its key
+
+- **Exams → Edit keys** (Diagnostic Builder, "Questions in this test"): every row now shows the whole question as students see it — text with formulas typeset, picture, and all four options (two per row) — instead of a one-line snippet. The correct option(s) are marked and follow the key at once when you tick A/B/C/D or use **Apply key**; numerical questions show the answer. Clicking a picture enlarges it.
+- Ticking a key no longer scrolls the table back to the top.
+- After deployment: reload the portal. No rules or data change.
+
+## 2026-10-27 — Read every question in full while picking; chapter list folds away
+
+- **Exams → Create Exam** and **Diagnostic Builder → From the question bank:** the loaded questions are now shown in full — question text with formulas, picture, and all four options (two per row) with the correct one marked, plus type, level and key. Click anywhere on a question to tick it (it turns blue); clicking a picture only enlarges it. No more one-line snippets or separate preview.
+- Once questions are loaded, the chapter list folds into one line ("Chapters: Ray Optics, Gravitation — click to change"); click it to change chapters.
+- In the Diagnostic Builder the question list now uses the full width of the card.
+- After deployment: reload the portal. No rules or data change.
+
+## 2026-10-27 — Pick several question types and levels when building tests
+
+- **Exams → Create Exam** and **Diagnostic Builder → From the question bank:** **Question type** is now a tick-several list (SCQ, MCQ+, NUM, INT, A-R, STMT, MATCH, COMP), and there is a new **Level** list (Easy / Moderate / Hard). Nothing ticked = all. Chapter counts follow them at once ("7 of 75") and only matching questions are downloaded and shown.
+- Changing a filter instantly hides the loaded questions that no longer match (questions you ticked always stay) and lines up the rest of the ticked chapters for **Load next / Show next**.
+- Every question row now shows its type and level, e.g. `[A-R · Easy]`.
+- **Preview by clicking the question:** in Create Exam and the Diagnostic Builder, clicking a question's text opens it in full; only the checkbox ticks it. The separate 👁 buttons are gone. In **Bank Tests**, click the question id.
+- Questions with no question type recorded are left out while a type is ticked; untick all types to see them.
+- After deployment: reload the portal. Uses the bank index — **Rebuild practice index** once if types or levels look missing. No rules or data change.
+
+## 2026-10-27 — Exams: data bank filter up front; app picks up new versions at once
+
+- **Exams → Create Exam:** a **From the question bank** row with **Data bank**, **Question format** and **Choose chapters**, like the Diagnostic Builder. You can pick the data bank before choosing chapters; chapter counts follow it. After the chapters are read, the Data bank list shows only the banks that actually have questions for that exam type.
+- **Installed app / browser:** the portal now checks for a new version every time it opens instead of reusing a copy up to 10 minutes old, so a merged change shows on the next reload.
+- After deployment: reload the portal once (installed app: close and reopen it). No rules or data change.
+
+## 2026-10-26 — Tests load 50 questions at a time; data bank filter in Create Exam
+
+- **Create Exam:** after **Choose chapters**, new **Data bank** (ECAPS, AIATS PAPERS, …, or "no data bank") and **Question format** filters. They work on the bank index, so chapter counts update at once ("38 of 75") and nothing is downloaded until you load. **Load selected chapters** now loads the first **50** matching questions; **Load next 50** under the list loads more. Ticked questions always stay; reloading with other chapters or filters drops only unticked questions that no longer match. New pages are added at the end of each chapter.
+- **Diagnostic Builder → From the question bank:** **Show questions** also loads 50 at a time (**Show next 50**). The Data bank list now shows the banks actually in the index, and the Data bank / Format filters are applied before downloading (chapter counts update when you change them).
+- After deployment: reload the portal. No rules or data change.
+
+## 2026-10-26 — Question and test previews while building; Diagnostic Builder loads by chapter
+
+- **Create Exam:** every question in the picker has a **👁** button that opens the full question (picture, options, correct answer, which tests use it) without ticking it. **👁 Preview test** next to Create Exam shows the ticked questions as the finished test, with answers marked, before you save (also while using **Change questions**). Leaving **Change questions** now resets duration, scoring and audience to the defaults.
+- **Diagnostic Builder → Add questions → From the question bank:** **Find questions** is now **Choose chapters**. It lists every subject's chapters from the bank index (the test's own chapter starts ticked) with a search box; **Show questions** downloads only the ticked chapters, grouped by chapter, with the Data bank and Format filters applied and questions already in the test left out. Each question has a **👁** preview, **Tick / untick all** selects a whole chapter, and **Add selected** no longer re-reads the bank. The "Filter topic contains" box is gone.
+- **Diagnostic Builder:** new **👁 Preview test** next to Save test shows the test as it stands, unsaved changes included.
+- **Preview** of a saved test (Exams list, Assign Diagnostic Tests) now reads its questions in groups of 30 instead of one request each.
+- After deployment: reload the portal. Chapters come from the bank index, so press **Rebuild practice index** after uploads. No rules or data change.
+
+## 2026-10-26 — Create Exam chapter picker: two small fixes
+
+- A chapter whose bank index still lists a deleted question now shows as **loaded** (and stays ticked) once its questions are loaded. Before, it was left unticked, so pressing **Load selected chapters** again dropped that chapter's unticked questions from the list.
+- **Change questions** now keeps its "N question(s) of this exam are ticked below…" message visible instead of blanking it while the chapter list loads.
+- After deployment: reload the portal. No rules, index or data change.
+
+## 2026-10-26 — Create Exam: chapter-wise bank loading and editing an exam's questions
+
+- **Admin → Exams → Create Exam:** **Load Bank** is now **Choose chapters**. It reads only the small bank index (one document per subject) and lists every subject's chapters with question counts and a search box. Tick the chapters you need and press **Load selected chapters** — only those questions are downloaded, grouped by chapter. Loading more chapters keeps the questions you have already ticked; unticking a chapter and loading again drops its unticked questions. A subject with no bank index yet shows a **Load all &lt;subject&gt;** button instead.
+- **Change questions** (new button in the Exams list): reopens an existing exam in the Create Exam form with its questions ticked and its title, duration, scoring, options, audience and window filled in. Untick questions to remove them, choose chapters to add more, then **Save changes** (or **Cancel editing**). Kept questions stay in their old order and new ones go at the end. If students have already submitted, you are asked first and their attempts are re-graded (removed questions stop counting; questions they never saw are not held against them). The old **Edit** button is now **Edit keys** (Diagnostic Builder: keys, question text, ideal times).
+- After deployment: reload the portal (installed app: close and reopen it). Chapters come from the bank index, so after uploading new questions press **Rebuild practice index** (Chapters &amp; Topics) to see them here. No rules or data change.
+
+## 2026-10-25 — Test PDF fix for questions with broken HTML
+
+- **Download test (PDF):** fixed "Failed to execute 'appendChild' on 'Node': The new child element contains the parent". A question whose text or option left an HTML tag open (e.g. an unclosed `<div>` or `<table>`) pulled the rest of the paper inside itself, so the page layout failed. Each question's text and options are now closed off on their own before the paper is built; the questions' content is unchanged.
+- After deployment: reload the portal (installed app: close and reopen it). No rules, index or data change.
+
+## 2026-10-25 — Reports: Exam dropdown
+
+- **Admin → Reports:** the test filter is now an **Exam** dropdown listing tests as "title (type)", like the Leaderboard. It replaces the "Test (ID or name)" text box; choosing a test lists only its attempts with one direct query, combined with the student, type and date filters. The Exam column and CSV still show the test ID.
+- After deployment: reload the portal (installed app: close and reopen it). No rules, index or data change.
+
+## 2026-10-25 — Sturdier test PDF download and Reports filter by test
+
+- **Download test (PDF):** each question is now captured inside the PDF's own preview frame instead of from the main page. Some phone browsers failed this cross-frame capture with a "child node" error or never finished. A question that still cannot be drawn now stops after 30 seconds with its number in the message (e.g. "Question 12: …"), so the bad question is easy to find.
+- **Admin → Reports:** new **Test (ID or name)** box next to the dates. Pick a test from the suggestions or paste its test ID to list only that test's attempts (one direct query). Typing part of an ID or title filters what was loaded. It combines with student, type and date filters. The Exam column and the CSV export now show the test ID.
+- After deployment: reload the portal (installed app: close and reopen it). No rules, index or data change.
+
+## 2026-10-19 — Clearer portal workflows and controlled practice banks
+
+- Organised existing admin sections into six navigation groups. Added Practice Access under Learning & Practice; staff retain existing role restrictions. Mobile navigation uses collapsible groups.
+- Bank Tests now pages through every match in sets of 100, has a chapter-aware question-model selector, distinguishes Add this page from Add all matching, and keeps the selected count and total ideal time visible while choosing questions. Existing popup previews and saved selections are retained.
+- Added admin-approved practice banks per exam stream in the existing portal settings. Empty/missing policies release no bank. Chapter practice, model suggestions and mistake retry respect the policy; assigned tests remain independent. Saving the bank list does not enable practice. See PRACTICE_ACCESS.md.
+- Student search supports name and PS-ID. Reports scope reads by student, exam type or date when supplied. Progress percentiles compare only submitted attempts of the same test and reuse each cohort read within a panel.
+- Extended question typography to practice and disclosure previews. Added old-paper guidance using existing timed/untimed test paths; no papers or tests are imported or published automatically.
+- After deployment: reload the portal and rebuild the practice index once for bank provenance. Approved-bank lists were explicitly initialised empty and global practice remains off. No new collection or rules deployment is needed. This release does not migrate stored results or grading.
+
+
+## 2026-10-19 — Consistent question typography
+
+- Question stems and options in the test screen and question previews use a consistent 18px serif style. MathJax uses a fixed scale with font-height matching disabled so equations no longer appear oversized beside the text. Interface labels and controls retain their existing font.
+- Questions JSON upload also accepts a tag-only file `{ "questionTags": [{ "id": "…", "bank": "ECAPS", "qType": "single", "skills": ["concept"] }] }`. It validates all saved IDs and ownership, then fills only blank bank/type/approach fields after showing a confirmation. Existing tags, content, answers, difficulty and ideal times are retained. No test or question is created.
+- Reload after deployment. Typography needs no rules or index change; rebuild the index once after completing tags.
+
+
+## 2026-10-19 — Bank Tests preview stays in view
+
+- Bank Tests question previews now open in the existing centred Question Preview popup instead of below the question list. Loading messages, the full question, diagrams, key, solution and tag controls are visible in the popup.
+- The popup scrolls internally with a persistent Close button. Close, Escape or clicking the backdrop returns to the same bank filters, selected questions and page position. A slow response cannot replace a newer Bank Tests preview.
+- No data migration, index rebuild, practice-setting change or rules deployment is needed. Reload the portal after deployment.
+
+
+## 2026-10-19 — Source-library and question-format filters
+
+- **Questions:** combine source family, uploaded data bank, chapter, question format, difficulty, approach, content representation, answer-key status, model, search and ideal time. Results show bank and format, with 100 questions per page; Preview and image replacement retain original question identity. Filters run locally after loading a subject.
+- **Bank Tests:** extend the existing picker with source-family, content, ID/model/chapter search and ideal-time filters. Manual picks stay selected as filters change. The Diagnostic Builder also accepts data-bank and format filters.
+- **Source library catalogue:** 23 local collections grouped into packages, practice sheets, tests, enrichment, daily practice and compiled papers. Counts are source files, not distinct or uploaded question totals. Subjective and open matrix responses are recorded for future conversion; they are not enabled as scored response types.
+- Older ECAPS questions are recognised from source/IDs without rewriting saved questions. Explicit format tags take precedence; reliable text/key/section fallbacks help older uploads. Unknown types and unassessed metadata stay visible.
+- **After deployment:** reload the portal. Questions filters work immediately. Rebuild the practice index once to update Bank Tests with derived banks/formats and content representation (optional `vf` flag in the existing bank index). Old rows show “Not indexed yet” until rebuilt. No new collection, rules deployment or question migration. Student practice settings and test assignments are unchanged.
+- Future conversion contract and inventory: `QUESTION_BANK_FILTERS.md`. Existing bank-file validation is unchanged; the separate draft-import PR #29 is not merged by this update.
+
+## 2026-10-18 — Tagged question bank and 🗂 Bank Tests (custom tests and chapter diagnostics from any data bank)
+
+- **New question tags** (JSON upload, Questions tab): `bank` (data bank / source folder: ECAPS, Medical Modules,
+  AIATS …), `bankRef` (place in the source), `qType` (single / multi / numerical / integer / assertion / statement /
+  match / comprehension) and `skills` (approach: direct concept, numerical substitution, calculus based,
+  inter-concept, graph / diagram, NCERT fact, experiment). A **bank file** `{ "bank": "ECAPS", "questions": [...] }`
+  tags every question with that bank. A question with a `bank` must also carry its key, level, ideal time, type and
+  approach, or the row is rejected with the reason. Example: `sample_bank_questions.json`; full rules for ChatGPT in
+  `CLAUDE_TO_GPT.md` §4d. Plain question arrays and test files without `bank` work exactly as before.
+- **Admin → 🗂 Bank Tests (admins and faculty):** load the bank index (one small read per subject), filter by subject,
+  data bank, chapter, level, question type and approach (counts on every choice), with quick filters for
+  🏆 Toppers / 📘 Average / 🌱 Weaker students. Tick questions, **Add all shown**, or **🎲 Auto-pick** N questions with a
+  level mix (spread over approaches and chapters; a shortage is reported, never filled from another level).
+  **⚡ Whole chapter as a diagnostic** takes one chapter (of one bank) in one click. 👁 shows a question in full and
+  lets you correct its level, type, approach, ideal time and bank.
+  **Create test** makes a **timed test** (time limit suggested from the total ideal time) or an **untimed diagnostic**
+  (optionally split into Easy / Moderate / Hard tests), inactive, and opens the "who takes it" dialog (all, batches,
+  students, a group such as Toppers, a programme). Ideal times are copied into the test.
+- **Analysis:** the result page now also has **By approach**, **By question type** and (when a test mixes sources)
+  **By data bank** tables (accuracy, time vs ideal, slower than ideal, a one-line read-out). Item Analysis has a
+  **class split** by level, approach, question type and data bank. Attempts store the tags in `qMeta` (`qt`, `sk`, `b`).
+  Old tests show these tables only for tagged questions, so nothing changes for them.
+- `qType: "multi"` shows tick boxes even when only one option is correct (so the screen doesn't give away the count).
+- **After deploying:** (1) publish `firestore.rules` (faculty may now read `bankIndex`; admins work without it);
+  (2) upload the first bank files from ChatGPT; (3) **Topics → Rebuild practice index** after every upload (Bank Tests
+  reads the bank index); (4) Bank Tests → Load question bank → try a chapter diagnostic and a toppers test.
+
+---
 
 ## 2026-10-18 — Toppers (handpicked groups) and one-file test upload for image-based papers
 

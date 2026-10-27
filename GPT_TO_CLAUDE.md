@@ -101,3 +101,25 @@ Observed UI bug: Diagnostic Builder save log says “Test created (inactive)” 
 Original source files unchanged; local preparation and verification artifacts reside in the user-requested Chatgpt Modifications and Updates folder.
 
 **Done when:** acknowledge the completed pilot and correct the misleading package save message on your next development pass.
+
+### G-005 · 2026-10-19 01:06 IST · report · Status: done
+**Re:** —
+**Subject:** Deployed bank filters, popup preview, consistent typography and completed ECAPS tags
+
+Madhav requested this handoff. These changes are merged and verified on the live portal:
+
+- PR #31: https://github.com/madhavanand-dot/Exam-Portal/pull/31 — source-family/bank/chapter/format/difficulty/approach/content/key/model/search/ideal-time filters; Bank Tests extends the existing selection screen. Local library catalogue covers 23 collections; counts are files, not unique usable questions. See QUESTION_BANK_FILTERS.md for the future text/LaTeX conversion contract.
+- PR #32: https://github.com/madhavanand-dot/Exam-Portal/pull/32 — Bank Tests preview opens in the existing question-preview popup with a sticky Close control, instead of below the list. Escape/backdrop close, focus restoration and stale-response guard are included.
+- PR #33: https://github.com/madhavanand-dot/Exam-Portal/pull/33 — deployed with Madhav's explicit approval; merge 350acc9c20d25579b7055640e8fdb0fff615f277. Question copy uses Times New Roman at 18px, with MathJax scale 1 and font-height matching disabled; dashboard controls keep their existing font. Adds safe metadata-only JSON import through Questions > Upload: root questionTags array; each item permits only id, bank, qType, skills. It validates existing owned records and response-section compatibility, confirms the update, and fills only blank tags. Existing tags, content, answers, difficulty and ideal times are retained. No new collection or rules deployment was needed.
+
+ECAPS Units and Measurements: 119 existing Medical/Physics questions are uploaded as editable text/LaTeX. The missing-tags import checked all 119, filled 108 records, and preserved 11 already-complete records. Live selection-table verification found 119 ECAPS records and zero missing bank/type/approach tags: 96 single-correct, 10 multiple-correct, 11 numerical, 2 matching. Example ECAPS_C11_P0218_E04A_Q08 now shows bank ECAPS, single-correct and Direct concept; its existing Moderate/60-second fields and key B were preserved. Difficulty/time remain provisional, and filename-derived source keys are not teacher-confirmed.
+
+Practice index rebuilt successfully: 5 subject/exam banks, 2531 questions total; 42 without keys excluded from practice. Bank Tests loads 2411 index rows, including all 119 ECAPS. Student practice remains DISABLED. No test was created. Madhav will choose practice-bank access after all banks are uploaded; he will hand-select questions for tests.
+
+Local ECAPS artifacts: Desktop/EXAM PORTAL UPLOADS/ECAPS/Units and Measurements/ECAPS_UM_missing_tags_patch.json, live_tag_completion_audit.json and live_index_verification.json. Use the missing-tags patch for repeat completion, not the full tagged-question export, to avoid overwriting newer teacher edits. The import is idempotent. Eight other distinct ECAPS source questions remain held for review; repeat source copies are not additional questions.
+
+Broader conversion constraint: all future bank images must become editable text/LaTeX, retaining diagrams as linked images. Do not upload the remaining images as image-only drafts. AIATS Physics has 13,375 source images; 450 converted locally across five chapters, 12,925 remaining, zero AIATS uploaded in this run. Preserve student practice gating.
+
+Validation: 12 metadata-import checks and 8 popup-preview checks passed; module syntax checked. Live screenshot proof is in Chatgpt Modifications and Updates/Bank Filters/live-ecaps-font-tags.png. Active checkout is that folder's repo subdirectory; root index.html is stale, so do not copy it over deployed main.
+
+**Done when:** acknowledge this handoff and refresh the shared briefing to include the deployed filters, popup preview, safe missing-tags import and current ECAPS/practice state. No additional deployment is requested by this message.
