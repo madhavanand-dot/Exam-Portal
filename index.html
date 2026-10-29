@@ -95,6 +95,11 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 #examTop .cand{font-size:13px}
 #timer{font-weight:700;font-size:18px;background:rgba(255,255,255,.15);padding:4px 14px;border-radius:4px;font-variant-numeric:tabular-nums}
 #timer.low{background:#c0392b;animation:blink 1s step-end infinite}
+#saveState{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:12px;background:rgba(255,255,255,.15);white-space:nowrap}
+#saveState.pending{background:#f0b429;color:#3a2a00}
+#saveState.offline{background:#c0392b;color:#fff}
+#netBanner{background:#c0392b;color:#fff;font-size:13.5px;line-height:1.4;padding:7px 14px;text-align:center;font-weight:600}
+#netBanner.slow{background:#f0b429;color:#3a2a00}
 @keyframes blink{50%{opacity:.6}}
 #subjectTabs{display:flex;gap:2px;background:var(--blue-dark);padding:6px 10px 0;overflow-x:auto}
 #subjectTabs button{padding:8px 16px;border:none;background:#2f6cab;color:#fff;border-radius:5px 5px 0 0;font-weight:600;white-space:nowrap}
@@ -187,6 +192,9 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 /* modal */
 #modalBack{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center}
 #modalBack .card{width:430px;max-width:92vw}
+#busyBack{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150;display:flex;align-items:center;justify-content:center}
+#busyBack .card{width:430px;max-width:92vw}
+#busyBack h3{margin-bottom:10px;color:var(--blue)}
 #modalBack h3{margin-bottom:10px;color:var(--blue)}
 #modalSummary{font-size:13.5px;margin:10px 0;line-height:1.8}
 #modalActions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
@@ -1377,8 +1385,10 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
   <div id="examTop">
     <span class="title" id="exTopTitle"></span>
     <span class="cand" id="exTopCand"></span>
+    <span id="saveState" title="Your answers are saved automatically as soon as you pick an option">✓ Saved</span>
     <span id="timer">180:00</span>
   </div>
+  <div id="netBanner" class="hidden"></div>
   <div id="subjectTabs"></div>
   <div id="examMain">
     <div id="qArea">
@@ -1514,6 +1524,12 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
       <button class="btn secondary" id="uiDlgCancel" data-ui="cancel">Cancel</button>
       <button class="btn" id="uiDlgOk" data-ui="ok">OK</button>
     </div>
+  </div>
+</div>
+<div id="busyBack" class="hidden">
+  <div class="card">
+    <h3 id="busyTitle"></h3>
+    <div id="busyBody"></div>
   </div>
 </div>
 <div id="modalBack" class="hidden">
@@ -2152,7 +2168,7 @@ async function claimSession(uid){
       // The exam timer keeps running on wall-clock because startTime is persisted and
       // the new device recomputes endTime = startTime + duration on resume.
       if (EX && !EX.submitted) {
-        try { await saveProgress(); } catch(e){}
+        try { await withTimeout(saveProgress(), 4000); } catch(e){}   // offline: the answers are in this device's backup
         clearInterval(tickInt); clearInterval(autosaveInt);
         try { stopProctoring(); } catch(e){}
       }
@@ -7680,7 +7696,7 @@ async function enterStudent(){
   activeUserUnsub = onSnapshot(doc(db,"users",currentUser.uid), async sn => {
     if (sn.exists() && sn.data().active === false) {
       activeUserUnsub(); activeUserUnsub = null;
-      try { if (EX && !EX.submitted) await saveProgress(); } catch(e) {}
+      try { if (EX && !EX.submitted) await withTimeout(saveProgress(), 4000); } catch(e) {}
       uiAlert("Your account has been temporarily deactivated by your teacher. You will be signed out.");
       signOut(auth);
     }
@@ -7936,6 +7952,7 @@ async function loadActiveExam(){
   $("activeExamInfo").querySelectorAll("[data-completed]").forEach(b => b.onclick = () => showResult(completed[b.dataset.completed]));
   $("activeExamInfo").querySelectorAll("[data-pledge]").forEach(c => c.onchange = () => {
     $("activeExamInfo").querySelector(`[data-startex="${c.dataset.pledge}"]`).disabled = !c.checked;
+    if (c.checked) prefetchExamQuestions(availableExams[+c.dataset.pledge])?.catch(() => {});   // load while they read
   });
   $("activeExamInfo").querySelectorAll("[data-startex]").forEach(b => b.onclick = () => {
     activeExam = availableExams[+b.dataset.startex];
@@ -8347,17 +8364,48 @@ function rankAndPercentile(score, allScores){
 }
 
 /* ========== EXAM ENGINE ========== */
-const AUTOSAVE_MS = 30000;
+const AUTOSAVE_MS = 30000;        // heartbeat (time spent, live monitor); answers are saved within a second of every change
+const SAVE_DEBOUNCE_MS = 700;
+const SLOW_SAVE_MS = 6000;        // a save not confirmed by the server after this long → "slow connection" warning
 let EX = null; // exam runtime state
-let tickInt = null, autosaveInt = null;
+let tickInt = null, autosaveInt = null, saveTimer = null;
+const bkKey = attemptId => `exbk_${attemptId}`;   // this device's copy of an unsubmitted attempt (localStorage)
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// resolves to the promise's value, or to `fallback` if it takes longer than `ms` (offline Firestore writes never reject)
+const withTimeout = (p, ms, fallback) => Promise.race([p, sleep(ms).then(() => fallback)]);
+
+// question docs are fetched 30 per query; started when the student ticks the pledge, so Start opens the test at once
+const QPREFETCH = new Map();   // examDocId → Promise<{docId → question}>
+function prefetchExamQuestions(exam){
+  if (!exam?.docId) return null;
+  if (!QPREFETCH.has(exam.docId)) {
+    const p = fetchQuestionsByIds(exam.questionIds || []).then(list => Object.fromEntries(list.map(q => [q.docId, q])));
+    p.catch(() => QPREFETCH.delete(exam.docId));
+    QPREFETCH.set(exam.docId, p);
+  }
+  return QPREFETCH.get(exam.docId);
+}
+function showBusy(title, body){
+  if (title == null) { $("busyBack").classList.add("hidden"); return; }
+  $("busyTitle").textContent = title; $("busyBody").textContent = body || "";
+  $("busyBack").classList.remove("hidden");
+}
 
 const STATUS = { NV:"notVisited", NA:"notAnswered", AN:"answered", MA:"markedAnswered", MN:"markedNotAnswered" };
 
 async function startExam(){
   if (!activeExam) return;
-  // Check the current server policy before loading questions or changing a saved attempt.
+  if (startExam.busy) return;   // double tap on Start
+  startExam.busy = true;
+  try { await startExamInner(); }
+  finally { startExam.busy = false; showBusy(null); }
+}
+async function startExamInner(){
+  // Check the current server policy before changing a saved attempt (questions load at the same time).
   const attemptId = `${activeExam.docId}_${currentUser.uid}`;
   const attemptRef = doc(db,"attempts",attemptId);
+  const qPromise = prefetchExamQuestions(activeExam);
+  qPromise.catch(() => {});
   let prev;
   try {
     const [policy, saved] = await Promise.all([
@@ -8366,7 +8414,8 @@ async function startExam(){
     PORTAL.allowReattempts = policy.exists() && policy.data().allowReattempts === true;
     prev = saved;
   } catch(e) {
-    uiAlert("Could not check whether this test can be started. Please reconnect and try again.");
+    uiAlert(navigator.onLine ? "Could not check whether this test can be started. Please reconnect and try again."
+                             : "You are offline. Connect to the internet and try again.");
     return;
   }
   if (prev.exists() && prev.data().submitTime && PORTAL.allowReattempts !== true) {
@@ -8384,9 +8433,18 @@ async function startExam(){
   // quota (the old full-list cache threw QuotaExceededError and stalled the exam).
   let cachedOrder = null;
   if (cached) { try { cachedOrder = JSON.parse(cached); } catch(e){ cachedOrder = null; } }
-  const snaps = await Promise.all(activeExam.questionIds.map(qid => getDoc(doc(db,"questions",qid))));
-  const byId = {};
-  snaps.forEach(s => { if (s.exists()) byId[s.id] = { docId: s.id, ...s.data() }; });
+  showBusy("Loading test…", `Fetching ${activeExam.questionIds.length} questions. This takes a few seconds on a slow connection.`);
+  let byId;
+  try {
+    // fresh copies of the cached objects: the engine adds _optOrder / _idealSec to them
+    byId = Object.fromEntries(Object.entries(await qPromise).map(([k, q]) => [k, { ...q }]));
+  } catch(e) {
+    QPREFETCH.delete(activeExam.docId);
+    showBusy(null);
+    uiAlert((navigator.onLine ? "Could not load the questions: " + e.message : "You are offline.") + "\n\nCheck your internet connection and press Start again.");
+    return;
+  }
+  showBusy(null);
 
   if (cachedOrder && cachedOrder.length) {
     // resume in the same order/option-shuffle as before
@@ -8410,13 +8468,22 @@ async function startExam(){
   if (!qlist.length) { uiAlert("Exam has no questions."); return; }
 
   // create attempt doc (id = examId_uid so refresh resumes same attempt)
-  let startTime = Date.now(), savedResponses = {}, savedTimes = {}, pledgedAt = Timestamp.now();
+  let startTime = Date.now(), savedResponses = {}, savedTimes = {}, pledgedAt = Timestamp.now(), savedQuick = {}, restored = 0;
   if (prev.exists() && !prev.data().submitTime) {
     const p = prev.data();
     startTime = p.startTime?.toDate?.().getTime() ?? Date.now();
     savedResponses = p.responses || {};
     savedTimes = p.questionTimeSec || {};
+    savedQuick = p.quickLive || {};
     if (p.pledgedAt) pledgedAt = p.pledgedAt;
+    // Answers given while the internet was down live only in this device's backup: take them if that backup is
+    // for this same attempt and newer than the server copy (which another device may have written later).
+    let bk = null; try { bk = JSON.parse(localStorage.getItem(bkKey(attemptId)) || "null"); } catch(e) {}
+    if (bk && bk.start === startTime && bk.responses && (bk.at || 0) > (p.clientSavedAt || 0)) {
+      restored = Object.entries(bk.responses).filter(([id, r]) => (r.answer ?? null) !== (savedResponses[id]?.answer ?? null)).length;
+      savedResponses = { ...savedResponses, ...bk.responses };
+      savedQuick = { ...savedQuick, ...(bk.quick || {}) };
+    }
   } else if (prev.exists() && prev.data().submitTime) {
     if (!await uiConfirm(cfg.proctored ? "You have already submitted this exam. Start a fresh attempt? Your previous result will be replaced."
                                : "You have already completed this chapter. Solve it again from the start? (Your previous result will be replaced.)")) {
@@ -8425,6 +8492,7 @@ async function startExam(){
     sessionStorage.removeItem(cacheKey);
   }
   if (!prev.exists() || prev.data().submitTime) {
+    try { localStorage.removeItem(bkKey(attemptId)); } catch(e) {}
     await setDoc(attemptRef, {
       studentUid: currentUser.uid, studentName: currentUser.name,
       examId: activeExam.docId, examTitle: activeExam.title, examType: activeExam.examType,
@@ -8438,7 +8506,8 @@ async function startExam(){
 
   qlist.forEach(q => { q._idealSec = idealSecFor(q, cfg.idealTimes, activeExam.examType); });
   EX = {
-    cfg, attemptRef, cacheKey,
+    cfg, attemptRef, cacheKey, bkKey: bkKey(attemptId),
+    saving: null, savingSince: 0, again: false, dirty: false, saveErr: null,
     examType: activeExam.examType, title: activeExam.title,
     questions: qlist,
     idx: 0,
@@ -8458,7 +8527,7 @@ async function startExam(){
     submitted: false,
     violations: [],     // {type, at}
     warnings: 0,
-    quick: {},          // questions answered "too quickly" (live, for the teacher's monitor)
+    quick: savedQuick,  // questions answered "too quickly" (live, for the teacher's monitor)
     pledgedAt,
     seenWarnAt: Date.now()
   };
@@ -8480,10 +8549,12 @@ async function startExam(){
 
   clearInterval(tickInt); clearInterval(autosaveInt);
   tickInt = setInterval(tick, 250);
+  _saveStateKey = "";
   autosaveInt = setInterval(()=>saveProgress().catch(()=>{}), AUTOSAVE_MS);
   if (cfg.proctored) startProctoring(); else stopProctoring();   // study packages: homework, not proctored
   tick();
   saveProgress().catch(()=>{});        // appear on the teacher's Live Monitor right away
+  if (restored) uiAlert(`${restored} answer(s) you gave earlier had not reached the server (internet problem). They were kept on this device and have been restored — please check them.`);
   // teacher → student channel: live warnings and "stop this test"
   EX.unsubAttempt = onSnapshot(attemptRef, snap => {
     if (!EX || EX.submitted) return;
@@ -8615,6 +8686,7 @@ function tick(){
     el.textContent = `⏱ ${fmtClock(spent)} / ideal ${fmtClock(q._idealSec)}`;
     el.classList.toggle("over", spent > q._idealSec);
   }
+  setSaveState();
   if (!untimed && left <= 0) submitExam(true);
 }
 function fmtClock(s){ s = Math.round(s||0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
@@ -8640,26 +8712,39 @@ function captureCurrentInput(){
   return ticked.length ? ticked.sort().join("") : null;      // multi-correct answers are stored as sorted letters, e.g. "AC"
 }
 
+// Take the answer on screen into EX.state; true if it changed. Called the moment an option is picked
+// (and while typing a numerical answer), so nothing depends on pressing Save & Next.
+function commitInput(){
+  const ans = captureCurrentInput();
+  const st = EX.state[EX.idx];
+  const cur = EX.questions[EX.idx];
+  const changed = ans !== st.answer;
+  if (ans != null && changed && !EX.quick[cur.docId]) {
+    const spent = st.timeSec + (EX.shownAt != null ? (Date.now() - EX.shownAt)/1000 : 0);
+    const thr = quickThreshold(cur, cur._idealSec);
+    if (thr && spent < thr)
+      EX.quick[cur.docId] = { t: Math.round(spent), ideal: cur._idealSec, level: normLevel(cur.difficulty), n: EX.idx + 1 };
+  }
+  st.answer = ans;
+  if (st.status === STATUS.MA || st.status === STATUS.MN)
+    st.status = ans!=null ? STATUS.MA : STATUS.MN;
+  else
+    st.status = ans!=null ? STATUS.AN : STATUS.NA;
+  return changed;
+}
+// an answer changed: keep it on this device at once and send it to the server shortly
+function answerChanged(){
+  if (!EX || EX.submitted) return;
+  backupLocal();
+  EX.dirty = true;
+  setSaveState();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveProgress().catch(()=>{}), SAVE_DEBOUNCE_MS);
+}
+
 function gotoQuestion(i, save=false){
   if (!EX) return;
-  if (save) {
-    const ans = captureCurrentInput();
-    const st = EX.state[EX.idx];
-    const cur = EX.questions[EX.idx];
-    if (ans != null && ans !== st.answer && !EX.quick[cur.docId]) {
-      const spent = st.timeSec + (EX.shownAt != null ? (Date.now() - EX.shownAt)/1000 : 0);
-      const thr = quickThreshold(cur, cur._idealSec);
-      if (thr && spent < thr) {
-        EX.quick[cur.docId] = { t: Math.round(spent), ideal: cur._idealSec, level: normLevel(cur.difficulty), n: EX.idx + 1 };
-        saveProgress().catch(()=>{});
-      }
-    }
-    st.answer = ans;
-    if (st.status === STATUS.MA || st.status === STATUS.MN)
-      st.status = ans!=null ? STATUS.MA : STATUS.MN;
-    else
-      st.status = ans!=null ? STATUS.AN : STATUS.NA;
-  }
+  if (save && commitInput()) answerChanged();
   stopClock();
   EX.idx = Math.max(0, Math.min(EX.questions.length-1, i));
   const q = EX.questions[EX.idx], st = EX.state[EX.idx];
@@ -8694,6 +8779,7 @@ function gotoQuestion(i, save=false){
     }).join("");
     $("qOptions").querySelectorAll("input").forEach(r => r.onchange = () => {
       $("qOptions").querySelectorAll(".opt").forEach(o => o.classList.toggle("sel", o.querySelector("input").checked));
+      if (commitInput()) { refreshPalette(); answerChanged(); }
     });
   } else {
     $("qOptions").innerHTML = "";
@@ -8703,6 +8789,7 @@ function gotoQuestion(i, save=false){
   typeset($("qScroll"));
   $("qScroll").scrollTop = 0;
   refreshPalette();
+  backupLocal();   // visits and time spent
 }
 
 function buildPalette(){
@@ -8726,6 +8813,11 @@ $("btnSaveNext").onclick = async () => {
   gotoQuestion(EX.idx+1, true);
   saveProgress().catch(()=>{});
 };
+let numInT = null;
+$("numInput").addEventListener("input", () => {
+  clearTimeout(numInT);
+  numInT = setTimeout(() => { if (EX && !EX.submitted && commitInput()) { refreshPalette(); answerChanged(); } }, 500);
+});
 $("btnMark").onclick = () => {
   const ans = captureCurrentInput();
   const st = EX.state[EX.idx];
@@ -8737,9 +8829,11 @@ $("btnMark").onclick = () => {
 };
 $("btnClear").onclick = () => {
   const st = EX.state[EX.idx];
+  const had = st.answer != null;
   st.answer = null;
   st.status = (st.status===STATUS.MA||st.status===STATUS.MN) ? STATUS.MN : STATUS.NA;
   gotoQuestion(EX.idx); // re-render clears inputs
+  if (had) answerChanged();
 };
 $("palToggle").onclick = () => $("palette").classList.toggle("open");
 
@@ -8768,18 +8862,71 @@ function buildResponses(){
   });
   return responses;
 }
-async function saveProgress(){
-  if (!EX || EX.submitted) return;
-  // snapshot live time for current question without resetting the clock
+// responses with the live time of the question on screen (the clock is not reset)
+function liveResponses(){
   const liveExtra = EX.shownAt != null ? (Date.now()-EX.shownAt)/1000 : 0;
   const responses = buildResponses();
   const cq = EX.questions[EX.idx];
   if (responses[cq.docId]) responses[cq.docId].timeSec = Math.round(EX.state[EX.idx].timeSec + liveExtra);
-  const live = { lastSeen: serverTimestamp(), q: EX.idx + 1, total: EX.questions.length,
-                 answered: EX.state.filter(st => st.answer != null).length, subject: cq.subject || "" };
-  await setDoc(EX.attemptRef, { responses, live, warnings: EX.warnings, quickLive: EX.quick,
-    violations: EX.violations.map(v => ({ type: v.type, at: Timestamp.fromMillis(v.at) })) }, { merge:true });
+  return responses;
 }
+// This device's copy of the attempt. It survives a refresh, a closed tab or a dead connection, and startExam
+// restores it when it is newer than the server copy. Removed once the submission reaches the server.
+function backupLocal(){
+  if (!EX) return;
+  try { localStorage.setItem(EX.bkKey, JSON.stringify({ start: EX.startTime, at: Date.now(), responses: liveResponses(), quick: EX.quick })); } catch(e) {}
+}
+// One write in flight at a time; changes made meanwhile are sent right after it. While offline the Firestore write
+// waits (it does not fail) and goes out when the connection returns, as long as the page stays open.
+async function saveProgress(){
+  if (!EX || EX.submitted) return;
+  const ex = EX;
+  backupLocal();
+  if (ex.saving) { ex.again = true; return ex.saving; }
+  ex.again = false; ex.dirty = false;
+  const responses = liveResponses();
+  const cq = ex.questions[ex.idx];
+  const live = { lastSeen: serverTimestamp(), q: ex.idx + 1, total: ex.questions.length,
+                 answered: ex.state.filter(st => st.answer != null).length, subject: cq.subject || "" };
+  const write = setDoc(ex.attemptRef, { responses, live, warnings: ex.warnings, quickLive: ex.quick, clientSavedAt: Date.now(),
+    violations: ex.violations.map(v => ({ type: v.type, at: Timestamp.fromMillis(v.at) })) }, { merge:true });
+  ex.saving = write; ex.savingSince = Date.now(); setSaveState();
+  try { await write; ex.saveErr = null; }
+  catch(e) { ex.saveErr = e; ex.dirty = true; throw e; }
+  finally {
+    ex.saving = null;
+    if (EX === ex && !ex.submitted) { setSaveState(); if (ex.again) saveProgress().catch(()=>{}); }
+  }
+}
+// "✓ Saved" / "Saving…" / offline pill in the exam bar, plus a banner when answers are not reaching the server
+let _saveStateKey = "";
+function setSaveState(){
+  if (!EX || EX.submitted) return;
+  const off = !navigator.onLine;
+  const slow = !!EX.saving && Date.now() - EX.savingSince > SLOW_SAVE_MS;
+  const st = off ? "off" : EX.saveErr ? "err" : slow ? "slow" : (EX.saving || EX.dirty) ? "saving" : "ok";
+  if (st === _saveStateKey) return;
+  _saveStateKey = st;
+  const pill = $("saveState"), ban = $("netBanner");
+  pill.className = st === "off" || st === "err" ? "offline" : st === "ok" ? "" : "pending";
+  pill.textContent = { off: "⚠ Offline", err: "⚠ Not saved", slow: "⏳ Slow internet", saving: "Saving…", ok: "✓ Saved" }[st];
+  const msg = {
+    off:  "⚠ No internet connection. Keep answering — every answer is kept on this device and will be saved to the server automatically when the internet comes back. Do NOT close, refresh or log out of this page.",
+    slow: "⏳ Slow internet: your latest answers have not reached the server yet. They are kept on this device and will be sent automatically. Do not close this page.",
+    err:  "⚠ Your answers could not be saved to the server (" + (EX.saveErr?.code || EX.saveErr?.message || "error") + "). They are kept on this device and will be retried. Tell your teacher if this stays."
+  }[st];
+  ban.classList.toggle("hidden", !msg);
+  ban.classList.toggle("slow", st === "slow");
+  ban.textContent = msg || "";
+}
+window.addEventListener("online", () => { if (EX && !EX.submitted) { setSaveState(); saveProgress().catch(()=>{}); } });
+window.addEventListener("offline", () => { if (EX && !EX.submitted) setSaveState(); });
+window.addEventListener("pagehide", () => { if (EX && !EX.submitted) backupLocal(); });
+window.addEventListener("beforeunload", e => {
+  if (!EX || EX.submitted) return;
+  backupLocal();
+  if (EX.saving || EX.dirty) { e.preventDefault(); e.returnValue = ""; }   // answers not on the server yet
+});
 
 /* ---- submit ---- */
 $("btnSubmitExam").onclick = () => {
@@ -8865,8 +9012,23 @@ async function submitExam(auto, flag={}){
     violations: EX.violations.map(v => ({ type:v.type, at: Timestamp.fromMillis(v.at) })),
     warnings: EX.warnings
   };
-  try { await setDoc(EX.attemptRef, attemptData, { merge:true }); }
-  catch(e){ uiAlert("Warning: result could not be saved to server: " + e.message); }
+  backupLocal();   // final answers stay on this device until the server has them
+  clearTimeout(saveTimer);
+  let saved = false, saveErr = null;
+  const write = setDoc(EX.attemptRef, attemptData, { merge:true }).then(() => { saved = true; }, e => { saveErr = e; });
+  await withTimeout(write, 5000);
+  if (!saved && !saveErr) {
+    // offline or very slow: Firestore keeps the write and sends it when the connection returns
+    showBusy("Submitting… waiting for internet",
+      "Your internet connection is down or very slow. All your answers are safe on this device. Keep this page open — " +
+      "the test will be submitted automatically as soon as the connection returns. If you close it, open this test again " +
+      "when you are online and it will be submitted with your answers.");
+    await write;
+    showBusy(null);
+  }
+  if (saveErr) uiAlert("Warning: result could not be saved to server: " + saveErr.message +
+    "\n\nYour answers are kept on this device. Open this test again while online to submit them.");
+  else { try { localStorage.removeItem(EX.bkKey); } catch(e) {} }
   sessionStorage.removeItem(EX.cacheKey);
   try { if (document.fullscreenElement) await document.exitFullscreen(); } catch(e){}
 
