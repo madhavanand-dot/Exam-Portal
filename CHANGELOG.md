@@ -7,6 +7,15 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-10-29 — Tests autosave every answer; offline warning; faster test loading
+
+- **Every answer is saved the moment it is picked** (or typed, for numericals) — no need to press Save & Next. Before, an answer reached the server only on Save & Next / Mark, or with the 30-second autosave, so a student on a weak connection could finish a test and lose most answers.
+- **Each answer is also kept on the student's device** (browser storage). If the internet drops and the page is refreshed or closed, re-opening the test restores those answers, tells the student how many were restored, and sends them to the server. A copy from another device that is newer wins.
+- **The student is told when the connection is a problem:** the exam bar shows ✓ Saved / Saving… / ⏳ Slow internet / ⚠ Offline, with a banner telling them to keep answering and not close the page. Closing the page while answers are still unsent asks for confirmation.
+- **Submitting offline no longer hangs silently:** a "Submitting… waiting for internet" box stays up and the test is submitted as soon as the connection returns. If the page is closed instead, opening the test again while online submits it with the saved answers (a timed test that is already over is submitted at once).
+- **Faster loading:** questions are fetched 30 per request (6 requests for a 180-question paper instead of 180) at the same time as the start checks, and loading starts as soon as the student ticks the honesty pledge. A "Loading test…" box shows while it loads; double taps on Start are ignored.
+- After deploying: nothing to publish. No rules, index or data change (the attempt gets one extra field, `clientSavedAt`, which the current rules already allow). Students should reload the portal.
+
 ## 2026-10-27 — Optional import of unkeyed question-bank drafts
 
 - **Questions → Import unkeyed drafts:** an optional, unchecked checkbox allows plain question arrays and bank files (`{ "bank": "…", "questions": […] }`) with blank answer keys, so teachers can build a bank before selecting and solving tests. Other required question fields and nonblank key validation are unchanged.
