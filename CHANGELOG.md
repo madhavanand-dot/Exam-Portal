@@ -7,6 +7,11 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-11-01 — Submit button visible on phones
+
+- **On phones (screens 768px wide or less) the test screen now has a red Submit button** in the bottom button row, next to Save & Next. Before, the only SUBMIT EXAM button was inside the question palette, which on phones is hidden behind the round ☰ button, so students taking untimed diagnostic tests (which never auto-submit) could not find it. The new button opens the same "Submit Exam?" summary as SUBMIT EXAM. Desktop is unchanged.
+- After deploying: nothing to publish. Students should reload the portal.
+
 ## 2026-10-29 — Tests autosave every answer; offline warning; faster test loading
 
 - **Every answer is saved the moment it is picked** (or typed, for numericals) — no need to press Save & Next. Before, an answer reached the server only on Save & Next / Mark, or with the 30-second autosave, so a student on a weak connection could finish a test and lose most answers.
