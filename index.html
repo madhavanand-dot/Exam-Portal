@@ -183,11 +183,14 @@ table.tbl tr:nth-child(even) td{background:#fafbfc}
 .palBtn.current{outline:3px solid var(--blue);outline-offset:1px}
 #palSubmit{padding:12px}
 #palSubmit button{width:100%}
+#btnSubmitExamMobile{display:none}   /* phones only: the palette (with SUBMIT EXAM) is hidden behind ☰ there */
 #palToggle{display:none;position:fixed;bottom:14px;right:14px;z-index:60;background:var(--blue);color:#fff;border:none;border-radius:50%;width:52px;height:52px;font-size:21px;box-shadow:0 3px 10px rgba(0,0,0,.3)}
 @media(max-width:768px){
   #palette{position:fixed;right:-300px;top:0;bottom:0;z-index:50;transition:right .25s;box-shadow:-4px 0 14px rgba(0,0,0,.2)}
   #palette.open{right:0}
   #palToggle{display:block}
+  #btnSubmitExamMobile{display:inline-block}
+  #examBtns{padding-right:76px}   /* keep the buttons clear of the round palette button */
 }
 /* modal */
 #modalBack{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center}
@@ -1408,6 +1411,7 @@ input[type=file]::file-selector-button:hover{background:var(--blue-light);border
         <button class="btn secondary" id="btnClear">Clear Response</button>
         <span class="spacer"></span>
         <button class="btn green" id="btnSaveNext">Save &amp; Next</button>
+        <button class="btn danger" id="btnSubmitExamMobile">Submit</button>
       </div>
     </div>
     <div id="palette">
@@ -8942,6 +8946,7 @@ $("btnSubmitExam").onclick = () => {
     `Answered: <b>${c.answered}</b><br>Not answered: <b>${c.notAnswered + c.marked}</b><br>Not visited: <b>${c.notVisited}</b>`;
   $("modalBack").classList.remove("hidden");
 };
+$("btnSubmitExamMobile").onclick = () => $("btnSubmitExam").click();
 $("modalCancel").onclick = () => $("modalBack").classList.add("hidden");
 $("modalConfirm").onclick = () => { $("modalBack").classList.add("hidden"); submitExam(false); };
 
