@@ -4526,10 +4526,10 @@ $("kpApplyBtn").onclick = async () => {
       if (!r.q.imgHash) { r.q.imgHash = await imgHashOf(r.q.image); }
       const res = await shareKeyWithCopies(r.q, r.to); shared += res.updated; denied += res.denied;
     }
-    setMsg($("kpMsg"), `Done — ${rows.length} answers updated.` + (shared || denied ? ` Same key copied to ${shared} other question(s) with the same picture${denied ? ` (${denied} owned by another teacher could not be changed)` : ""}.` : ""), true);
-    allBankCache = null;
+    allBankCache = null; _examQCache.clear();
     kpQuestions.forEach(q => { const r = rows.find(x=>x.q.docId===q.docId); if (r) q.correct_answer = String(r.to); });
-    $("kpPreviewBtn").onclick();
+    $("kpPreviewBtn").onclick();   // the table now shows them as "same"
+    setMsg($("kpMsg"), `Done — ${rows.length} answers updated.` + (shared || denied ? ` Same key copied to ${shared} other question(s) with the same picture${denied ? ` (${denied} owned by another teacher could not be changed)` : ""}.` : "") + " If students already submitted a test with these questions, open it in the Diagnostic Builder and press Re-grade.", true);
   } catch(e){ setMsg($("kpMsg"), "Failed: " + e.message); }
   finally { $("kpApplyBtn").disabled = false; }
 };

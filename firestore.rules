@@ -8,10 +8,9 @@ service cloud.firestore {
     function isSuperAdmin() { return myRole() == "admin"; }
     function isStaff()      { return myRole() == "admin" || myRole() == "faculty"; }
     function isSelf(uid)    { return signedIn() && request.auth.uid == uid; }
-    // a student the admin temporarily deactivated (users/{uid}.active == false) can't write attempts or practice
-    function isActiveUser() { return signedIn() && me().get("active", true) != false; }
-    // A member has a profile, is not deactivated and — when they registered themselves — was approved by an admin
-    // (users/{uid}.pending is true until then). Only members can read tests and questions.
+    // A member has a profile, is not deactivated (users/{uid}.active == false: temporarily switched off by an admin)
+    // and — when they registered themselves — was approved by an admin (users/{uid}.pending is true until then).
+    // Only members can read tests and questions, start attempts or practise.
     function isMember() {
       return signedIn() && me().get("active", true) != false && me().get("pending", false) != true;
     }
