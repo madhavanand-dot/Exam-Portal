@@ -3,30 +3,32 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
-    function myRole() {
-      return signedIn()
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : "none";
-    }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function myRole() { return signedIn() ? me().role : "none"; }
     function isSuperAdmin() { return myRole() == "admin"; }
     function isStaff()      { return myRole() == "admin" || myRole() == "faculty"; }
     function isSelf(uid)    { return signedIn() && request.auth.uid == uid; }
     // a student the admin temporarily deactivated (users/{uid}.active == false) can't write attempts or practice
-    function isActiveUser() {
-      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("active", true) != false;
+    function isActiveUser() { return signedIn() && me().get("active", true) != false; }
+    // A member has a profile, is not deactivated and — when they registered themselves — was approved by an admin
+    // (users/{uid}.pending is true until then). Only members can read tests and questions.
+    function isMember() {
+      return signedIn() && me().get("active", true) != false && me().get("pending", false) != true;
     }
 
     // ---------- users ----------
     match /users/{uid} {
       // staff need to read the student list (for exam assignment); a user can read self
       allow read: if isSelf(uid) || isStaff();
-      // Super-admins manage all accounts. A newly signed-up user may create their
-      // OWN profile, but only as a plain student tied to their own auth email —
-      // self-signup can never mint an admin/faculty account.
+      // Super-admins manage all accounts. A newly signed-up user may create their OWN profile, but only as a plain
+      // student tied to their own auth email and WAITING FOR APPROVAL — self-signup can never mint a staff account,
+      // join a group, or see a test before an admin approves it.
       allow create: if isSuperAdmin() ||
         (isSelf(uid)
           && request.resource.data.role == "student"
-          && request.resource.data.email == request.auth.token.email);
+          && request.resource.data.email == request.auth.token.email
+          && request.resource.data.pending == true
+          && !request.resource.data.keys().hasAny(["groups", "active"]));
       allow update, delete: if isSuperAdmin();
     }
 
@@ -43,40 +45,152 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // ---------- questions ----------
+    // ---------- questions (the question itself: text, picture, options — NOT the answer) ----------
+    // Once "Seal answer keys" has been run (Security & setup tab) the answer and the solution live in questionKeys.
     match /questions/{questionId} {
-      allow read: if signedIn();                 // students load questions during the exam
+      allow read: if isStaff() || isMember();
       // staff create their own; only the owner or a super-admin can edit/delete
       allow create: if isStaff() && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isSuperAdmin() ||
         (isStaff() && resource.data.createdBy == request.auth.uid);
     }
 
+    // ---------- questionKeys (answer key + solution of one question; same document id as the question) ----------
+    // Staff always. A student only (a) after submitting a test that contains the question, once its answers are
+    // released — recorded in keyAccess/{uid} — or (b) for questions of a data bank released for self-practice.
+    function keyUnlocked(qid) {
+      let p = /databases/$(database)/documents/keyAccess/$(request.auth.uid);
+      return exists(p) && qid in get(p).data.get("q", {});
+    }
+    function practiceOpen(qid) {
+      let portal = get(/databases/$(database)/documents/settings/portal).data;
+      let q = get(/databases/$(database)/documents/questions/$(qid)).data;
+      return portal.get("practiceEnabled", false) == true
+        && q.get("bank", "") in portal.get("practiceBanks", {}).get(q.examType, []);
+    }
+    match /questionKeys/{qid} {
+      allow read: if isStaff() || (isMember() && (keyUnlocked(qid) || practiceOpen(qid)));
+      allow create: if isSuperAdmin() || (isStaff() && request.resource.data.createdBy == request.auth.uid);
+      // (a key document without an owner — written by an admin before it existed — may be completed by any teacher)
+      allow update, delete: if isSuperAdmin() || (isStaff() && resource.data.get("createdBy", request.auth.uid) == request.auth.uid);
+    }
+
+    // ---------- keyAccess (which answer keys a student has unlocked; doc id = their uid) ----------
+    // The student adds the questions of a test to their own list. The rules check that they have SUBMITTED that test,
+    // that its answers are released, and that every added question really belongs to it. Nothing can be removed.
+    function answersReleased(ex) {
+      return ex.get("answersReleased", false) == true
+        || ex.get("answerRelease", "immediate") == "immediate"
+        || (ex.get("answerRelease", "") == "afterClose" && ex.get("endAt", null) != null && request.time > ex.endAt);
+    }
+    function unlockOk(uid, before) {
+      let d = request.resource.data;
+      let ex = get(/databases/$(database)/documents/exams/$(d.exam)).data;
+      let att = get(/databases/$(database)/documents/attempts/$(d.exam + "_" + uid)).data;
+      let change = d.q.diff(before);
+      return d.keys().hasOnly(["q", "exam", "at"])
+        && change.removedKeys().size() == 0 && change.changedKeys().size() == 0
+        && change.addedKeys().hasOnly(ex.questionIds)
+        && att.studentUid == uid && att.get("submitTime", null) != null
+        && answersReleased(ex);
+    }
+    match /keyAccess/{uid} {
+      allow read: if isSelf(uid) || isStaff();
+      allow create: if isSelf(uid) && isMember() && unlockOk(uid, {});
+      allow update: if isSelf(uid) && isMember() && unlockOk(uid, resource.data.get("q", {}));
+      allow delete: if isSuperAdmin();
+    }
+
     // ---------- exams ----------
+    // Students see only ACTIVE tests (and, one at a time, a test they already have an attempt for).
     match /exams/{examId} {
-      allow read: if signedIn();
+      allow get: if isStaff() || (isMember() && (resource == null || resource.data.isActive == true
+        || exists(/databases/$(database)/documents/attempts/$(examId + "_" + request.auth.uid))));
+      allow list: if isStaff() || (isMember() && resource.data.isActive == true);
       allow create: if isStaff() && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isSuperAdmin() ||
         (isStaff() && resource.data.createdBy == request.auth.uid);
     }
 
     // ---------- attempts ----------
+    // The test must be active, inside its schedule and of the student's stream.
+    function examOpen(examId) {
+      let ex = get(/databases/$(database)/documents/exams/$(examId)).data;
+      return ex.isActive == true
+        && (ex.get("startAt", null) == null || request.time >= ex.startAt)
+        && (ex.get("endAt", null) == null || request.time <= ex.endAt)
+        && ex.examType == me().examType;
+    }
+    // A new (or restarted) attempt: the start time is the SERVER's time, nothing is submitted or graded yet,
+    // and no staff-only field is present.
+    function freshStart() {
+      let d = request.resource.data;
+      return d.startTime == request.time && d.get("submitTime", null) == null && d.get("score", null) == null
+        && !d.keys().hasAny(["staffWarning", "forceSubmit", "integrityNote", "gradedAt", "verifiedAt", "scoreClient",
+                             "regradedAt", "scoreBeforeRegrade"]);
+    }
+    // While writing: the start time cannot change, the submit time can only be set to the server's time, the score
+    // stays empty (grading happens after submitting) and the teacher's fields cannot be touched.
+    function inProgressWrite() {
+      let d = request.resource.data;
+      return resource.data.get("submitTime", null) == null
+        && d.startTime == resource.data.startTime
+        && (d.get("submitTime", null) == null || d.submitTime == request.time)
+        && d.get("score", null) == null
+        && !d.diff(resource.data).affectedKeys().hasAny(["staffWarning", "forceSubmit", "integrityNote", "gradedAt",
+                                                         "verifiedAt", "scoreClient", "regradedAt", "scoreBeforeRegrade"]);
+    }
+    // After submitting: the "why did these go wrong?" reflection …
+    function reasonsWrite() {
+      return resource.data.get("submitTime", null) != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["reasons", "reasonsAt"]);
+    }
+    // … and ONE grading write (answers can no longer change by then; staff re-check every score).
+    function gradeWrite() {
+      let d = request.resource.data;
+      return resource.data.get("submitTime", null) != null
+        && resource.data.get("score", null) == null
+        && resource.data.get("gradedAt", null) == null && resource.data.get("verifiedAt", null) == null
+        && d.gradedAt == request.time
+        && d.diff(resource.data).affectedKeys().hasOnly(["score", "subjectScores", "wrongQuestions", "unansweredQuestions",
+                                                         "quickAnswers", "gradedAt", "gradeStatus"]);
+    }
+    // Portal switch "allow reattempts": the same test may be started again from zero.
+    function restart() {
+      return resource.data.get("submitTime", null) != null
+        && get(/databases/$(database)/documents/settings/portal).data.get("allowReattempts", false) == true
+        && freshStart() && examOpen(request.resource.data.examId);
+    }
     match /attempts/{attemptId} {
-      // signed-in users may read attempts (needed for client-side rank/percentile).
-      // Tighten to own + staff if score privacy matters more than client percentile.
-      allow read: if signedIn();
-      // a student creates/updates only their own attempt
-      allow create: if signedIn() && isActiveUser() &&
-        request.resource.data.studentUid == request.auth.uid
-        && attemptId == request.resource.data.examId + "_" + request.auth.uid;
+      // a student reads only their own attempts; class figures come from examStats
+      // (asking for an own attempt that does not exist yet — "have I started this test?" — is answered, not refused)
+      allow get: if isStaff() || (signedIn() && (resource == null
+        ? attemptId.matches(".*_" + request.auth.uid)
+        : resource.data.studentUid == request.auth.uid));
+      allow list: if isStaff() || (signedIn() && resource.data.studentUid == request.auth.uid);
+      allow create: if isMember()
+        && request.resource.data.studentUid == request.auth.uid
+        && attemptId == request.resource.data.examId + "_" + request.auth.uid
+        && freshStart() && examOpen(request.resource.data.examId);
       allow update: if isStaff() ||
-        (signedIn() && isActiveUser() && resource.data.studentUid == request.auth.uid
+        (isMember() && resource.data.studentUid == request.auth.uid
                     && request.resource.data.studentUid == request.auth.uid
                     && request.resource.data.examId == resource.data.examId
-                    && (resource.data.get("submitTime", null) == null
-                        || (exists(/databases/$(database)/documents/settings/portal)
-                            && get(/databases/$(database)/documents/settings/portal).data.get("allowReattempts", false) == true)
-                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["reasons", "reasonsAt", "integrityNote"])));
+                    && (inProgressWrite() || reasonsWrite() || gradeWrite() || restart()));
+      allow delete: if isStaff();
+    }
+
+    // ---------- examStats (class figures of one test: scores for rank / percentile, per-question counts) ----------
+    // Staff build it. A student may add or change only THEIR OWN score entry (scores.<uid>), so the rank appears at once.
+    function onlyOwnScore() {
+      let d = request.resource.data;
+      let before = resource == null ? {} : resource.data.get("scores", {});
+      return (resource == null ? d.keys().hasOnly(["scores"]) : d.diff(resource.data).affectedKeys().hasOnly(["scores"]))
+        && d.scores.diff(before).affectedKeys().hasOnly([request.auth.uid]);
+    }
+    match /examStats/{examId} {
+      allow read: if isStaff() || isMember();
+      allow create, update: if isStaff() || (isMember() && onlyOwnScore());
       allow delete: if isStaff();
     }
 
@@ -84,7 +198,7 @@ service cloud.firestore {
     // One small doc per examType+subject listing {id, topic, difficulty, section} so a
     // student can browse chapters without downloading the whole image-heavy question bank.
     match /topicIndex/{indexId} {
-      allow read: if signedIn();
+      allow read: if isStaff() || isMember();
       allow write: if isStaff();
     }
 
@@ -95,33 +209,18 @@ service cloud.firestore {
       // a student sees only their own; staff can review all
       allow read: if isStaff() ||
         (signedIn() && resource.data.studentUid == request.auth.uid);
-      allow create: if signedIn() && isActiveUser() &&
+      allow create: if isMember() &&
         request.resource.data.studentUid == request.auth.uid;
-      allow update: if signedIn() && isActiveUser() && resource.data.studentUid == request.auth.uid
+      allow update: if isMember() && resource.data.studentUid == request.auth.uid
                     && request.resource.data.studentUid == request.auth.uid;
       allow delete: if isStaff();
     }
 
-    // ---------- aiDrafts (AI-written, AI-checked follow-up practice awaiting teacher review) ----------
-    // Written by the hourly GitHub Actions job with a service account (bypasses rules); staff review them.
-    match /aiDrafts/{attemptId} {
-      allow read, update, delete: if isStaff();
-      allow create: if isStaff();
-    }
-
-    // ---------- aiSolutions (every AI model's answer + working per question; written by the AI job) ----------
-    match /aiSolutions/{questionId} {
-      allow read: if isStaff();
-      allow write: if false;
-    }
-
-    // ---------- settings (AI key & models; job status) ----------
-    // ai + aiSecret: super-admins only (the API key lives in aiSecret). aiStatus is written by the job.
+    // ---------- settings ----------
+    // portal: switches every signed-in user reads (practice on/off, reattempts, keysSealed …); only super-admins change
+    // them. Everything else (aiRunner = the GitHub token for the password-reset job, taxonomyAccess) is admin-only.
     match /settings/{id} {
-      // aiRunner: GitHub token (Actions-only, this repo) so staff can start the AI job from the portal
-      // portal: switches every signed-in user reads (e.g. practiceEnabled); only super-admins change them
-      allow read: if isSuperAdmin() || ((id == "aiStatus" || id == "aiRunner" || id == "aiScorecard") && isStaff())
-                  || (id == "portal" && signedIn());
+      allow read: if isSuperAdmin() || (id == "portal" && signedIn());
       allow write: if isSuperAdmin();
     }
 

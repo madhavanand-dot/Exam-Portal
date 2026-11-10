@@ -1,0 +1,8 @@
+{
+  "name": "exam-portal-jobs",
+  "private": true,
+  "type": "module",
+  "description": "Server-side jobs run by GitHub Actions with the Firebase Admin SDK (admin password reset)",
+  "scripts": { "start": "node reset-passwords.mjs", "test": "node reset.test.mjs" },
+  "dependencies": { "firebase-admin": "^12.7.0" }
+}
