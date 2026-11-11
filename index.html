@@ -7087,6 +7087,8 @@ async function deleteTestCompletely(examId, after){
     log.push(`${ok} question(s) deleted from the bank` + (denied ? `, ${denied} kept (owned by another teacher)` : ""));
     allBankCache = null;
   }
+  try { await deleteDoc(doc(db,"examStats",examId)); } catch(e) {}   // its class figures go with it
+  _examQCache.delete(examId); _statsCache.delete(examId);
   try { await deleteDoc(doc(db,"exams",examId)); log.unshift(`"${ex.title}" deleted`); }
   catch(e) { uiAlert("Attempts were deleted, but the test itself could not be: " + e.message); return; }
   examsCache = examsCache.filter(e => e.docId !== examId);
@@ -8284,7 +8286,7 @@ $("pkCsvBtn").onclick = () => {
   const rows = [["Student", "PSID", "Batch", ...PK.chapters.map(e => e.chapter || e.title), "ChaptersDone"]];
   PK.students.forEach(st => rows.push([st.name, st.psid || "", st.batch || "", ...PK.chapters.map(e => {
     const a = PK.att[e.docId + "|" + st.uid];
-    return a?.submitTime ? `done ${a.score}/${attemptCfg(a).maxMarks} (started ${fmtWhen(a.startTime)}, submitted ${fmtWhen(a.submitTime)})`
+    return a?.submitTime ? `done ${a.score ?? "not marked yet"}/${attemptCfg(a).maxMarks} (started ${fmtWhen(a.startTime)}, submitted ${fmtWhen(a.submitTime)})`
          : a ? `in progress ${a.live?.answered ?? 0}/${(e.questionIds || []).length} (started ${fmtWhen(a.startTime)})` : "not started";
   }), PK.chapters.filter(e => PK.att[e.docId + "|" + st.uid]?.submitTime).length]));
   downloadCsv(`study_package_${PK.kind}_${PK.kind === "booster" ? "all" : PK.prog}.csv`, rows);
