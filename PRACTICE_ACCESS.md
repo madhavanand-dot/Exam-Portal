@@ -25,3 +25,15 @@ This policy controls product availability of self-practice. It is not a redesign
 Old papers: retain original question order, review the keys, and title each test with source/year/paper number. Use the existing timed test for simulation or untimed diagnostic for learning. This change does not import or publish any old papers automatically.
 
 Deployment: initialise the empty lists with global practice disabled (completed), reload the app, rebuild indexes once, then verify Practice Access shows zero approved banks. Let Madhav select banks later. No student practice or tests were enabled by this change.
+
+## Since 2026-11-11: releasing a bank also releases its answer keys
+
+Answer keys are sealed in `questionKeys` (see README → Security model). `firestore.rules` lets a student read the key
+of a question only after submitting a test that contains it — **or when practice is enabled and the question's `bank`
+field is one of the approved banks for the student's stream**. So approving a bank for self-practice makes the answers
+of every question in that bank readable to students of that stream (that is what self-practice needs). Do not approve
+a bank whose questions you still plan to use in a test that matters.
+
+The rule compares the stored `bank` text exactly with the approved names, so a question must carry its `bank` tag to
+be practised; questions whose bank is only guessed from their id (older uploads without the tag) stay locked until
+the tag is filled in (`questionTags` import, `CLAUDE_TO_GPT.md` §4d).

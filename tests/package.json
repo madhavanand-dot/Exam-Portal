@@ -1,0 +1,14 @@
+{
+  "name": "exam-portal-rules-tests",
+  "private": true,
+  "type": "module",
+  "description": "Tests for firestore.rules: run the real client SDK against the Firebase emulators as admin, faculty and students",
+  "scripts": {
+    "test": "node prepare.mjs && firebase emulators:exec --only auth,firestore --project demo-exam \"node rules.test.mjs\""
+  },
+  "devDependencies": {
+    "firebase": "9.23.0",
+    "firebase-admin": "^12.7.0",
+    "firebase-tools": "^13.0.0"
+  }
+}

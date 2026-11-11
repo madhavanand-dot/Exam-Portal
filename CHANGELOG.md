@@ -7,6 +7,102 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-11-11 — Sealed answer keys, server-checked tests, results you release, AI job removed, new look
+
+A review of the whole codebase found that the anti-cheating measures could be walked around, because the browser was
+trusted with everything. This release moves the important decisions to the database's security rules.
+
+> **After deploying — in this order, when no test is running** (details and checks: [DEPLOY_TODO.md](DEPLOY_TODO.md) §0):
+> 1. Merge, then reload the portal (students too).
+> 2. **Publish `firestore.rules`** in the Firebase console (database **default**).
+> 3. Portal → **Settings → Security & setup** → **Seal answer keys now**.
+> 4. Same tab → **Prepare ranks for past tests**.
+>
+> Until step 3 is done the portal works as before — and the keys are still inside the questions students download.
+> The new page also works with the old rules, so nothing breaks between steps 1 and 2.
+
+### Security
+
+- **Answer keys are sealed.** A question's answer and solution are no longer stored in the question that a student's
+  browser downloads during a test. They live in a separate record (`questionKeys`) that only staff can read. A student
+  can read a key only after **submitting** a test that contains the question, once that test's results are released —
+  or when the question's data bank is released for self-practice. Nothing changes for teachers: keys are entered,
+  shown, pasted and uploaded exactly as before, and question JSON files keep the same format.
+- **Students can no longer write their own marks.** Submitting is now two steps: the answers go to the server first
+  (the rules then refuse any change to them), and only then is the paper marked. Leaderboard, Item Analysis, Reports,
+  Live Monitor and Release results re-mark every paper from the saved answers; if a device reported a different score
+  it is corrected and shown as **✎ corrected**.
+- **Students read only their own attempts.** Before, any signed-in student could read every other student's answers —
+  including while they were still writing. Rank, percentile and the class columns now come from one small record per
+  test (`examStats`).
+- **Tests start and end on the server's clock.** The start time is the server's, a test can be started only while it is
+  active and inside its opening / closing time, and the submit time is the server's. The on-screen timer follows the
+  server clock: setting the device clock back no longer gains time and is recorded for the teacher.
+- **Refreshing the page no longer resets the warnings.** Tab switches and the warning count are restored when a test
+  is reopened, a reload is recorded with how long the student was away, and a student who reopens a test already at
+  3 warnings is submitted as before.
+- **New sign-ups wait for approval.** An account created from the login page sees no test and no question until an
+  admin approves it (Students tab → Status **Waiting for approval** → **Approve**). Accounts you add yourself or
+  import by CSV are approved at once.
+- **Fixed: text typed as a numerical answer was inserted into the result page as HTML**, so a student could plant
+  script that ran when a teacher opened their result. It is shown as plain text now.
+
+### Results you release
+
+- The **Activate** window has three new settings: **Opens at**, **Closes at** and **Students see their marks, the
+  answers and the solutions** — right after submitting (as before), after the test closes, or only when you press
+  **Release results**. Use the last two when students write the same test at different times, so the first to finish
+  cannot pass the key on.
+- While results are held back the student sees **Test submitted** with the time taken and how many they answered —
+  no marks, no answers. Teachers see the marks straight away. **Release results** (Exams and Assign Tests lists)
+  marks every submitted paper and opens the results to the students.
+- Test files may carry `"exam": { "answerRelease": "manual" }`.
+
+### Integrity report: staff only
+
+- The **🛡 Integrity** report (tab switches, too-quick answers, page reloads, clock changes, time over the limit,
+  corrected score) is now a tab on the result that **only staff** see. Students no longer see it, and the note in it
+  is a staff note. Students are still warned on screen during a test and told when a test is submitted as malpractice.
+
+### AI job removed
+
+- The AI follow-up job, **AI Settings**, **🤖 Ask AI to solve this test**, AI follow-up drafts, the model scorecard
+  and the `ai/` folder are gone. The only server job left is the admin password reset (`jobs/`).
+- Keys marked "AI-proposed" are now called **Unconfirmed key**; **✓ Confirm** works as before. A new picture question
+  without a key simply shows as needing one.
+- The GitHub token for the one-click password reset moved to **Security & setup** and is readable by admins only.
+
+### New look
+
+- New colours and typography across the portal: dark-blue bars with an orange mark, a rebuilt login page, a greeting
+  on the student dashboard, a cleaner test screen (the question on its own sheet, pill subject tabs, a white timer).
+  The question-palette colours keep their NTA meaning.
+- **The result page is now a summary and tabs** instead of one long scroll: score ring, percentile, ranks and time on
+  top; then **Overview**, **Chapters**, **Time**, **Questions**, **Mistakes** (and **Integrity** for staff). Printing
+  still prints every section.
+- Phones: the test screen's buttons stay clear of the round palette button, and wide tables scroll sideways inside
+  their own box instead of stretching the page.
+
+### Smaller fixes and speed
+
+- The student dashboard no longer downloads every attempt of the whole stream to show ranks, and fetches the
+  student's own attempts once instead of five times. Opening an old result loads its questions in one batch instead
+  of one at a time.
+- **Reset requests:** the **Refresh** and **Clear finished** buttons did nothing; they work now.
+- **Answer Key** tab: the "Done" message stays visible after applying a key.
+- `tests/` holds a test suite for `firestore.rules` (83 checks against the Firebase emulator).
+
+### Good to know
+
+- A student who is technically skilled can still read **which of their own answers were right** from their own attempt
+  once a teacher's screen has marked it, even while results are held back. They cannot read the key itself.
+- The questions (not the answers) of an **activated** test with a future opening time can be read early by such a
+  student. For a high-stakes test, activate it close to its start.
+- Nothing can stop a second phone or a photograph of the screen; shuffle options and hold results back for tests that
+  matter.
+
+---
+
 ## 2026-11-01 — Submit button visible on phones
 
 - **On phones (screens 768px wide or less) the test screen now has a red Submit button** in the bottom button row, next to Save & Next. Before, the only SUBMIT EXAM button was inside the question palette, which on phones is hidden behind the round ☰ button, so students taking untimed diagnostic tests (which never auto-submit) could not find it. The new button opens the same "Submit Exam?" summary as SUBMIT EXAM. Desktop is unchanged.

@@ -1,4 +1,4 @@
-// Entry point for GitHub Actions: node ai/reset-passwords.mjs  (manual "Run workflow" only)
+// Entry point for GitHub Actions: node jobs/reset-passwords.mjs  (manual "Run workflow" only)
 import { initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";

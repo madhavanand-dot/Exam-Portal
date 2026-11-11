@@ -28,7 +28,12 @@ When handling a ChatGPT message:
   Hosted on GitHub Pages from `main`.
 - Check the page script after editing:
   `awk '/<script type="module">/{f=1;next}/<\/script>/{f=0}f' index.html > /tmp/x.mjs && node --check /tmp/x.mjs`
-- AI job: `ai/` (Node, GitHub Actions hourly). Tests: `cd ai && node test.mjs` (CI runs them before every job).
+- Server job: `jobs/` (Node, GitHub Actions, manual run) — admin password reset only. Tests: `cd jobs && node reset.test.mjs`
+  (CI runs them before the job). There is no AI job any more (removed 2026-11-11).
+- `firestore.rules` is the security boundary (sealed answer keys in `questionKeys`, private attempts, server start / submit
+  times). After changing the rules or anything students write (attempts, keyAccess, examStats), run the rules tests:
+  `cd tests && npm install && npm test` (needs Java; starts the Firebase emulator). Never put an answer or solution into a
+  field of `questions/*` — the write wrappers in `index.html` (`KEY_FIELDS`) send those to `questionKeys`.
 - Every user-visible change gets a dated `CHANGELOG.md` entry, including what must be done after deploying
   (publish `firestore.rules`, rebuild the practice index, …). Long follow-up checklists go in `DEPLOY_TODO.md`.
 - New Firestore collections or documents need a `firestore.rules` change, published by hand in the Firebase console.
