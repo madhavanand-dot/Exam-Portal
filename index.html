@@ -558,7 +558,12 @@ table.tbl tbody tr:hover td{background:#f3f6ff}
 #palSubmit button{padding:12px;font-size:14px;letter-spacing:.03em}
 #palToggle{background:var(--ink);box-shadow:0 6px 18px rgba(13,27,61,.4)}
 #netBanner{background:#dc3d43}
-@media(max-width:768px){ #qScroll{padding:12px} #qPaper{padding:16px 15px;border-radius:14px} #examTop .cand{display:none} }
+@media(max-width:768px){
+  #qScroll{padding:12px} #qPaper{padding:16px 15px;border-radius:14px} #examTop .cand{display:none}
+  #examBtns{padding:10px 78px 10px 12px;gap:6px}   /* keep the buttons clear of the round palette button */
+  #examBtns .btn{padding:9px 12px;font-size:13.5px}
+  #examTop{padding:9px 12px} #examTop .title{font-size:14px;min-width:0} #timer{font-size:17px;padding:7px 12px}
+}
 
 /* ---- result ---- */
 .heldCard{max-width:620px;margin:6vh auto 0;text-align:center;padding:34px 28px}
@@ -614,6 +619,12 @@ details.qexp summary{color:var(--blue-dark);font-weight:600}
 .tblWrap{overflow-x:auto;border-radius:14px}
 .resPanel .card{margin:0 0 16px!important}
 @media (max-width:640px){ .resHero{padding:18px;gap:14px} .resScore{width:104px;height:104px} .resScore > div{width:84px;height:84px} .resScore b{font-size:26px} .resFacts{width:100%} .resTabs{top:52px} .resActions .btn{flex:1 1 46%;padding:9px 8px;font-size:13px} }
+/* phones: a wide table scrolls sideways inside its own box instead of stretching the whole page */
+@media (max-width:768px){
+  #view-student table.tbl,#view-result table.tbl,#view-practice table.tbl{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #view-result .card{max-width:100%;overflow-x:auto}
+  #resultWrap select,#resultWrap input:not([type=checkbox]){min-width:150px}
+}
 @media print{ .resHero{background:#fff!important;color:#000;border:1px solid #999;box-shadow:none} .resHero *{color:#000!important} .resScore,.resScore > div{background:#fff!important} .resFacts > div,.resChips span{border-color:#999!important;background:#fff!important} }
 </style>
 </head>
