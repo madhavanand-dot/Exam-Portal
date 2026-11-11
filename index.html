@@ -1373,6 +1373,22 @@ details.qexp summary{color:var(--blue-dark);font-weight:600}
 
 
     <div id="atab-usage" class="atab hidden">
+      <div class="card" style="margin-bottom:14px">
+        <h2 class="sec" style="margin-top:0">Staying inside the free plan</h2>
+        <p style="font-size:13px;margin-bottom:10px">Free every day: <b>50,000 reads</b> and <b>20,000 writes</b>. Writes run out first, and almost all of them come from saving answers while a test is being written.</p>
+        <div class="flexrow" style="align-items:flex-end">
+          <div class="field" style="max-width:430px"><label>Send a student's answers to the server</label>
+            <select id="usageSaveEvery">
+              <option value="0">After every answer (most writes)</option>
+              <option value="30">At most every 30 seconds</option>
+              <option value="60">At most every 60 seconds (recommended)</option>
+              <option value="120">At most every 2 minutes (fewest writes)</option>
+            </select></div>
+          <span id="usageSaveMsg" style="font-size:12.5px;align-self:center"></span>
+        </div>
+        <p style="font-size:12.5px;color:var(--muted);margin:8px 0 10px">Whatever you choose, every answer is kept <b>on the student's device</b> the moment it is picked and restored if the page is reloaded; this only sets how often it is copied to the server. A warning, a tab switch, the start and the submit are always sent at once. The Live Monitor's progress bar can lag by this long.</p>
+        <div id="usageBudget"></div>
+      </div>
       <div class="card">
         <div class="flexrow" style="align-items:center">
           <h2 class="sec" style="margin:0;flex:1">💰 Firestore usage meter</h2>
@@ -1568,7 +1584,7 @@ details.qexp summary{color:var(--blue-dark);font-weight:600}
   <div id="examTop">
     <span class="title" id="exTopTitle"></span>
     <span class="cand" id="exTopCand"></span>
-    <span id="saveState" title="Your answers are saved automatically as soon as you pick an option">✓ Saved</span>
+    <span id="saveState" title="Every answer is kept on this device the moment you pick it and sent to the server automatically">✓ Saved</span>
     <span id="timer">180:00</span>
   </div>
   <div id="netBanner" class="hidden"></div>
@@ -1834,6 +1850,20 @@ function qWrite(raw, kind, ref, data, opts){
   if (!partial) raw.set(kref, { ...key, createdBy: data.createdBy || currentUser.uid });
   else if (any) raw.set(kref, currentUser?.role === "admin" ? key : { ...key, createdBy: currentUser.uid }, { merge: true });
 }
+// Who a test is for, as search tokens stored on the test itself (exams.aud). A student's page then asks the database
+// only for tests whose tokens match the student (myAudTokens) instead of downloading every active test of the stream.
+// Every write that sets `audience` gets `aud` added here, so no screen has to remember it.
+function audTokens(a){
+  a = a || { mode: "all" };
+  if (a.mode === "batch") return [...new Set((a.batches || []).map(b => "b:" + String(b).trim().toLowerCase()).filter(t => t.length > 2))];
+  if (a.mode === "students") return (a.studentUids || []).map(u => "u:" + u);
+  if (a.mode === "program") return ["p:" + (a.program || "ALL")];
+  if (a.mode === "group") return ["g:" + (a.group || "")];
+  return ["all"];
+}
+const isExamsRef = ref => (ref?.type === "collection" && ref.id === "exams") || ref?.parent?.id === "exams";
+const withAud = (ref, data) => isExamsRef(ref) && data && typeof data === "object" && data.audience && typeof data.audience.mode === "string"
+  ? { ...data, aud: audTokens(data.audience) } : data;
 const rawBatch = () => { const b = _writeBatch(db); return { b, raw: { set: b.set.bind(b), update: b.update.bind(b), delete: b.delete.bind(b) } }; };
 
 const getDoc = async ref => {
@@ -1852,16 +1882,17 @@ const getDocs = async q => {
   return { docs, size: s.size, empty: s.empty, metadata: s.metadata, query: s.query, forEach: cb => docs.forEach(cb), docChanges: () => s.docChanges() };
 };
 const setDoc = (ref, data, opts) => {
-  usageAdd("w", ref, 1);
+  usageAdd("w", ref, 1); data = withAud(ref, data);
+  if (ref?.path === "settings/portal") _portalAt = 0;   // changed: the next loadPortal() reads it again
   if (isQRef(ref) && keysSealed()) { const { b, raw } = rawBatch(); qWrite(raw, "set", ref, data, opts); return b.commit(); }
   return opts ? _setDoc(ref, data, opts) : _setDoc(ref, data);
 };
 const updateDoc = (ref, ...a) => {
-  usageAdd("w", ref, 1);
+  usageAdd("w", ref, 1); if (a.length === 1) a[0] = withAud(ref, a[0]);
   if (isQRef(ref) && keysSealed() && a.length === 1 && a[0] && typeof a[0] === "object") { const { b, raw } = rawBatch(); qWrite(raw, "update", ref, a[0]); return b.commit(); }
   return _updateDoc(ref, ...a);
 };
-const addDoc = (ref, ...a) => { usageAdd("w", ref, 1); return _addDoc(ref, ...a); };
+const addDoc = (ref, ...a) => { usageAdd("w", ref, 1); a[0] = withAud(ref, a[0]); return _addDoc(ref, ...a); };
 const deleteDoc = ref => {
   usageAdd("d", ref, 1);
   if (isQRef(ref) && keysSealed()) { const { b, raw } = rawBatch(); qWrite(raw, "delete", ref); return b.commit(); }
@@ -1879,7 +1910,7 @@ const writeBatch = dbx => {
   const b = _writeBatch(dbx), pend = [];
   const raw = { set: b.set.bind(b), update: b.update.bind(b), delete: b.delete.bind(b) };
   for (const [m, kind] of [["set","w"], ["update","w"], ["delete","d"]])
-    b[m] = (ref, ...a) => { pend.push([kind, ref]); if (isQRef(ref) && keysSealed()) qWrite(raw, m, ref, a[0], a[1]); else raw[m](ref, ...a); return b; };
+    b[m] = (ref, ...a) => { pend.push([kind, ref]); if (m !== "delete") a[0] = withAud(ref, a[0]); if (isQRef(ref) && keysSealed()) qWrite(raw, m, ref, a[0], a[1]); else raw[m](ref, ...a); return b; };
   const cm = b.commit.bind(b); b.commit = async () => { const r = await cm(); pend.forEach(([k, ref]) => usageAdd(k, ref, 1)); pend.length = 0; return r; };
   return b;
 };
@@ -1962,8 +1993,23 @@ function examCfg(exam){
 const PROGRAMS = ["TYM", "OYM", "RM"];
 const PKG_KIND = { package: "📘 Study Package", booster: "🚀 Momentum Booster" };
 let PORTAL = { allowReattempts: false, programPrefixes: { TYM: ["TR", "TW"], OYM: ["OR", "OW"], RM: ["RM"] } };
-async function loadPortal(){
-  try { const sn = await getDoc(doc(db,"settings","portal")); if (sn.exists()) PORTAL = { ...PORTAL, ...sn.data() }; } catch(e){ /* rules not published: defaults */ }
+// settings/portal, read at most once a minute (pass true after changing it, or when a decision must be current)
+let _portalP = null, _portalAt = 0;
+function loadPortal(fresh){
+  if (!fresh && _portalP && Date.now() - _portalAt < 60000) return _portalP;
+  _portalAt = Date.now();
+  _portalP = (async () => {
+    try { const sn = await getDoc(doc(db,"settings","portal")); if (sn.exists()) PORTAL = { ...PORTAL, ...sn.data() }; } catch(e){ /* rules not published: defaults */ }
+  })();
+  return _portalP;
+}
+// the tokens a test's `aud` must contain one of to be for this student (at most 10: the database's limit for one query)
+function myAudTokens(){
+  const t = ["all", "p:ALL", "u:" + currentUser.uid];
+  const b = String(currentUser.batch || "").trim().toLowerCase(); if (b) t.push("b:" + b);
+  const prog = programOf(currentUser.batch); if (prog) t.push("p:" + prog);
+  (Array.isArray(currentUser.groups) ? currentUser.groups : []).slice(0, 10 - t.length).forEach(g => t.push("g:" + g));
+  return t;
 }
 /* ---- student groups (e.g. Toppers): handpicked students. settings/portal.groups lists them [{ id, name }]; a student's
    users/{uid}.groups holds the ids they belong to. A test with audience { mode: "group", group: id } is seen only by members. ---- */
@@ -2459,7 +2505,7 @@ async function claimSession(uid){
 function releaseSession(){ if (sessionUnsub){ sessionUnsub(); sessionUnsub=null; } mySessionToken=null; kickedOut=false; }
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) { currentUser = null; _keyAccess = null; _attCache.clear(); _statsCache.clear(); _examDocCache.clear(); releaseSession(); showView("view-login"); return; }
+  if (!user) { currentUser = null; _keyAccess = null; _attCache.clear(); _statsCache.clear(); _examDocCache.clear(); _myExams = null; _prAtt = null; _qSess.clear(); loadMyAttempts.all = false; releaseSession(); showView("view-login"); return; }
   try {
     let snap = await getDoc(doc(db, "users", user.uid));
     if (!snap.exists() && pendingSignup && pendingSignup.email === user.email) {
@@ -2578,7 +2624,7 @@ for (const b of document.querySelectorAll("[data-atab]")) {
     if (b.dataset.atab==="attendance") initAttendance();
     if (b.dataset.atab==="progress") initProgress();
     if (b.dataset.atab==="atrisk") initAtRisk();
-    if (b.dataset.atab==="usage") usageRender();
+    if (b.dataset.atab==="usage") loadPortal().then(usageRender);
   };
 }
 
@@ -2589,7 +2635,29 @@ function usageSum(o){ return Object.values(o || {}).reduce((a, b) => a + b, 0); 
 function usageCost(d){ // estimated ₹ for one day beyond the free quota (list prices; the real bill may differ slightly)
   return ["r","w","d"].reduce((t, k) => t + Math.max(0, usageSum(d?.[k]) - USAGE_FREE[k]) / 1e5 * USAGE_USD_PER_100K[k] * USAGE_INR, 0);
 }
+// "Staying inside the free plan": the save interval and a rough budget per kind of test
+function usageBudgetRender(){
+  const sel = $("usageSaveEvery"); if (!sel) return;
+  const cur = PORTAL.saveEverySec != null && Number.isFinite(Number(PORTAL.saveEverySec)) ? Number(PORTAL.saveEverySec) : SAVE_EVERY_DEFAULT_SEC;
+  if (![...sel.options].some(o => +o.value === cur)) sel.insertAdjacentHTML("beforeend", `<option value="${cur}">At most every ${cur} seconds</option>`);
+  sel.value = String(cur); sel.disabled = !isSuper();
+  // per student and test: saves (one per answer, or one per interval while answering) + idle heartbeats + start / submit / marks
+  const est = (q, min) => {
+    const saves = cur ? Math.min(Math.round(q * 1.3), Math.ceil(min * 60 / cur)) : Math.round(q * 1.3);
+    const beats = Math.round(min * 60 / (HEARTBEAT_MS / 1000) * (cur ? 0.25 : 0.6));
+    const w = saves + beats + 5;
+    return { w, r: 2 * q + w + 14 };   // the questions, their answer keys after submitting, one read back per save, a few small ones
+  };
+  const LOGIN = 40;   // one dashboard visit: profile, settings, own attempts and tests, ranks of the latest results
+  const rows = [["Chapter diagnostic", 30, 30], ["Part test", 90, 90], ["Full NEET paper", 180, 180]].map(([name, q, min]) => {
+    const e = est(q, min), n = Math.floor(Math.min(USAGE_FREE.w / e.w, USAGE_FREE.r / (e.r + LOGIN)));
+    return `<tr><td>${name} <span style="color:var(--muted)">(${q} questions, ${min} min)</span></td><td>${e.w}</td><td>${e.r}</td><td><b>about ${n}</b></td></tr>`;
+  }).join("");
+  $("usageBudget").innerHTML = `<table class="tbl"><thead><tr><th>One student writing…</th><th>Writes</th><th>Reads</th><th>Students per day inside the free plan</th></tr></thead><tbody>${rows}</tbody></table>
+    <p style="font-size:12px;color:var(--muted);margin-top:6px">Rough figures. A dashboard visit costs about ${LOGIN} reads and 1 write. Staff screens also read: a Leaderboard or Item Analysis reads every attempt of that test once, and the Live Monitor one read per save of every student it is watching. The exact count is in Firebase → Firestore → Usage.</p>`;
+}
 function usageRender(){
+  usageBudgetRender();
   try { usageData = { ...usageData, ...JSON.parse(localStorage.getItem(USAGE_KEY) || "{}") }; } catch(e) {}
   const today = usageData[usageDay()] || { r:{}, w:{}, d:{} };
   const tile = (label, k) => { const n = usageSum(today[k]), pct = Math.min(100, n / USAGE_FREE[k] * 100);
@@ -2611,6 +2679,16 @@ function usageRender(){
     days.map(d => { const x = usageData[d]; return `<tr style="border-top:1px solid var(--border)"><td>${d}</td><td>${usageSum(x.r).toLocaleString()}</td><td>${usageSum(x.w).toLocaleString()}</td><td>${usageSum(x.d).toLocaleString()}</td><td>${usageCost(x).toFixed(2)}</td></tr>`; }).join("") + `</table>` : "";
 }
 $("usageRefresh").onclick = usageRender;
+$("usageSaveEvery").onchange = async () => {
+  if (!isSuper()) return;
+  const v = Math.max(0, parseInt($("usageSaveEvery").value) || 0);
+  try {
+    await setDoc(doc(db,"settings","portal"), { saveEverySec: v }, { merge: true });
+    PORTAL.saveEverySec = v;
+    $("usageSaveMsg").innerHTML = `<span style="color:#1e7a44">Saved — applies to every test started from now on.</span>`;
+  } catch(e) { $("usageSaveMsg").innerHTML = `<span style="color:#b03a2e">Could not save: ${esc(e.message)}</span>`; }
+  usageBudgetRender();
+};
 $("usageReset").onclick = async () => { if (!await uiConfirm("Reset the usage counters on this browser?")) return; usageData = {}; try { localStorage.removeItem(USAGE_KEY); } catch(e) {} usageRender(); };
 
 /* ----- attendance / absentees ----- */
@@ -3039,23 +3117,30 @@ function attemptDeadPct(a){
   return Math.min(100, 100 * dead / total);
 }
 // subject / chapter / level per question: saved on newer attempts (qMeta), else the practice index, else the question itself
-const _tiCache = {};
+const _tiCache = {}, _tiP = {};
+// one practice-index document (topicIndex/{examType}__{subject}), read once per session however many screens ask
+function tiDoc(k){
+  return _tiP[k] || (_tiP[k] = getDoc(doc(db,"topicIndex",k)).then(s => (_tiCache[k] = s.exists() ? s.data() : null)).catch(() => (_tiCache[k] = null)));
+}
+const QMETA_HAS_MODEL_FROM = Date.UTC(2026, 9, 12);   // attempts submitted since then carry the question model whenever one exists
 async function qMetaFor(attempts){
   const meta = {};
-  attempts.forEach(a => Object.assign(meta, a.qMeta || {}));
+  attempts.forEach(a => { const full = atMs(a.submitTime) >= QMETA_HAS_MODEL_FROM;
+    Object.entries(a.qMeta || {}).forEach(([id, m]) => { meta[id] = full && m.m === undefined ? { ...m, m: "" } : m; }); });
   const need = new Set();
   attempts.forEach(a => Object.keys(a.questionTimeSec || a.responses || {}).forEach(id => { if (!meta[id] || meta[id].m === undefined) need.add(id); }));
   if (!need.size) return meta;   // (older attempts saved no question model: fill it from the practice index below)
   const keys = new Set();
   attempts.forEach(a => ((a.examSubjects && a.examSubjects.length) ? a.examSubjects : (EXAM_CONFIG[a.examType] || EXAM_CONFIG.medical).subjects).forEach(sub => keys.add(`${a.examType}__${sub}`)));
   for (const k of keys) {
-    if (!(k in _tiCache)) { try { const s = await getDoc(doc(db,"topicIndex",k)); _tiCache[k] = s.exists() ? s.data() : null; } catch(e) { _tiCache[k] = null; } }
+    await tiDoc(k);
     const sub = k.split("__")[1];
     (_tiCache[k]?.q || []).forEach(e => { if (!need.has(e.i)) return;
       if (!meta[e.i]) meta[e.i] = { s: sub, t: e.t || "", d: e.d || "Medium", m: e.m || "", mc: e.mc || "" };
       else if (meta[e.i].m === undefined) meta[e.i] = { ...meta[e.i], m: e.m || "", mc: e.mc || "" }; });
   }
-  const still = [...need].filter(id => !meta[id]).slice(0, 300);
+  // last resort, the question itself — staff screens only: on a student's dashboard this would be hundreds of reads at every login
+  const still = isStaffUser() ? [...need].filter(id => !meta[id]).slice(0, 300) : [];
   const snaps = await Promise.all(still.map(id => getDoc(doc(db,"questions",id)).catch(() => null)));
   snaps.forEach(sn => { if (sn?.exists()) { const q = sn.data(); meta[sn.id] = { s: q.subject || "", t: (q.topic || "").trim(), d: normLevel(q.difficulty), m: String(q.model || "").trim(), mc: String(q.modelCode || "").trim() }; } });
   return meta;
@@ -3118,7 +3203,7 @@ async function renderMistakenModels(box, NB){
   const subs = [...new Set(Object.values(groups).map(g => g.subject))];
   for (const sub of subs) {
     const k = `${currentUser.examType}__${sub}`;
-    if (!(k in _tiCache)) { try { const sn = await getDoc(doc(db,"topicIndex",k)); _tiCache[k] = sn.exists() ? sn.data() : null; } catch(e) { _tiCache[k] = null; } }
+    await tiDoc(k);
   }
   const list = Object.values(groups).map(g => {
     const entries = _tiCache[`${currentUser.examType}__${g.subject}`]?.q || [];
@@ -5805,6 +5890,7 @@ $("cpCreateBtn").onclick = async () => {
    and the teacher's levers: a live warning message or stopping the test.
    ============================================================ */
 let lmUnsubs = [], lmState = {}, lmSeeded = new Set(), lmTimer = null, lmFeed = [], lmAudio = null, lmOpen = new Set();
+const LM_ONLINE_MS = 210000;   // a test sends at least a heartbeat every 150 s (HEARTBEAT_MS); allow for a slow connection
 function lmStop(){ lmUnsubs.forEach(u => { try { u(); } catch(e){} }); lmUnsubs = []; clearInterval(lmTimer); lmTimer = null; }
 const tsMs = t => t?.toMillis ? t.toMillis() : (t?.seconds ? t.seconds*1000 : (typeof t === "number" ? t : 0));
 function lmBeep(){
@@ -5916,7 +6002,7 @@ function lmRender(){
   const writing = all.filter(a => !a.submitTime && now - tsMs(a.startTime) < 12*3600e3 && !a._exam?.studyPackage);   // package homework isn't a live test
   const done = all.filter(a => a.submitTime && now - tsMs(a.submitTime) < 3*3600e3)
     .sort((a,b) => tsMs(b.submitTime) - tsMs(a.submitTime));
-  const liveN = writing.filter(a => now - tsMs(a.live?.lastSeen) < 90e3).length;
+  const liveN = writing.filter(a => now - tsMs(a.live?.lastSeen) < LM_ONLINE_MS).length;
   const sw = writing.reduce((s,a) => s + (a.warnings||0), 0) + done.reduce((s,a) => s + (a.warnings||0), 0);
   const qk = writing.reduce((s,a) => s + Object.keys(a.quickLive||{}).length, 0) + done.reduce((s,a) => s + Object.keys(a.quickAnswers||{}).length, 0);
   const chip = (v, l, c) => `<div class="stat"><div class="v" style="${c?`color:${c}`:""}">${v}</div><div class="l">${l}</div></div>`;
@@ -5928,7 +6014,7 @@ function lmRender(){
   $("lmWrap").innerHTML = writing.length ? `<table class="tbl"><thead><tr><th>Student</th><th>Test</th><th>Progress</th><th>Time left</th><th>Seen</th><th>🚨 Switches</th><th>⚡ Quick</th><th></th></tr></thead><tbody>` +
     writing.map(a => {
       const cfg = examCfg(a._exam), left = Math.max(0, Math.round((tsMs(a.startTime) + cfg.durationSec*1000 - now)/1000));
-      const seen = now - tsMs(a.live?.lastSeen), online = seen < 90e3;
+      const seen = now - tsMs(a.live?.lastSeen), online = seen < LM_ONLINE_MS;
       const L = a.live || {}, pct = L.total ? Math.round(100*(L.answered||0)/L.total) : 0;
       const nq = Object.keys(a.quickLive||{}).length, w = a.warnings||0;
       const bg = w >= 2 ? "background:#fdecea" : (w || nq) ? "background:#fff6e0" : "";
@@ -6138,10 +6224,9 @@ function initTopics(){
   practicePolicy().then(policy => { cb.checked = policy.enabled; });
 }
 // Approved configuration: global switch plus bank names scoped by exam stream.
-async function practicePolicy(){
-  try { const snap=await getDoc(doc(db,"settings","portal")), d=snap.exists()?snap.data():{};
-    return {enabled:d.practiceEnabled===true,banks:d.practiceBanks||{medical:[],engineering:[]}};
-  } catch(e){ return {enabled:false,banks:{medical:[],engineering:[]}}; }
+async function practicePolicy(fresh){
+  await loadPortal(fresh);   // shared with everything else that reads settings/portal
+  return {enabled:PORTAL.practiceEnabled===true,banks:PORTAL.practiceBanks||{medical:[],engineering:[]}};
 }
 function practiceBankAllowed(q,policy,type=currentUser?.examType){
   const bank=bankForQuestion({ ...q, bank:q.bank || (typeof q.b==="string"?q.b:"") });
@@ -6598,14 +6683,22 @@ $("exScoring").onchange = () => {
   $("exCustomMarks").style.display = $("exScoring").value === "custom" ? "" : "none";
 };
 // fetch questions by document id, 30 per query (Firestore "in" limit), a few queries at a time
+// Students: a question read once in this session (a test, a result, the notebook) is not read again — opening the same
+// result twice costs nothing. Staff always read fresh (they edit questions).
+const _qSess = new Map();
 async function fetchQuestionsByIds(ids, onProgress){
+  const cache = !isStaffUser();
   const out = [], chunks = [];
-  for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i+30));
+  const todo = cache ? ids.filter(id => !_qSess.has(id)) : ids;
+  for (let i = 0; i < todo.length; i += 30) chunks.push(todo.slice(i, i+30));
+  const got = new Map();
   for (let i = 0; i < chunks.length; i += 8) {
     const snaps = await Promise.all(chunks.slice(i, i+8).map(c => getDocs(query(collection(db,"questions"), where(documentId(),"in",c)))));
-    snaps.forEach(sn => sn.docs.forEach(d => out.push({ docId: d.id, ...d.data() })));
+    snaps.forEach(sn => sn.docs.forEach(d => got.set(d.id, { docId: d.id, ...d.data() })));
     onProgress?.(Math.min(ids.length, (i+8)*30), ids.length);
   }
+  if (cache) got.forEach((q, id) => _qSess.set(id, q));
+  ids.forEach(id => { const q = cache ? _qSess.get(id) : got.get(id); if (q) out.push(q); });
   return out;
 }
 // every subject's chapters for an exam type, from the bank index (one small read per subject, never the bank itself):
@@ -6995,6 +7088,22 @@ $("exCreateBtn").onclick = async () => {
   loadExams();
 };
 // schedule status for an exam: 'upcoming' | 'open' | 'closed' | 'open' (no window)
+// Tests saved before audience tokens existed (or changed outside the wrappers) get their `aud` field here, a few
+// writes once. When an admin's list shows every test in step, settings/portal.audIndexed switches the students' pages
+// to the targeted query (myActiveExams).
+async function audBackfill(exams){
+  const same = (a, b) => Array.isArray(a) && a.length === b.length && a.every((x, i) => x === b[i]);
+  const todo = exams.filter(e => ownsItem(e) && !same(e.aud, audTokens(e.audience)));
+  for (let i = 0; i < todo.length; i += 400) {
+    const b = writeBatch(db);
+    todo.slice(i, i + 400).forEach(e => { e.aud = audTokens(e.audience); b.update(doc(db,"exams",e.docId), { aud: e.aud }); });
+    await b.commit();
+  }
+  if (isSuper() && PORTAL.audIndexed !== true && exams.every(e => same(e.aud, audTokens(e.audience)))) {
+    await setDoc(doc(db,"settings","portal"), { audIndexed: true }, { merge: true });
+    PORTAL.audIndexed = true;
+  }
+}
 function examWindow(e){
   const now = Date.now();
   const s = e.startAt?.toMillis ? e.startAt.toMillis() : (e.startAt?.seconds ? e.startAt.seconds*1000 : null);
@@ -7019,6 +7128,7 @@ async function loadExams(){
   const exams = qs.docs.map(d=>({ docId:d.id, ...d.data() }));
   exams.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
   examsCache = exams;
+  audBackfill(exams).catch(e => console.warn("audience tokens", e));
   try { dgLibRender(); } catch(e) { console.warn(e); }
   try { rpFillExams(); } catch(e) { console.warn(e); }
   // faculty only see/manage their own exams; super-admin sees all
@@ -7717,9 +7827,10 @@ async function enterStudent(){
     <div class="hi"><b>Hello, ${esc(first)}</b><span>Your tests, practice and progress are below.</span></div>
     <div class="chips"><span>${esc(EXAM_CONFIG[currentUser.examType]?.label || currentUser.examType || "")}</span>${currentUser.batch ? `<span>Batch ${esc(currentUser.batch)}</span>` : ""}${currentUser.class ? `<span>Class ${esc(currentUser.class)}</span>` : ""}</div>`;
   showView("view-student");
-  _attCache.clear(); _statsCache.clear();
   loadActiveExam(); loadMyAttempts();
-  initPractice(); loadPracticeHistory();
+  initPractice();
+  // everything below the test list is fetched only when the student scrolls to it
+  whenVisible($("prHistRows"), () => loadPracticeHistory());
   // deactivated while signed in: save any running test (not submitted) and sign out
   if (activeUserUnsub) activeUserUnsub();
   activeUserUnsub = onSnapshot(doc(db,"users",currentUser.uid), async sn => {
@@ -7731,11 +7842,20 @@ async function enterStudent(){
     }
   }, () => {});
   txStudentInit();
-  loadTopicReport().catch(e => console.warn("topic report", e));
-  progressHtml(currentUser.uid, currentUser.name).then(h => { const el=$("myProgress"); if(el) el.innerHTML=h; }).catch(()=>{});
-  openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true)
+  $("myTopicReportWrap").classList.remove("hidden");
+  whenVisible($("myTopicReport"), () => loadTopicReport().catch(e => console.warn("topic report", e)));
+  whenVisible($("myProgress"), () => progressHtml(currentUser.uid, currentUser.name).then(h => { const el=$("myProgress"); if(el) el.innerHTML=h; }).catch(()=>{}));
+  whenVisible($("myModelsWrap"), () => openNotebook($("myNotebook"), currentUser.uid, currentUser.name, true)
     .then(() => renderMistakenModels($("myModels"), $("myNotebook")._nb))
-    .catch(e => { $("myNotebook").textContent = "Could not load: " + e.message; $("myModels").textContent = ""; });
+    .catch(e => { $("myNotebook").textContent = "Could not load: " + e.message; $("myModels").textContent = ""; }));
+}
+// Run fn the first time el comes near the screen. Sections a student never scrolls to cost no reads.
+function whenVisible(el, fn){
+  if (!el) return;
+  try { el._lazy?.disconnect(); } catch(e) {}
+  if (!("IntersectionObserver" in window)) { fn(); return; }
+  const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); el._lazy = null; fn(); } }, { rootMargin: "250px" });
+  el._lazy = io; io.observe(el);
 }
 
 /* ---------- 📈 Topic reports (imported progress/error data) ---------- */
@@ -7894,6 +8014,22 @@ function examTargetsMe(e){
   return false;
 }
 let availableExams = [];
+// The active tests that are for this student. Once every test carries its audience tokens (settings/portal.audIndexed,
+// set by an admin session) the database returns only those; before that — or if that query is refused — every active
+// test of the stream is read and filtered here, as it always was. Kept for 30 s (the chapter picker re-renders often).
+let _myExams = null;
+async function myActiveExams(fresh){
+  if (!fresh && _myExams && _myExams.uid === currentUser.uid && Date.now() - _myExams.t < 30000) return _myExams.list;
+  const base = [where("examType","==",currentUser.examType), where("isActive","==",true)];
+  let docs = null;
+  if (PORTAL.audIndexed === true) try {
+    docs = (await getDocs(query(collection(db,"exams"), ...base, where("aud","array-contains-any",myAudTokens())))).docs;
+  } catch(e) { console.warn("targeted test list refused, reading the whole list instead:", e.message); docs = null; }
+  if (!docs) docs = (await getDocs(query(collection(db,"exams"), ...base))).docs;
+  const list = docs.map(d=>({ docId:d.id, ...d.data() }));
+  _myExams = { uid: currentUser.uid, t: Date.now(), list };
+  return list;
+}
 const SDG = { ch: "", sub: "" };   // student's place in the diagnostic chapter → topic picker
 async function loadActiveExam(){
   activeExam = null;
@@ -7903,9 +8039,7 @@ async function loadActiveExam(){
     const own = await attemptsOf(currentUser.uid);
     own.docs.forEach(d => { const a=d.data(); if(a.submitTime) completed[a.examId]={docId:d.id,...a}; });
   }
-  const qs = await getDocs(query(collection(db,"exams"),
-    where("examType","==",currentUser.examType), where("isActive","==",true)));
-  const allMine = qs.docs.map(d=>({ docId:d.id, ...d.data() })).filter(examTargetsMe);
+  const allMine = (await myActiveExams()).filter(examTargetsMe);
   renderStudentPackages(allMine.filter(e => e.studyPackage));   // study packages get their own section
   const mine = allMine.filter(e => !e.studyPackage);
   // split by schedule window
@@ -8350,7 +8484,9 @@ async function loadMyAttempts(){
   const mine = qs.docs.map(d=>({docId:d.id,...d.data()})).filter(a=>a.submitTime);
   mine.sort((a,b)=>(b.submitTime?.seconds||0)-(a.submitTime?.seconds||0));
   // rank in each test: overall (all who wrote it) and in my batch — from each test's class figures
-  const stats = await Promise.all(mine.map(a => a.score == null ? null : examStatsOf(a.examId)));
+  // ranks need one small read per test: the ten latest at once, older ones when asked for
+  const RANKED = loadMyAttempts.all ? mine.length : 10;
+  const stats = await Promise.all(mine.map((a, i) => a.score == null || i >= RANKED ? null : examStatsOf(a.examId)));
   let byExam = null;
   if (stats.some(s => s === undefined)) try {   // security rules from before examStats: the old way still works there
     byExam = {};
@@ -8365,10 +8501,12 @@ async function loadMyAttempts(){
       <td>${esc(a.examType)}</td><td>${a.score == null ? `<span class="badge zero">results pending</span>` : `<b>${a.score}</b> / ${attemptCfg(a).maxMarks}`}</td>
       <td>${R ? `<b>${R.overall.rank}</b> / ${R.overall.n}` : "—"}</td><td>${R?.batch ? `<b>${R.batch.rank}</b> / ${R.batch.n}` : "—"}</td><td>${R ? R.overall.pct : "—"}</td>
       <td><button class="btn secondary" style="padding:3px 10px" data-viewat="${a.docId}">View Result</button></td></tr>`;
-  }).join("") || `<tr><td colspan="8">No attempts yet.</td></tr>`;
-  $("attemptRows").querySelectorAll("[data-viewat]").forEach(b => b.onclick = async () => {
-    const snap = await getDoc(doc(db,"attempts",b.dataset.viewat));
-    if (snap.exists()) showResult({ docId:snap.id, ...snap.data() });
+  }).join("") + (mine.length > RANKED ? `<tr><td colspan="8" style="text-align:center"><button class="btn secondary" id="attMoreRanks" style="padding:3px 12px">Show ranks for the ${mine.length - RANKED} older test(s)</button></td></tr>` : "")
+    || `<tr><td colspan="8">No attempts yet.</td></tr>`;
+  if ($("attMoreRanks")) $("attMoreRanks").onclick = () => { loadMyAttempts.all = true; loadMyAttempts(); };
+  $("attemptRows").querySelectorAll("[data-viewat]").forEach(b => b.onclick = () => {
+    const a = mine.find(x => x.docId === b.dataset.viewat);   // already on this device: no second read
+    if (a) showResult({ ...a });
   });
 }
 
@@ -8584,8 +8722,17 @@ async function markAttempts(exam, atts, mode = "verify", qById){
 }
 
 /* ========== EXAM ENGINE ========== */
-const AUTOSAVE_MS = 30000;        // heartbeat (time spent, live monitor); answers are saved within a second of every change
+// Saving during a test. Every answer is kept on the device at once (backupLocal). It is sent to the server at most once
+// per "save interval" (settings/portal.saveEverySec, default 60 s; 0 = every answer), together with everything else that
+// changed meanwhile — one write instead of one per click. A warning, a tab switch, the start and the submit are always
+// sent at once. While nothing changes, a heartbeat every HEARTBEAT_MS keeps the teacher's Live Monitor and the test
+// clock in step. Writes are what the free Firestore plan runs out of first (20,000 a day).
+const AUTOSAVE_MS = 30000;        // how often the page checks whether a save or a heartbeat is due
+const HEARTBEAT_MS = 150000;
 const SAVE_DEBOUNCE_MS = 700;
+const SAVE_EVERY_DEFAULT_SEC = 60;
+const saveEveryMs = () => { const v = Number(PORTAL.saveEverySec); return (Number.isFinite(v) && v >= 0 ? Math.min(300, v) : SAVE_EVERY_DEFAULT_SEC) * 1000; };
+const monoNow = () => performance.now();   // not the wall clock: a changed device clock must not stall the saving
 const SLOW_SAVE_MS = 6000;        // a save not confirmed by the server after this long → "slow connection" warning
 let EX = null; // exam runtime state
 let tickInt = null, autosaveInt = null, saveTimer = null;
@@ -8798,7 +8945,7 @@ async function startExamInner(){
   clearInterval(tickInt); clearInterval(autosaveInt);
   tickInt = setInterval(tick, 250);
   _saveStateKey = "";
-  autosaveInt = setInterval(()=>saveProgress().catch(()=>{}), AUTOSAVE_MS);
+  autosaveInt = setInterval(heartbeat, AUTOSAVE_MS);
   if (cfg.proctored) startProctoring(); else stopProctoring();   // study packages: homework, not proctored
   tick();
   saveProgress().catch(()=>{});        // appear on the teacher's Live Monitor right away
@@ -9011,8 +9158,23 @@ function answerChanged(){
   backupLocal();
   EX.dirty = true;
   setSaveState();
+  scheduleSave();
+}
+// send what changed when the save interval allows it (at once when the interval is 0)
+function scheduleSave(){
+  if (!EX || EX.submitted) return;
+  const every = saveEveryMs();
+  const wait = every ? Math.max(SAVE_DEBOUNCE_MS, (EX.lastSaveMono ?? -1e12) + every - monoNow()) : SAVE_DEBOUNCE_MS;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => saveProgress().catch(()=>{}), SAVE_DEBOUNCE_MS);
+  saveTimer = setTimeout(() => saveProgress().catch(()=>{}), wait);
+}
+// every AUTOSAVE_MS: a save that is due (unsent changes, or a failed one), else a heartbeat when the server has not
+// heard from this test for HEARTBEAT_MS, else just the copy on this device
+function heartbeat(){
+  if (!EX || EX.submitted) return;
+  const idle = monoNow() - (EX.lastSaveMono ?? -1e12);
+  if (idle >= HEARTBEAT_MS || (EX.dirty && idle >= Math.max(saveEveryMs(), 1000))) saveProgress().catch(()=>{});
+  else backupLocal();
 }
 
 function gotoQuestion(i, save=false){
@@ -9083,8 +9245,7 @@ function refreshPalette(){
 $("btnPrev").onclick = () => gotoQuestion(EX.idx-1, true);
 $("btnNext").onclick = () => gotoQuestion(EX.idx+1, true);
 $("btnSaveNext").onclick = async () => {
-  gotoQuestion(EX.idx+1, true);
-  saveProgress().catch(()=>{});
+  gotoQuestion(EX.idx+1, true);   // a changed answer is kept on the device at once and goes out with the next save
 };
 let numInT = null;
 $("numInput").addEventListener("input", () => {
@@ -9098,7 +9259,7 @@ $("btnMark").onclick = () => {
   st.status = ans!=null ? STATUS.MA : STATUS.MN;
   refreshPalette();
   gotoQuestion(EX.idx+1);
-  saveProgress().catch(()=>{});
+  answerChanged();
 };
 $("btnClear").onclick = () => {
   const st = EX.state[EX.idx];
@@ -9158,6 +9319,7 @@ async function saveProgress(){
   backupLocal();
   if (ex.saving) { ex.again = true; return ex.saving; }
   ex.again = false; ex.dirty = false;
+  clearTimeout(saveTimer); ex.lastSaveMono = monoNow();
   const responses = liveResponses();
   const cq = ex.questions[ex.idx];
   const live = { lastSeen: serverTimestamp(), q: ex.idx + 1, total: ex.questions.length,
@@ -9180,7 +9342,8 @@ function setSaveState(){
   if (!EX || EX.submitted) return;
   const off = !navigator.onLine;
   const slow = !!EX.saving && Date.now() - EX.savingSince > SLOW_SAVE_MS;
-  const st = off ? "off" : EX.saveErr ? "err" : slow ? "slow" : (EX.saving || EX.dirty) ? "saving" : "ok";
+  // an answer waiting for the next save is already safe on this device: that is "Saved", not "Saving…"
+  const st = off ? "off" : EX.saveErr ? "err" : slow ? "slow" : EX.saving ? "saving" : "ok";
   if (st === _saveStateKey) return;
   _saveStateKey = st;
   const pill = $("saveState"), ban = $("netBanner");
@@ -9197,7 +9360,9 @@ function setSaveState(){
 }
 window.addEventListener("online", () => { if (EX && !EX.submitted) { setSaveState(); saveProgress().catch(()=>{}); } });
 window.addEventListener("offline", () => { if (EX && !EX.submitted) setSaveState(); });
-window.addEventListener("pagehide", () => { if (EX && !EX.submitted) backupLocal(); });
+window.addEventListener("pagehide", () => { if (EX && !EX.submitted) { backupLocal(); if (EX.dirty) saveProgress().catch(()=>{}); } });
+// leaving the page for another app / tab: send what is waiting now (a proctored test does that anyway with the warning)
+document.addEventListener("visibilitychange", () => { if (document.hidden && EX && !EX.submitted && EX.dirty && !EX.saving) saveProgress().catch(()=>{}); });
 window.addEventListener("beforeunload", e => {
   if (!EX || EX.submitted) return;
   backupLocal();
@@ -9332,10 +9497,18 @@ async function initPractice(){
   $("prSubject").innerHTML = subs.map(s=>`<option>${s}</option>`).join("");
   loadPracticeSeen().then(() => loadPracticeChapters());
 }
+// the student's practice sets, fetched once and shared by "already practised" and the history table (kept for a minute)
+let _prAtt = null;
+function myPracticeAttempts(fresh){
+  if (!fresh && _prAtt && _prAtt.uid === currentUser.uid && Date.now() - _prAtt.t < 60000) return _prAtt.p;
+  const p = getDocs(query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
+  _prAtt = { uid: currentUser.uid, t: Date.now(), p }; p.catch(() => { _prAtt = null; });
+  return p;
+}
 async function loadPracticeSeen(){
   prSeen = new Set();
   try {
-    const qs = await getDocs(query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
+    const qs = await myPracticeAttempts();
     qs.docs.forEach(d => (d.data().questionIds||[]).forEach(id => prSeen.add(id)));
   } catch(e){ /* rules not published yet, or none exist — treat as nothing seen */ }
 }
@@ -9344,14 +9517,14 @@ async function loadPracticeChapters(){
   box.innerHTML = "Loading chapters…";
   const subject = $("prSubject").value;
   try {
-    const s = await getDoc(doc(db,"topicIndex", `${currentUser.examType}__${subject}`));
-    if (!s.exists()) {
+    const idx = await tiDoc(`${currentUser.examType}__${subject}`);
+    if (!idx) {
       prEntries = [];
       box.innerHTML = `<div style="color:var(--muted);padding:6px">No practice questions indexed for ${esc(subject)} yet. Ask your faculty to rebuild the practice index.</div>`;
       $("prChapHint").textContent = ""; return;
     }
     const policy=await practicePolicy();
-    prEntries = (s.data().q || []).filter(e => e.t && practiceBankAllowed(e,policy));   // untagged questions can't be offered by chapter
+    prEntries = (idx.q || []).filter(e => e.t && practiceBankAllowed(e,policy));   // untagged questions can't be offered by chapter
     renderPracticeChapters();
   } catch(e){
     box.innerHTML = `<div style="color:var(--muted);padding:6px">Could not load chapters: ${esc(e.message)}</div>`;
@@ -9593,7 +9766,7 @@ async function prFinish(){
       saveNote += `<div class="msg ok" style="margin-top:10px">📒 ${fixed.length} mistake(s) you got right this time were marked as cleared in your notebook.</div>`;
     } catch(e){ saveNote += `<div class="msg err" style="margin-top:10px">Could not update your notebook (${esc(e.message)}).</div>`; }
   }
-  try { await addDoc(collection(db,"practiceAttempts"), rec); }
+  try { await addDoc(collection(db,"practiceAttempts"), rec); _prAtt = null; }
   catch(e){ saveNote = `<div class="msg err" style="margin-top:10px">Your summary is below, but it couldn't be saved to your history (${esc(e.message)}).</div>`; }
 
   // per-chapter breakdown
@@ -9648,7 +9821,7 @@ async function prFinish(){
 async function loadPracticeHistory(){
   const tb = $("prHistRows");
   try {
-    const qs = await getDocs(query(collection(db,"practiceAttempts"), where("studentUid","==",currentUser.uid)));
+    const qs = await myPracticeAttempts();
     const list = qs.docs.map(d=>d.data()).sort((a,b)=>(b.submittedAt?.seconds||0)-(a.submittedAt?.seconds||0)).slice(0,20);
     tb.innerHTML = list.map(p => {
       const answered = (p.correct||0) + (p.wrong||0);

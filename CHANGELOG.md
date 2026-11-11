@@ -7,6 +7,54 @@ Format: each entry says **what changed**, and — where it matters — **what yo
 
 ---
 
+## 2026-11-11 (later) — Fits the free Firestore plan: students load only their own tests, far fewer reads and writes
+
+Measured with one student on a test set-up with 43 active tests (3 of them for that student):
+
+| | Before | Now |
+|---|---|---|
+| Opening the dashboard | 59 reads | **11 reads** |
+| Writing a 12-question test (about a minute) | 84 reads, 32 writes | **34 reads, 7 writes** |
+| Going back to the dashboard | 65 reads | **7 reads** |
+
+No question is downloaded at login, before or after: a test's questions are fetched only when the student ticks its
+honesty pledge, and only that test's.
+
+> **After deploying:** nothing to publish. Open the portal once as **admin** — that one visit marks every existing
+> test with who it is for and switches the students' pages to the shorter list. Then, if you like, choose how often
+> answers are sent in **Settings → Usage → Staying inside the free plan** (it starts at 60 seconds).
+
+- **Students load only the tests that are for them.** The dashboard used to download every active test of the stream
+  (other batches', single students' custom practice, every study-package chapter) and hide the ones not meant for
+  the student. Each test now carries who it is for (`aud`), and the student's page asks the database for just those.
+  Tests saved earlier are marked automatically the next time a teacher's screen lists them.
+- **Answers are sent to the server at most once a minute instead of after every click** (and the 30-second heartbeat
+  that rewrote the whole attempt is now every 2½ minutes, only when nothing else was sent). Every answer is still
+  kept **on the student's device** the moment it is picked and restored after a reload, exactly as before; a warning,
+  a tab switch, the start and the submit are still sent at once. **Settings → Usage** has the switch: after every
+  answer / every 30 s / every 60 s (default) / every 2 minutes, with a table of how many students a day fit the free
+  plan for each kind of test.
+  - The Live Monitor's progress bar ("12/30 answered") can now lag by up to that interval; tab switches still arrive
+    at once. A student counts as online when heard from in the last 3½ minutes.
+  - The pill in the test bar says **✓ Saved** as soon as the answer is safe on the device.
+- **The dashboard reads less:** the portal settings once a minute instead of five times a visit; practice history,
+  mistake notebook, topic report and progress load when the student scrolls to them; ranks are fetched for the ten
+  latest results (a button loads the older ones); the chapter picker no longer re-reads the test list on every click;
+  **View Result** uses the attempt already on the device.
+- **A question is read once per session.** Opening the same result again, or the notebook after a result, does not
+  download its questions a second time.
+- Older attempts no longer trigger up to 300 single question reads on the student's dashboard to find their chapter.
+
+**Good to know**
+
+- The shorter test list is what a student's page *asks for*. The rules still let a student read any active test of
+  their own stream, so this saves reads; it is not a new lock.
+- The first student login after deploying may still read the whole list if no admin has opened the portal since.
+- If the database ever refuses the shorter list (it would say an index is needed), the page falls back to the old
+  full list by itself; nothing breaks, it just reads more.
+
+---
+
 ## 2026-11-11 — Sealed answer keys, server-checked tests, results you release, AI job removed, new look
 
 A review of the whole codebase found that the anti-cheating measures could be walked around, because the browser was
