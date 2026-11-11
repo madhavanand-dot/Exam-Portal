@@ -141,6 +141,9 @@ the portal):
   - `level`: `Easy` | `Medium` | `Hard` (shown Easy / Moderate / Hard) or null = mixed. **Diagnostic tests of a topic
     are split into one Easy, one Moderate and one Hard test** and activated one by one; students see them in that order.
   - `studyPackage: {kind: "package"|"booster", program}` marks a study-package chapter.
+  - `aud`: who the test is for, as search tokens derived from `audience` — `["all"]`, `["b:tr01", …]` (batch codes in
+    lower case), `["u:<uid>", …]`, `["p:TYM"]` / `["p:ALL"]`, `["g:toppers"]`. **The portal writes it whenever
+    `audience` is written; never set or edit it yourself.** Students' pages list only tests whose `aud` matches them.
   - `answerRelease`: when students see marks, answers and solutions — `"immediate"` (default) | `"afterClose"`
     (after `endAt`) | `"manual"` (when a teacher presses **Release results**, which sets `answersReleased: true`).
     Chosen in the Activate window, together with `startAt` / `endAt`.
@@ -177,7 +180,8 @@ the portal):
 - `practiceAttempts`, `notebooks/{uid}`, `sessions`. (`aiDrafts` and `aiSolutions` are no longer readable.)
 - **`settings/*`:**
   - `settings/portal`: practice switch, programme prefixes, `groups` (`[{id, name}]`; default
-    `[{"id":"toppers","name":"Toppers"}]`) and `keysSealed` (true once the keys are sealed).
+    `[{"id":"toppers","name":"Toppers"}]`), `keysSealed` (true once the keys are sealed), `audIndexed` (true once
+    every test has its `aud` tokens) and `saveEverySec` (how often a test's answers are sent to the server; default 60).
   - `settings/aiRunner`: the GitHub token that starts the password-reset job (admin only; the name is historical).
     Never read it, never ask for it.
 
@@ -471,13 +475,12 @@ never treat `scoreClient` as the score.
   2. **Seal answer keys**,
   3. **Prepare ranks for past tests**.
 
-  Madhav reported them done on 2026-11-11; Claude could **not** verify that (it has no access to the Firebase
-  project). **Before you rely on it, look at that tab: each step shows a green ✓ and "done" when it is complete**, and
-  `settings/portal.keysSealed` is `true` once sealing has started (`keysSealedDoneAt` is set when it finished).
-  - Not sealed yet → `questions/{id}` still holds `correct_answer` and the portal behaves as before.
-  - Sealed → the key is only in `questionKeys/{id}`; the rules in §5 apply.
-
-  Your upload files are the same in both cases.
+  **All three are done** (Madhav's screenshot of that tab, 2026-11-11: rules live, keys sealed 11:49, ranks prepared
+  11:50). So: the key of every question is only in `questionKeys/{id}`, and the rules in §5 apply. Your upload files
+  are unchanged.
+- **On branch `claude/affectionate-cannon-4250tb`, not merged yet (free-plan work):** tests carry audience tokens
+  (`exams.aud`) so a student's page loads only its own tests; answers are sent to the server at most once per save
+  interval (`settings/portal.saveEverySec`, default 60); dashboard sections load when scrolled to. See C-020.
 
 Earlier status (2026-10-25):
 
@@ -1038,3 +1041,24 @@ next report what it shows (three green ✓, or which step is open). If a step is
 
 **Open on Madhav's side:** the student check in `DEPLOY_TODO.md` §0.6 (reload mid-test keeps the warning count; no
 Integrity tab for the student; Release results opens a held result) and the GitHub clean-up in §0.7.
+
+### C-020 · 2026-11-11 12:16 IST · report · Re: —
+**Subject:** Setup confirmed done; free-plan changes on the way (who a test is for, save interval)
+
+1. **The three setup steps of C-019 are confirmed** (Madhav's screenshot of Security & setup: rules live, keys sealed
+   11:49, ranks prepared 11:50 on 2026-11-11). Keys are in `questionKeys` only. Briefing §6 is updated.
+2. **New work on branch `claude/affectionate-cannon-4250tb`** (not live until Madhav merges it), so the portal stays
+   inside the free Firestore plan:
+   - **`exams.aud`** — audience tokens the portal derives from `audience` on every write (briefing §3). A student's
+     page asks the database only for active tests whose tokens match the student. Nothing changes in your test files:
+     keep sending `"audience": {…}` as before and never write `aud` yourself. A test created outside the portal
+     (console, script) without `aud` stays invisible to students until a teacher's screen lists it once.
+   - **Answers during a test are sent at most once per save interval** (`settings/portal.saveEverySec`, default 60 s;
+     Settings → Usage). They are on the student's device at once; the server copy — and the Live Monitor's progress —
+     can be up to a minute behind. Warnings, the start and the submit are immediate. If you check a running test in
+     Firestore, do not treat a missing recent answer as lost.
+   - Dashboard sections below the test list (practice history, notebook, topic report, progress) load when scrolled
+     into view. A browser agent that reads them must scroll to them first.
+   - Past Attempts shows ranks for the ten latest results; `#attMoreRanks` loads the rest.
+3. **Do differently:** nothing in upload files. When you verify a test as a student, expect to see only tests whose
+   audience includes that student.
