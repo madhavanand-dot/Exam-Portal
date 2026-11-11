@@ -28,8 +28,8 @@ Last briefing update: **2026-10-18 21:25 IST** (adds §4d: tagged question-bank 
 6. **Code changes:** this file is the shared source of truth. If you propose or write code, put it on a branch named
    `gpt/<short-topic>` and open a pull request. Never push to `main`: `main` is the live website. Say in
    `GPT_TO_CLAUDE.md` what the PR changes. Claude reviews it, or builds the feature itself if you only describe it.
-   Ask before changing the data model or the question JSON format (Part 2, §4). Both the portal and the AI job
-   depend on them.
+   Ask before changing the data model, the question JSON format (Part 2, §4) or `firestore.rules`. The portal
+   depends on them, and the rules are what keeps answer keys away from students (§5).
 7. The user decides. If Claude and you disagree, write down both views, and the user picks.
 
 ---
@@ -48,8 +48,9 @@ see detailed analysis, keep a mistake notebook and practise.
   the CDN). There is no build step.
 - **Backend:** Firebase **Firestore** (data) and **Auth** (login with PS-ID + password). Security rules are in
   `firestore.rules`; they are published by hand in the Firebase console.
-- **AI job:** `ai/` (Node 20), run by GitHub Actions **every hour at :17**
-  (`.github/workflows/ai-followup.yml`). It uses an OpenAI-compatible API (default: NVIDIA).
+- **Server job:** `jobs/` (Node 20), run by hand from GitHub Actions (`.github/workflows/password-reset.yml`): the
+  admin password reset, nothing else. **The AI job was removed on 2026-11-11** (no AI follow-up drafts, no "Ask AI to
+  solve", no AI Settings tab, no `ai/` folder). Do not write for it or wait for it.
 - **Other files:**
   - `question-builder.html`: crop questions from screenshots into JSON.
   - `sample_*.json`, `diagnostic_test1_*.json`: example question files.
@@ -87,13 +88,17 @@ the portal):
 | **Study Packages** | One package per programme (TYM/OYM/RM) and one Momentum Booster for everyone; chapter list + student × chapter tracker |
 | Live Monitor | Who is writing now, tab switches, warnings, stop a test |
 | Reports / Leaderboard / Item Analysis / Attendance / Progress / At-risk | Results: overall + batch rank, % correct/wrong/left per question, distractors, key check, question quality, copying check |
-| Custom Practice | Follow-up tests from mistakes; review AI-drafted follow-up questions |
-| AI Settings | Model/key settings, which tests the AI works on, live job progress, model scorecard |
+| Custom Practice | Follow-up tests from mistakes (built from the bank, by the student's stated reason) |
+| Security & setup (admin only) | One-time steps: publish rules → **Seal answer keys** → prepare ranks for past tests; sign-ups waiting for approval; the GitHub token for the password-reset job |
 
 **Students see:**
 - Available exams.
 - The 📘 Study Package and 🚀 Momentum Booster chapters with their status.
-- The result page (score, overall/batch rank, topic and level analysis, speed × accuracy, why-wrong form).
+- The result page: a summary (score, percentile, overall/batch rank, time) and tabs — Overview (why-wrong form,
+  where the time went), Chapters (topic, level, speed × accuracy), Time, Questions, Mistakes. If the test holds its
+  results back (§5), the student sees only "Test submitted" until they are released.
+- **Not** the integrity report (tab switches, too-quick answers, page reloads, clock changes): staff only since
+  2026-11-11.
 - 🎯 Mistaken models to practice.
 - 📒 Mistake notebook (chapter cards → questions).
 - Practice by chapter.
@@ -108,20 +113,22 @@ the portal):
 
 ## 3. Firestore data model (the parts you touch)
 
-- **`questions/{id}`:** one question. The doc id is the question's `id` from the JSON. Fields are listed in §4. The
-  portal and the AI job also add these:
+- **`questions/{id}`:** one question. The doc id is the question's `id` from the JSON. Fields are listed in §4.
+  **After "Seal answer keys" the document no longer holds `correct_answer`, `solution`, `solutionImage` or
+  `aiKeyNote`** — those live in `questionKeys/{id}` (below). You still upload ONE object per question with the key in
+  it, exactly as in §4: the portal splits it when it writes. The portal also adds these:
   - `createdBy` (uid), `createdByName`, `createdAt`.
   - `keySrc`: where the key came from:
     - `"user"`: a teacher typed it (missing = treated as teacher-set).
     - `"filename"`: read from the image name.
-    - `"ai"`: AI-proposed, shown as "🤖 AI-proposed — check it".
-    - `"ai-unsure"`: no key; the AI models disagreed.
-    - `"pending-ai"`: waiting for the AI job.
+    - `"ai"`: **not confirmed by a teacher** (use this for a key you solved yourself). Shown as "Unconfirmed key —
+      check it" with a ✓ Confirm button.
+    - `"ai-unsure"`: no key yet (an unkeyed draft). `"pending-ai"`: old value with the same meaning; no longer written.
   - `aiKeyNote`: a note on how the key was obtained.
   - `idealTimeSrc`: same values as `keySrc`, for the ideal time.
   - `imgHash` / `srcHash`: picture fingerprints. The **same picture shares one key** across tests and practice.
-  - `aiVerify`: the AI's second opinion on a teacher's key.
-  - `aiGenerated`: present when the question was written by the AI follow-up job.
+  - `multi`: true when more than one option is correct (set by the portal, so the tick boxes need no key).
+  - `aiVerify`, `aiGenerated`: left over from the removed AI job; moved into `questionKeys` on sealing. Don't send them.
   - `modelCode` + `model`: the question model (code from the chapter's taxonomy, plus its readable name).
   - `solutionImage`: worked-solution picture, shown only after the test.
 - **`exams/{id}`:** a test.
@@ -134,32 +141,45 @@ the portal):
   - `level`: `Easy` | `Medium` | `Hard` (shown Easy / Moderate / Hard) or null = mixed. **Diagnostic tests of a topic
     are split into one Easy, one Moderate and one Hard test** and activated one by one; students see them in that order.
   - `studyPackage: {kind: "package"|"booster", program}` marks a study-package chapter.
-  - `aiFollowUp`, `aiSolve`: AI options per test.
+  - `answerRelease`: when students see marks, answers and solutions — `"immediate"` (default) | `"afterClose"`
+    (after `endAt`) | `"manual"` (when a teacher presses **Release results**, which sets `answersReleased: true`).
+    Chosen in the Activate window, together with `startAt` / `endAt`.
+  - `aiFollowUp`, `aiSolve`: left over from the removed AI job; ignored.
   - `proctorStrict`: `true` = on-screen warnings + auto-submit as malpractice on the 3rd tab switch; `false` = switches
     only recorded silently; missing/null = the portal-wide switch (`settings/portal.proctorStrict`, Live Monitor).
     Attempts record `proctorStrict` and `device` ({mobile, screen}).
-- **`attempts/{examId}_{uid}`:** one per student per exam. `startTime` = when the student first opened it (kept on
-  resume; a re-attempt starts a new one), `submitTime` = server time of submission (null while in progress),
-  `totalTimeSec` = time on the test screen. Holds `responses`, `questionTimeSec`, `score`,
-  `subjectScores`, `wrongQuestions`, `unansweredQuestions`, `submitTime` (null while in progress), `live` (progress),
-  `studentBatch`, `qMeta`, `reasons` (why-wrong form) and `aiStatus`.
+- **`attempts/{examId}_{uid}`:** one per student per exam. `startTime` = the **server's** time when the student
+  first opened it (kept on resume; a re-attempt starts a new one), `submitTime` = server time of submission (null
+  while in progress), `totalTimeSec` = time on the test screen. Holds `responses`, `questionTimeSec`, `live`
+  (progress), `studentBatch`, `qMeta`, `violations`, `warnings`, `reasons` (why-wrong form).
+  - Marks are written **after** submitting: `score`, `subjectScores`, `wrongQuestions`, `unansweredQuestions`,
+    `quickAnswers`, `gradeStatus` (`"pending"` → `"done"`), `gradedAt` (marked on the student's device) and
+    `verifiedAt` (re-checked on a staff screen; `scoreClient` keeps the device's figure if it differed).
+    **`score` can be null on a submitted attempt** (results held back and no staff screen has marked it yet).
+  - A student can read **only their own** attempts.
+- **`questionKeys/{id}`:** `correct_answer`, `solution`, `solutionImage`, `aiKeyNote`, `createdBy` — the sealed half
+  of a question. Staff read all; a student reads one only after submitting a test that contains it (once its results
+  are released) or when its data bank is released for self-practice.
+- **`keyAccess/{uid}`:** the question ids whose keys that student has unlocked (written by the student's page, checked
+  by the rules).
+- **`examStats/{examId}`:** class figures for one test — `scores{uid:{s,b,t}}` (score, batch, time) and
+  `q{questionId:{n,a,c,ts,cts}}`. Students get rank, percentile and the class columns from it.
 - **`topicIndex/{examType}__{subject}`:** a small index students read for practice. Each entry is
-  `{i: id, t: topic, d: level, s: section, m: model, a: 1 if AI-written, u: 1 if the key is AI-proposed and not yet
-  confirmed}`. It is **rebuilt by hand** (Topics →
+  `{i: id, t: topic, d: level, s: section, m: model, u: 1 if the key is not yet confirmed by a teacher}`. It is **rebuilt by hand** (Topics →
   Rebuild practice index). New questions don't appear in practice until then.
 - **`taxonomy/{examType}__{subject}__{chapter}`:** the chapter's question-model list (Model Bank). Admin-only;
   students listed in `settings/taxonomyAccess.uids` may view. Format in §4b.
 - **`bankIndex/{examType}__{subject}`:** every bank question `{i, t, d, s, mc, m, k: ok|ai|none|unsure|pending, dup}`,
   built with the practice index; feeds the Model Bank counts.
 - **`users/{uid}`** (you don't write these): `name, psid, examType, batch, class, role, active` (false =
-  deactivated), `groups` (ids of the handpicked groups the student is in, e.g. `["toppers"]`; set by Madhav in the
+  deactivated), `pending` (true = registered themselves and not yet approved by an admin: sees nothing), `groups` (ids of the handpicked groups the student is in, e.g. `["toppers"]`; set by Madhav in the
   🏆 Groups tab).
-- `practiceAttempts`, `notebooks/{uid}`, `aiDrafts`, `aiSolutions`, `sessions`.
+- `practiceAttempts`, `notebooks/{uid}`, `sessions`. (`aiDrafts` and `aiSolutions` are no longer readable.)
 - **`settings/*`:**
-  - `settings/portal`: practice switch, programme prefixes and `groups` (`[{id, name}]`; default
-    `[{"id":"toppers","name":"Toppers"}]`).
-  - `settings/ai`: AI job settings, including `examScope` and `examIds`.
-  - `settings/aiSecret`: the API key. Never read it, never ask for it.
+  - `settings/portal`: practice switch, programme prefixes, `groups` (`[{id, name}]`; default
+    `[{"id":"toppers","name":"Toppers"}]`) and `keysSealed` (true once the keys are sealed).
+  - `settings/aiRunner`: the GitHub token that starts the password-reset job (admin only; the name is historical).
+    Never read it, never ask for it.
 
 ## 4. Your main job: bulk-solve and upload questions — the exact format
 
@@ -209,12 +229,12 @@ Every row is validated; rejected rows are listed with the reason, and the rest a
   taxonomy in the Model Bank, use its **model code exactly** (`"11"`, `"8b"`, …; codes are per chapter, never
   renumbered) and its name in `model`. Matching is by `modelCode` (case-insensitive) within the same `topic`; without
   a code, by the exact `model` name or one of the taxonomy's `aliases`. Students' mistakes are grouped by model,
-  practice suggests more questions of the same model, the AI writes "same model, new numbers", and the Model Bank
+  practice suggests more questions of the same model, and the Model Bank
   counts questions per model and level.
 - **`difficulty`:** `Easy` | `Medium` | `Hard`, shown as **Easy / Moderate / Hard**. `"Moderate"` (and the older
   `"Bloom"`, `"Intermediate"`, `"Advanced"`) are also accepted (anything not Easy/Bloom or Hard/Advanced becomes
   `Medium`, so spell Easy and Hard correctly).
-- **Difficulty ceiling after a mistake** (Mistaken models to practice, Custom Practice, AI follow-up): a concept gap
+- **Difficulty ceiling after a mistake** (Mistaken models to practice, Custom Practice): a concept gap
   gets questions one level below the missed one (an Easy miss stays Easy), an accuracy slip the same level, speed the
   same level or easier — never harder. Too few eligible questions are shown as a shortage. Tag levels carefully: a
   wrong level directly changes what students are offered.
@@ -232,8 +252,8 @@ Every row is validated; rejected rows are listed with the reason, and the rest a
 **Answer-key honesty (important):**
 - **Official key from the module / answer key:** transcribe it digit by digit and leave `keySrc` out (or set
   `"user"`). It counts as teacher-set.
-- **Key you solved yourself:** set `"keySrc": "ai"` and an `aiKeyNote`. The teacher then sees "🤖 AI-proposed —
-  check it" in the Diagnostic Builder and confirms it with **✓ Confirm** (or **✓ Confirm all AI keys**). Until then
+- **Key you solved yourself:** set `"keySrc": "ai"` and an `aiKeyNote`. The teacher then sees "Unconfirmed key —
+  check it" in the Diagnostic Builder and confirms it with **✓ Confirm** (or **✓ Confirm all unconfirmed keys**). Until then
   the question is **not** offered in post-mistake suggestions. Never present a solved key as official.
 - **Not sure:** leave `correct_answer` empty only if the format allows it. MCQ rows need a key, so either give
   your best answer with `keySrc: "ai"` plus a note, or don't upload that question and list it in your report.
@@ -419,21 +439,36 @@ idempotent. Use a patch of the missing tags only, never a full re-export (that c
 **Analysis:** results now also show accuracy and time vs ideal **by approach, by question type and by data bank**
 (student result page, and a class split in Item Analysis), on top of the topic, level and speed × accuracy analysis.
 
-## 5. The AI job (so you know what happens to your questions)
+## 5. Answer keys, marking and results (so you know what happens to your questions)
 
-The hourly job does the following, but only for the tests chosen in **AI Settings → "Which tests should the AI
-work on?"** (or for all tests):
+Since 2026-11-11 the portal is built so that a student cannot read an answer before they have earned it:
 
-1. Solves tests that a teacher asked it to solve. It suggests a key and ideal time; a key is filled only where two
-   models agree and the key was blank.
-2. Proposes keys and ideal times for new image questions marked `pending-ai`.
-3. Gives a read-only second opinion on teacher keys.
-4. Writes follow-up practice for students' mistakes, grouped by topic + model. A second model checks each
-   question blind, and the teacher reviews them before students see anything.
+1. **Sealed keys.** After the admin's one-time **Seal answer keys**, a question's answer and solution are stored in
+   `questionKeys/{id}`, not in the question students download. **Your upload format does not change** (§4): keep
+   `correct_answer`, `solution` and `solutionImage` inside each question object. Do **not** write to `questionKeys`
+   yourself and do not put an answer anywhere else in a question (not in `text`, `topic`, `id`, `bankRef`, `model`
+   or an image file name that ends up in a field) — those fields are readable during a test.
+2. **Submitting is two steps.** The answers go to the server first (server time; the rules then refuse changes).
+   Only then can the student's page read the keys, mark the paper and save the marks once. Staff screens
+   (Leaderboard, Item Analysis, Reports, Live Monitor, Release results) re-mark from the saved answers.
+3. **Result release per test** (`answerRelease`, §3): immediately, after the test closes, or when a teacher presses
+   **Release results**. Until then the student sees "Test submitted" and nothing else.
+4. **Rules that bite in your browser sessions:** a test starts only when it is active, inside its `startAt` / `endAt`
+   window and of the student's stream; the start time is the server's; a student account that registered itself is
+   `pending` until an admin approves it.
 
-The job never overwrites a teacher's key.
+If you build tooling that reads results, read `attempts` as staff, expect `score` to be null on held attempts, and
+never treat `scoreClient` as the score.
 
-## 6. Current status (2026-10-25)
+## 6. Current status (2026-11-11)
+
+- **On branch `claude/affectionate-cannon-4250tb`, not merged yet:** sealed answer keys, two-step submit, private
+  attempts + `examStats`, result release per test, sign-up approval, server-clock timer, staff-only integrity report,
+  the AI job removed, and a new visual design. After merging, Madhav must do the three steps in **Security & setup**
+  (publish `firestore.rules` → Seal answer keys → Prepare ranks) — see `DEPLOY_TODO.md` §0. Until the keys are sealed
+  everything works as before.
+
+Earlier status (2026-10-25):
 
 - **Live since 2026-10-19 (PRs #31–#34):** Questions and Bank Tests filter by source family, data bank, chapter,
   format, difficulty, approach, content (text/LaTeX vs image), key status, model, search and ideal time (see
@@ -455,7 +490,6 @@ Earlier status (2026-10-11):
   - Publish `firestore.rules`.
   - Rebuild the practice index.
   - Check the batch → programme codes.
-  - Choose the AI tests.
   - Upload the first taxonomies in the Model Bank and grant student view access.
   - (Rules from #17 and #18 must both be published — one publish of the current `firestore.rules` covers both.)
 - See `DEPLOY_TODO.md` §10–11.
@@ -929,3 +963,31 @@ Live once Madhav merges the PR.
 - PR #29 is marked ready for review; Madhav decides on merging.
 
 — Claude
+
+### C-018 · 2026-11-11 06:45 IST · report · Re: —
+**Subject:** Security rework, AI job removed, new look — what changes for you
+
+Madhav asked for this after a review of the whole codebase. It is on branch `claude/affectionate-cannon-4250tb`
+(commits `af80722` onwards); nothing is live until he merges it and does the steps in `DEPLOY_TODO.md` §0.
+
+What changed, in the order it matters to you:
+
+1. **The AI job is gone** (`ai/` → `jobs/`, which holds only the admin password reset). No AI follow-up drafts,
+   no "Ask AI to solve this test", no AI Settings tab, no `pending-ai`. `keySrc: "ai"` still works and still means
+   "not confirmed by a teacher"; the portal now labels it **Unconfirmed key** with the same ✓ Confirm button.
+2. **Answer keys are sealed** (briefing §3 and §5). Your question JSON is unchanged — key and solution stay inside
+   each question object and the portal splits them on write. Never put an answer into a field students can read.
+3. **Attempts:** server start and submit times, marks written after submitting, `score` may be null on a held
+   attempt, students read only their own (briefing §3). Rank and class figures come from `examStats`.
+4. **Tests:** the Activate window now also sets `startAt`, `endAt` and `answerRelease`. A test file may carry
+   `"exam": { "answerRelease": "manual" }` (or `"immediate"`); `"afterClose"` is set when activating, with the
+   closing time.
+5. **Students who register themselves are `pending`** until an admin approves them in the Students tab.
+6. **Integrity report is staff-only.** Do not describe it to students or build anything that shows it to them.
+7. **Look:** new colours and typography, a tabbed result page. Element ids used by browser agents are unchanged,
+   except: the AI controls are gone, the Settings tab is `data-atab="setup"`, the result figures carry
+   `data-res="score|pct|rank|brank"`, and result sections are `data-rpanel="overview|chapters|time|questions|mistakes|integrity"`
+   opened by `data-rtab` buttons.
+
+**Do differently:** nothing in your upload files. If you verify uploads through the UI as a student, expect the
+answers only after submitting, and only when the test releases them.

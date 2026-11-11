@@ -4105,7 +4105,10 @@ function uploadExamCheck(E, qs){
     if (![...PROGRAMS, "ALL"].includes(a.program)) return { error: `audience program must be one of ${PROGRAMS.join(", ")}, ALL` };
     audience.program = a.program;
   } else if (audience.mode !== "all") return { error: 'audience.mode must be "all", "batch", "group" or "program" (pick single students in the portal)' };
+  // "afterClose" needs a closing time, which is set when the test is activated
+  if (E.answerRelease != null && !["immediate", "manual"].includes(E.answerRelease)) return { error: 'exam.answerRelease must be "immediate" or "manual" (choose "after the test closes" in the Activate window)' };
   return { title, examType: t, durationMin, marks, audience,
+    ...(E.answerRelease === "manual" ? { answerRelease: "manual", answersReleased: false } : {}),
     shuffleOptions: !!E.shuffleOptions, keepOrder: E.keepOrder !== false,
     proctorStrict: E.proctorStrict === true ? true : E.proctorStrict === false ? false : null,
     ...(E.chapter ? { chapter: String(E.chapter).trim() } : {}), ...(E.subtopic ? { subtopic: String(E.subtopic).trim() } : {}) };

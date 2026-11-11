@@ -2,7 +2,7 @@
 
 A zero-build, single-page exam portal that replicates the NTA CBT (Computer-Based Test) experience for **NEET-UG (Medical)** and **JEE Mains (Engineering)** patterns. Pure HTML + CSS + vanilla JS, Firebase (Firestore + Auth) for the backend, MathJax for LaTeX, hosted free on GitHub Pages.
 
-Includes: custom-size exams (any subjects/counts/duration/scoring), image & cropped-image questions, fullscreen anti-cheat with malpractice auto-submit, per-question time tracking, randomized option order, topic-wise analytics, PDF scorecards, scoped **faculty** accounts, **targeted exam assignment** (all / batch / specific students), **cumulative item analysis** for staff, **bulk image import** straight from a folder of cropped questions, and **student self-study practice** by chapter.
+Includes: custom-size exams (any subjects/counts/duration/scoring), image & cropped-image questions, **answer keys sealed away from students** and server-checked attempts (see [Security model](#security-model)), fullscreen anti-cheat with malpractice auto-submit, per-question time tracking, randomized option order, topic-wise analytics, PDF scorecards, scoped **faculty** accounts, **targeted exam assignment** (all / batch / specific students), **cumulative item analysis** for staff, **bulk image import** straight from a folder of cropped questions, and **student self-study practice** by chapter.
 
 See [`CHANGELOG.md`](CHANGELOG.md) for what changed and when — including the follow-up steps some changes need (publishing rules, rebuilding the practice index).
 
@@ -13,7 +13,9 @@ See [`CHANGELOG.md`](CHANGELOG.md) for what changed and when — including the f
 | `index.html` | The entire SPA — login, admin/faculty dashboard, student dashboard, exam interface, result page. |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Make the portal installable as a phone app (PWA). `sw.js` is network-first and never caches Firebase calls. |
 | `question-builder.html` | Standalone local tool to crop images from screenshots/PDFs and export an exam JSON (base64 images embedded). Nothing is uploaded — runs in your browser. |
-| `firestore.rules` | Firestore security rules (super-admin / faculty / student, with ownership). |
+| `firestore.rules` | Firestore security rules (super-admin / faculty / student, with ownership; sealed keys, private attempts). |
+| `jobs/`, `.github/workflows/password-reset.yml` | The one server-side job: admin password reset without the old password (Firebase Admin SDK, started by hand). |
+| `tests/` | Security-rules tests that run against the Firebase emulator (`tests/README.md`). |
 | `sample_medical.json` | 20 sample NEET questions (5 per subject). |
 | `sample_engineering.json` | 21 sample JEE questions (5 MCQ + 2 Numerical per subject). |
 | `README.md` | This file. |
@@ -60,7 +62,8 @@ const firebaseConfig = {
 
 ## 3. Apply the security rules
 
-In the Firebase console: **Firestore Database → Rules**, paste the contents of `firestore.rules`, and **Publish**.
+In the Firebase console: **Firestore Database → Rules**, paste the contents of `firestore.rules`, and **Publish**. Then, as admin, open
+**Security & setup** in the portal and run **Seal answer keys** (on a new project there is nothing to move; it just switches sealing on).
 
 ## 4. Create the first admin (bootstrap)
 
@@ -88,17 +91,16 @@ As super-admin, open the **Faculty** tab → *Add Faculty* (name, email, passwor
 - **Bulk Import** tab → point at a **folder of cropped question images** and import them straight into the bank, no JSON needed. Subject and topic are read from the folder path (`Physics/Laws of Motion/q012.png`) with an editable review table; paste the answer key in any common format (`1-A 2-C`, `1. A` per line, or a bare `ABCDACBD…` run). Images are compressed in-browser to stay under Firestore's 1 MB per-document limit. Re-importing an existing `id` overwrites it.
 - **Answer Key** tab → patch `correct_answer` on questions **already uploaded**, scoped to one exam or a whole subject bank, with a preview of current → new before applying. Use this when a test went up with placeholder answers.
 - **Topics** tab → every distinct chapter name in the bank with question counts, and how many questions have **no topic**. Rename a chapter or merge several into one name. Also holds **Rebuild practice index** (see below).
-- **Exams** tab → set title, **duration**, **scoring** (type default / no-negative / custom), optional **shuffle option order**, choose **who can take it** (all of that type / specific batches / specific students), *Load Bank*, tick any questions (any subjects, any count — "First N" buttons help), *Create Exam*, then **Activate**. Multiple exams can be active at once for different audiences.
-- **Diagnostic Builder** tab → build a **topic-wise diagnostic test** straight from question **images** (pick files, drag & drop, or paste a screenshot with Ctrl+V) and/or matching bank questions filtered by topic. Per question: set the **answer** (dropdown, or paste a key in row order — `1-A 2-C`, `ABCD…`, or option numbers `1 3 2 4`), **topic**, **difficulty** and **ideal time**; reorder with ↑/↓ and remove with ✕. Options: keep question order (no shuffling, e.g. easy → hard), show ideal time to students, duration = total ideal time. **Edit** on any exam in the Exams tab opens it here to **change the key or add/remove questions**; if students already submitted, it offers to **re-grade** their attempts (old score kept as `scoreBeforeRegrade`). The key lives on the question, so the builder warns when a question is also used in other tests. Faculty can only change the key on questions they uploaded. The **Answer** column has A–D tick boxes: tick several for a **multiple-correct** question. **🖼 Replace image** swaps only the picture of a saved question (key, topic and times stay; also on the Questions tab). **🤖 Ask AI to solve this test** (after saving) has the AI job solve every question with two models and suggest a key and ideal time per question, shown next to yours with **Use** buttons — nothing changes until you Save; a blank key is filled automatically only when both models agree.
+- **Exams** tab → set title, **duration**, **scoring** (type default / no-negative / custom), optional **shuffle option order**, choose **who can take it** (all of that type / specific batches / specific students), *Load Bank*, tick any questions (any subjects, any count — "First N" buttons help), *Create Exam*, then **Activate**. The Activate window also sets an optional **opening / closing time** and **when students see their marks, the answers and the solutions**: right after submitting, after the test closes, or only when you press **Release results**. Multiple exams can be active at once for different audiences.
+- **Diagnostic Builder** tab → build a **topic-wise diagnostic test** straight from question **images** (pick files, drag & drop, or paste a screenshot with Ctrl+V) and/or matching bank questions filtered by topic. Per question: set the **answer** (dropdown, or paste a key in row order — `1-A 2-C`, `ABCD…`, or option numbers `1 3 2 4`), **topic**, **difficulty** and **ideal time**; reorder with ↑/↓ and remove with ✕. Options: keep question order (no shuffling, e.g. easy → hard), show ideal time to students, duration = total ideal time. **Edit** on any exam in the Exams tab opens it here to **change the key or add/remove questions**; if students already submitted, it offers to **re-grade** their attempts (old score kept as `scoreBeforeRegrade`). The key lives on the question, so the builder warns when a question is also used in other tests. Faculty can only change the key on questions they uploaded. The **Answer** column has A–D tick boxes: tick several for a **multiple-correct** question. **🖼 Replace image** swaps only the picture of a saved question (key, topic and times stay; also on the Questions tab).
 - **Custom Practice** tab → pick a test (and batch): for every student who took it, builds a **follow-up test from what they got wrong or skipped, driven by the reason they gave** — *concept gap* (didn't understand / forgot formula / didn't know / guessed) → same topic, one level below the question (Easy stays Easy); *accuracy slip* (misread / calculation / silly) → same topic, same level; *speed* (rushed / too lengthy / ran out of time) → same topic, same or easier level. Optionally re-tests the original questions and adds speed practice for "correct but slow". Preview each plan, then create — each test is assigned only to its student (inactive by default). Uses the practice index, so **Rebuild practice index** after adding questions.
 - **● Live Monitor** tab → real-time view of every active test: who is **writing now** (progress, question, time left, live/idle heartbeat),
   **tab switches / fullscreen exits** as they happen, and **⚡ too-quick answers** on tough questions (Hard under 25% of ideal time, min 8 s;
   Moderate under 15%, min 5 s). An **Alerts** feed (optional sound) lists starts, switches, quick answers and submissions. Per student:
   **📢 Warn** pops a message on their screen, **Stop** submits their test at once as malpractice with your reason. A "submitted in the last
   3 hours" list shows clean / flagged / malpractice. Faculty see only their own tests.
-- **AI Settings** tab *(admin only)* → API key, base URL, writer / checker / vision models and limits for the AI job; overrides the GitHub
-  variables/secrets. The key is stored in Firestore readable only by admins and never shown again (last 4 characters only). The job reports
-  each run here: key accepted?, models found?, what it did, and the provider's model list as suggestions.
+- **Security & setup** tab *(admin only)* → the three one-time steps (publish the rules → **Seal answer keys** → prepare ranks for
+  past tests), the list of sign-ups waiting for approval, and the GitHub token that lets the Students tab start the password-reset job.
 - **⚠ At-risk** tab → students showing warning signs over their last 3 tests (low or falling scores, skipping, dead time, missed tests, integrity problems, inactivity), scored **High risk / Watch**, with a link to each student's progress and mistake notebook.
 - **Item Analysis** also runs an **answer-key check** (top scorers disagree with the key), **question quality** (discrimination index, unused options) and a **copying check** (shared wrong answers).
 - **Students** get a **📒 Mistake notebook** (wrong + skipped questions by chapter, notes, cleared flags, untimed retry) and chapter-wise **progress across tests**. Staff see both in the **Progress** tab.
@@ -113,7 +115,8 @@ As super-admin, open the **Faculty** tab → *Add Faculty* (name, email, passwor
 - Log in → **Available Exams** lists every active exam targeted to you; **Start** unlocks after ticking the **honesty pledge** (by type, batch, or direct assignment) → **Start Exam (Fullscreen)**.
 - Timer (red under 5 min), subject tabs, NTA-colour palette, Mark for Review, Save & Next, auto-save every 30 s, auto-submit at 0:00.
 - **Proctoring:** the teacher sees the attempt **live** (heartbeat every 30 s, tab switches instantly, too-quick answers), can send a warning that pops up on screen, or stop the test. Exam runs in fullscreen; switching tabs / leaving fullscreen / leaving the window is recorded. After **3 warnings** the test auto-submits and is flagged **malpractice** (with a logged reason + timestamps).
-- On submit: an **🛡 Integrity report** (tab switches with times, tough questions answered too quickly, the pledge, and the teacher's note — or a "✅ Honest attempt" recognition), instant score, percentile, rank, subject breakdown, **topic-wise weak-area analysis**, a **"Why did these go wrong?" form** (reason + optional note for each wrong/skipped question, saved on the attempt, feeds Custom Practice), a **concept verdict** per topic (✅ Understood / 🟡 Understood — slow / 🟠 Partly / ❌ Not yet) with the **level reached**, a **level-wise** table (Easy → Moderate → Hard, cleared at ≥60%), a **speed × accuracy diagnosis** per topic (Mastered / Correct but slow / Wrong & fast / Wrong & slow / Skipped, measured against each question's ideal time, with a "what to do next" line), per-question table with time spent, **Pace Analysis** (avg per attempted question, slow questions over 2 min) and their **5 slowest questions**, error log (wrong + unanswered with images), CSV download, and **Print / Save as PDF** scorecard.
+- On submit: a summary (score ring, percentile, overall and batch rank, time) and tabs — **Overview** (a **"Why did these go wrong?" form**: reason + optional note for each wrong/skipped question, saved on the attempt, feeds Custom Practice; and **"Where did your time go?"**), **Chapters** (topic-wise weak areas, a **concept verdict** per topic with the **level reached**, a **level-wise** table, a **speed × accuracy diagnosis** against each question's ideal time), **Time** (pace, slowest questions), **Questions** (every question with time, class comparison and diagnosis) and **Mistakes** (wrong + skipped with solutions). CSV download, test PDF and **Print / save this report**. If the test holds its results back, the student sees only "Test submitted" until they are released.
+- The **🛡 Integrity report** (tab switches with times, page reloads, device-clock changes, time over the limit, a corrected score, tough questions answered too quickly, a staff note) is a tab on the result **for staff only**; students never see it.
 
 **Practice by Chapter (student self-study):**
 
@@ -156,40 +159,25 @@ For school exams that don't line up with the Aakash schedule, a student can buil
 
 ---
 
-## AI follow-up practice (optional)
+## Security model
 
-When a test has **🤖 AI follow-up practice** ticked (Diagnostic Builder; on by default for new diagnostic tests), every submission is queued
-(`attempts.aiStatus = "queued"`). An hourly GitHub Actions job (`.github/workflows/ai-followup.yml` → `ai/main.mjs`):
+What a student's browser is allowed to do is decided by `firestore.rules`, not by the page:
 
-1. waits up to **2 hours** for the student's "why did these go wrong?" reasons (uses timing if none are given);
-2. for each wrong / skipped / correct-but-slow question, asks the **writer** model for new questions aimed at that mistake
-   (concept gap → one level below the question, Easy stays Easy; accuracy slip → same level with the same kind of trap; speed → same or easier level),
-   transcribing image-only questions first with a vision model;
-3. has a **different checker** model solve every question **blind** (question + options only) →
-   ✅ **Verified** (same answer) / ⚠ **Disputed** (different answer) / ❌ **Rejected** (flaw found, left out);
-4. writes the result to `aiDrafts/{attemptId}`.
+- **Answer keys are sealed.** After **Security & setup → Seal answer keys**, a question is two documents: `questions/{id}` (text,
+  picture, options — what a test downloads) and `questionKeys/{id}` (answer, solution — staff only). A student can read a key only
+  after **submitting** a test that contains the question, once that test's results are released (their page records it in
+  `keyAccess/{uid}`, and the rules check the attempt), or when the question's data bank is released for self-practice.
+- **Attempts.** A test starts only if it is active, inside its opening / closing time and of the student's stream. The start time
+  and the submit time are the **server's**. While writing, a student cannot set a score or touch a teacher's fields; after
+  submitting, the answers cannot change. The marks are then one write from the student's page — and every staff screen
+  (Leaderboard, Item Analysis, Reports, Live Monitor, Release results) re-marks from the saved answers, corrects a different
+  figure and keeps the device's as `scoreClient`.
+- **Privacy.** A student reads only their own attempts. Rank, percentile and class columns come from `examStats/{examId}`.
+- **Sign-up.** An account created from the login page is `pending` and sees no test or question until an admin approves it.
+- **The timer** follows the server's clock (re-synced with every saved answer); setting the device clock back is ignored and recorded.
 
-A teacher opens **Custom Practice → 🤖 AI follow-up drafts → Review**. The draft opens in the Diagnostic Builder: fix keys, edit wording, delete,
-then **Save** — the questions join the bank (tagged `aiGenerated`, with the original AI key kept for audit) and the test is created for **that
-student only**. Nothing is visible to the student until you confirm **Publish**.
-
-### One-time setup
-
-1. **Publish `firestore.rules`** (adds the `aiDrafts` and `settings` collections) — Firebase console → Firestore → Rules.
-2. **AI key** — create one at <https://build.nvidia.com> (any OpenAI-compatible provider works) and paste it in the portal's **AI Settings** tab
-   (or, alternatively, as the GitHub repo secret `AI_API_KEY` — the AI Settings tab wins if both are set).
-3. **Firebase service account** — Firebase console → Project settings → **Service accounts → Generate new private key**. Paste the whole JSON file
-   as the secret `FIREBASE_SERVICE_ACCOUNT`. (It is admin access: keep it only in GitHub Secrets, never in the repo or the page.)
-4. **Run it once** — repo → **Actions → AI follow-up practice → Run workflow**. The first step checks that the model ids exist and prints the
-   available ones if not. After that it runs every hour on its own.
-
-Models, base URL and limits are best changed in the portal's **AI Settings** tab. As a fallback, GitHub repo **variables** work too: `AI_GEN_MODEL` (default `openai/gpt-oss-120b`), `AI_VERIFY_MODEL`
-(default `nvidia/llama-3.3-nemotron-super-49b-v1.5`), `AI_VISION_MODEL` (default `meta/llama-3.2-90b-vision-instruct`), `AI_BASE_URL`
-(default NVIDIA), `AI_RPM` (default 30). Keep writer and checker from **different model families** so they don't share blind spots.
-
-Notes: NVIDIA's free tier is rate-limited (~40 requests/min) and intended for prototyping, not production — move to a paid endpoint by changing
-`AI_BASE_URL`/`AI_API_KEY` if you rely on it. GitHub pauses scheduled workflows in repos with no commits for 60 days (re-enable on the Actions tab).
-Both AIs can agree on a wrong answer, so teacher review is mandatory by design. `node ai/test.mjs` runs the offline tests (also run before every job).
+What the rules cannot do: stop a student photographing the screen or using a second phone, or mark a paper on the server
+without the student's page or a teacher's screen being open (there is no server process — only the manual password-reset job).
 
 ## 7. Deploy on GitHub Pages
 
@@ -203,9 +191,9 @@ No build step, no CLI, no Firebase Hosting config needed. Firebase is used **onl
 ## Notes & limitations
 
 - Deleting a student or faculty from the UI removes their `/users` profile only; remove the Auth login itself from **Authentication → Users** in the console.
-- **Anti-cheat is client-side.** It deters casual cheating (tab-switching, copy/paste, leaving fullscreen) but cannot stop a determined student on a second device or with JavaScript disabled. True lockdown needs a dedicated exam browser or webcam proctoring.
-- Rank/percentile are computed client-side per test: overall (everyone who wrote it) and batch-wise (same batch; the batch is saved on each attempt). To keep scores private, tighten the `attempts` read rule in `firestore.rules` to owner-or-staff (a comment marks where).
+- **Proctoring (fullscreen, tab-switch warnings) is client-side.** It deters casual cheating but cannot stop a determined student on a second device. What is enforced on the server is listed under [Security model](#security-model). True lockdown needs a dedicated exam browser or webcam proctoring.
+- Rank/percentile per test: overall (everyone who wrote it) and batch-wise (same batch; the batch is saved on each attempt). Students get them from `examStats/{examId}`, which each submission adds to and staff screens rebuild.
 - An attempt document id is `{examId}_{uid}`, so a refresh mid-exam resumes the same attempt (responses auto-saved). Shuffled question/option order is cached in `sessionStorage` for the duration of the exam; answers are always stored against the original option letters so reviews stay correct.
 - Base64 images live inside each question document (Firestore's 1 MB/doc limit applies — fine for normal cropped questions). All image uploads (Bulk Import, Diagnostic Builder, JSON upload) are re-encoded to ≤1000 px wide and ~180 KB (WebP/PNG/JPEG, whichever is smallest; option images ~60 KB) so exams load fast; **Questions → 🗜 Compress stored images** shrinks images already in the bank. Previously Bulk Import compresses to ~700 KB per image to stay inside it. **For a whole coaching package** (thousands of image questions) this approach runs into the free tier's 1 GiB storage ceiling — at that scale move images to Firebase Storage and keep only URLs in Firestore.
-- **Collections used:** `users`, `questions`, `exams`, `attempts`, `sessions`, plus `topicIndex` (small per-subject chapter index students read for practice) and `practiceAttempts` (student self-study, deliberately separate from graded `attempts`). All are covered by `firestore.rules`; the catch-all rule denies anything else, so a new collection needs a rules change **published in the console** before it will work.
+- **Collections used:** `users`, `questions`, `questionKeys`, `keyAccess`, `exams`, `attempts`, `examStats`, `sessions`, `settings`, `notebooks`, plus `topicIndex` / `bankIndex` (small per-subject indexes), `taxonomy`, `topicReports`, `passwordResets` and `practiceAttempts` (student self-study, deliberately separate from graded `attempts`). All are covered by `firestore.rules`; the catch-all rule denies anything else, so a new collection needs a rules change **published in the console** before it will work.
 - LaTeX renders via MathJax 3 from CDN; write inline math as `$...$`.
