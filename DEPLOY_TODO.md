@@ -15,7 +15,7 @@ portal works exactly as before — and answer keys are still inside the question
 
 ### 0.1 Merge and reload
 
-- [ ] Merge the pull request for branch `claude/affectionate-cannon-4250tb` into `main`. Wait about a minute.
+- [x] Merge the pull request into `main` — done: PR #45, live since 2026-11-11 11:44 IST.
 - [ ] Open the portal and press **Ctrl+Shift+R**. **Check:** the login page is dark blue with an orange **A** mark.
       Ask students who had the portal open to reload it as well (a page loaded before the merge cannot submit once
       the rules in 0.2 are live).
