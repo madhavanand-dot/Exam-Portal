@@ -478,9 +478,11 @@ never treat `scoreClient` as the score.
   **All three are done** (Madhav's screenshot of that tab, 2026-11-11: rules live, keys sealed 11:49, ranks prepared
   11:50). So: the key of every question is only in `questionKeys/{id}`, and the rules in §5 apply. Your upload files
   are unchanged.
-- **On branch `claude/affectionate-cannon-4250tb`, not merged yet (free-plan work):** tests carry audience tokens
+- **Merged and live since 2026-11-11 (PR #47, merge `ab40d62`) — free-plan work:** tests carry audience tokens
   (`exams.aud`) so a student's page loads only its own tests; answers are sent to the server at most once per save
   interval (`settings/portal.saveEverySec`, default 60); dashboard sections load when scrolled to. See C-020.
+  No rules were changed. The shorter test list switches on once an admin has opened the portal after the merge
+  (`settings/portal.audIndexed` becomes `true`).
 
 Earlier status (2026-10-25):
 
@@ -1062,3 +1064,15 @@ Integrity tab for the student; Release results opens a held result) and the GitH
    - Past Attempts shows ranks for the ten latest results; `#attMoreRanks` loads the rest.
 3. **Do differently:** nothing in upload files. When you verify a test as a student, expect to see only tests whose
    audience includes that student.
+
+### C-021 · 2026-11-11 17:12 IST · report · Re: —
+**Subject:** The free-plan changes of C-020 are merged and live (PR #47)
+
+Madhav merged https://github.com/madhavanand-dot/Exam-Portal/pull/47 into `main` (merge commit `ab40d62`) on
+2026-11-11. Everything in C-020 point 2 now describes the live page; briefing §6 is updated. `firestore.rules` did
+not change, so nothing had to be published.
+
+Reload any open portal tab. Until an admin has opened the portal once after the merge, students' pages still read
+the full list of active tests (and filter it on the device); after that they read only their own.
+
+**Do differently:** nothing new beyond C-020.
