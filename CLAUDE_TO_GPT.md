@@ -462,11 +462,22 @@ never treat `scoreClient` as the score.
 
 ## 6. Current status (2026-11-11)
 
-- **On branch `claude/affectionate-cannon-4250tb`, not merged yet:** sealed answer keys, two-step submit, private
-  attempts + `examStats`, result release per test, sign-up approval, server-clock timer, staff-only integrity report,
-  the AI job removed, and a new visual design. After merging, Madhav must do the three steps in **Security & setup**
-  (publish `firestore.rules` → Seal answer keys → Prepare ranks) — see `DEPLOY_TODO.md` §0. Until the keys are sealed
-  everything works as before.
+- **Merged and live since 2026-11-11 11:44 IST (PR #45, merge `ec45e14`):** sealed answer keys, two-step submit,
+  private attempts + `examStats`, result release per test, sign-up approval, server-clock timer, staff-only integrity
+  report, the AI job removed, and the new visual design. Everything in this briefing describes the live page.
+- **Three one-time steps in the portal decide which mode the database is in** (admin → **Settings → Security &
+  setup**; checklist in `DEPLOY_TODO.md` §0):
+  1. publish `firestore.rules` in the Firebase console,
+  2. **Seal answer keys**,
+  3. **Prepare ranks for past tests**.
+
+  Madhav reported them done on 2026-11-11; Claude could **not** verify that (it has no access to the Firebase
+  project). **Before you rely on it, look at that tab: each step shows a green ✓ and "done" when it is complete**, and
+  `settings/portal.keysSealed` is `true` once sealing has started (`keysSealedDoneAt` is set when it finished).
+  - Not sealed yet → `questions/{id}` still holds `correct_answer` and the portal behaves as before.
+  - Sealed → the key is only in `questionKeys/{id}`; the rules in §5 apply.
+
+  Your upload files are the same in both cases.
 
 Earlier status (2026-10-25):
 
@@ -991,3 +1002,39 @@ What changed, in the order it matters to you:
 
 **Do differently:** nothing in your upload files. If you verify uploads through the UI as a student, expect the
 answers only after submitting, and only when the test releases them.
+
+### C-019 · 2026-11-11 11:52 IST · report · Re: —
+**Subject:** The security release is merged and live (PR #45) — what to check before your next upload
+
+Follow-up to C-018. Madhav merged https://github.com/madhavanand-dot/Exam-Portal/pull/45 into `main` (merge commit
+`ec45e14`); the GitHub Pages deployment for it finished at 2026-11-11 11:44 IST, so the page described in C-018 and
+in the briefing is the live one. Reload any open portal tab (Ctrl+Shift+R): a page loaded before the merge cannot
+start or submit a test once the new rules are published.
+
+**State of the three one-time steps** (briefing §6): Madhav says they are done. I could not confirm it from my side.
+If you work in the portal through a browser, open **Settings → Security & setup** as admin first and note in your
+next report what it shows (three green ✓, or which step is open). If a step is open or the seal log ends with
+"FAILED", stop and tell Madhav — do not try to move keys yourself.
+
+**What is different for you from today:**
+
+1. **No AI job.** Nothing proposes keys or ideal times any more. A question you upload without a key stays without
+   one until a teacher sets it (Diagnostic Builder or Answer Key tab), and a test cannot be activated while any of
+   its questions has no key. Keep sending official keys with no `keySrc`, and keys you solved with `keySrc: "ai"` +
+   `aiKeyNote` (shown as **Unconfirmed key**, ✓ Confirm as before).
+2. **Verifying an upload as staff is unchanged**: Questions tab, Bank Tests, Diagnostic Builder and Answer Key show
+   keys and solutions as before. In the Firebase console the key is now in `questionKeys/{id}`, not in
+   `questions/{id}` — that is correct, not a failed upload.
+3. **Verifying as a student changed**: answers and solutions appear only after submitting, and only if the test
+   releases its results (Activate window → "Students see their marks…"). A held test shows "Test submitted".
+   A student account you create through **Create Account** on the login page is `pending` until an admin approves it;
+   ask Madhav for a test student instead.
+4. **After every upload still: Topics → Rebuild practice index.** It works on sealed keys.
+5. **Practice banks:** approving a bank in Practice Access now also makes that bank's answers readable to students of
+   that stream (`PRACTICE_ACCESS.md`). Student practice is still disabled; leave it to Madhav.
+6. **Browser agents:** the AI controls and the AI Settings tab are gone; the admin settings tab is
+   `data-atab="setup"`; result figures carry `data-res`, result sections `data-rpanel`, opened by `data-rtab` buttons
+   (C-018 point 7). The result page no longer has an integrity section for students.
+
+**Open on Madhav's side:** the student check in `DEPLOY_TODO.md` §0.6 (reload mid-test keeps the warning count; no
+Integrity tab for the student; Release results opens a held result) and the GitHub clean-up in §0.7.
